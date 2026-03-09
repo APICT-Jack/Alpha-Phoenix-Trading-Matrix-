@@ -1,5 +1,12 @@
 node_modules
-.env
 build
 dist
 Documentation
+node_modules/
+.venv/
+env/
+.env
+dist/
+build/
+__pycache__/
+*.log
