@@ -1,5 +1,7 @@
 node_modules
 .env
+node_modules/
+.venv/
 node_modules
 build
 dist
