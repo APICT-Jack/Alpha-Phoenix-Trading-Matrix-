@@ -1,0 +1,393 @@
+/* ----------------------------------------------------
+   LIBRARY CARD COMPONENT STYLES
+   Original LibraryCard component with library-card classes
+   ---------------------------------------------------- */
+
+.library-card {
+  background: var(--education-card-bg);
+  border: 1px solid var(--education-border);
+  border-radius: var(--education-radius-lg);
+  padding: var(--education-space-md);
+  transition: all var(--education-transition-normal);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+}
+
+.library-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--education-shadow-card-hover);
+  border-color: var(--education-primary);
+}
+
+.library-card--premium {
+  border: 2px solid var(--education-accent);
+  background: linear-gradient(135deg, var(--education-card-bg) 0%, var(--education-bg-secondary) 100%);
+}
+
+.library-card--compact {
+  padding: var(--education-space-sm);
+  min-height: 160px;
+}
+
+.library-card--horizontal {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--education-space-md);
+  padding: var(--education-space-md);
+  min-height: auto;
+}
+
+.library-card--interactive {
+  cursor: pointer;
+}
+
+.library-card--interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--education-shadow-card-hover);
+  border-color: var(--education-primary);
+}
+
+/* Card Header */
+.library-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--education-space-sm);
+  margin-bottom: var(--education-space-sm);
+}
+
+.library-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--education-bg-secondary);
+  border-radius: var(--education-radius-md);
+  color: var(--education-primary);
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.library-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-card__title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--education-space-xs);
+  margin-bottom: var(--education-space-2xs);
+}
+
+.library-card__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--education-text);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.library-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--education-space-sm);
+  font-size: 0.75rem;
+  color: var(--education-text-tertiary);
+}
+
+.library-card__category {
+  background: var(--education-bg-secondary);
+  padding: 2px 8px;
+  border-radius: var(--education-radius-sm);
+  color: var(--education-text-secondary);
+}
+
+.library-card__version {
+  color: var(--education-text-tertiary);
+}
+
+/* Card Content */
+.library-card__content {
+  margin-bottom: var(--education-space-sm);
+  flex: 1;
+}
+
+.library-card__description {
+  font-size: 0.8rem;
+  color: var(--education-text-secondary);
+  line-height: 1.4;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Card Stats */
+.library-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--education-space-sm);
+  margin-bottom: var(--education-space-md);
+  padding: var(--education-space-sm) 0;
+  border-top: 1px solid var(--education-border);
+  border-bottom: 1px solid var(--education-border);
+}
+
+.library-card__stat {
+  display: flex;
+  align-items: center;
+  gap: var(--education-space-xs);
+  font-size: 0.75rem;
+  justify-content: center;
+}
+
+.library-card__stat-icon {
+  font-size: 0.7rem;
+  color: var(--education-text-tertiary);
+}
+
+.library-card__stat-value {
+  font-weight: 600;
+  color: var(--education-text);
+}
+
+/* Card Actions */
+.library-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--education-space-sm);
+}
+
+/* Download Button */
+.library-download-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--education-space-xs);
+  padding: 6px 12px;
+  background: var(--education-bg-secondary);
+  border: 1px solid var(--education-border);
+  border-radius: var(--education-radius-md);
+  color: var(--education-text);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--education-transition-fast);
+  flex: 1;
+  justify-content: center;
+}
+
+.library-download-btn:hover {
+  background: var(--education-primary);
+  color: white;
+  border-color: var(--education-primary);
+}
+
+.library-download-btn__icon {
+  font-size: 0.7rem;
+}
+
+.library-download-btn__text {
+  font-size: 0.7rem;
+}
+
+/* Details Button */
+.library-details-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: var(--education-bg-secondary);
+  border: 1px solid var(--education-border);
+  border-radius: var(--education-radius-md);
+  color: var(--education-text-tertiary);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all var(--education-transition-fast);
+  width: 32px;
+  height: 32px;
+}
+
+.library-details-btn:hover {
+  background: var(--education-primary);
+  color: white;
+  border-color: var(--education-primary);
+}
+
+/* Horizontal Layout Variants */
+.library-card--horizontal .library-card__header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.library-card--horizontal .library-card__content {
+  flex: 2;
+  margin-bottom: 0;
+}
+
+.library-card--horizontal .library-card__stats {
+  display: none;
+}
+
+.library-card--horizontal .library-card__description {
+  -webkit-line-clamp: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Compact Variants */
+.library-card--compact .library-card__icon {
+  width: 40px;
+  height: 40px;
+  font-size: 1rem;
+}
+
+.library-card--compact .library-card__title {
+  font-size: 0.85rem;
+}
+
+.library-card--compact .library-card__description {
+  font-size: 0.75rem;
+}
+
+.library-card--compact .library-card__stats {
+  margin-bottom: var(--education-space-sm);
+}
+
+/* List View Adaptations */
+.education-list .library-card {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--education-space-md);
+  padding: var(--education-space-md);
+  min-height: auto;
+  height: auto;
+}
+
+.education-list .library-card__header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 0;
+  flex: 1;
+  gap: var(--education-space-sm);
+}
+
+.education-list .library-card__info {
+  min-width: 0;
+}
+
+.education-list .library-card__title {
+  font-size: 0.9rem;
+  -webkit-line-clamp: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.education-list .library-card__meta {
+  display: none;
+}
+
+.education-list .library-card__content {
+  flex: 2;
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.education-list .library-card__description {
+  -webkit-line-clamp: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.education-list .library-card__stats {
+  display: none;
+}
+
+.education-list .library-card__actions {
+  flex-shrink: 0;
+  gap: var(--education-space-xs);
+}
+
+.education-list .library-download-btn {
+  padding: 4px 8px;
+  font-size: 0.7rem;
+}
+
+.education-list .library-download-btn__text {
+  display: none;
+}
+
+.education-list .library-details-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 0.7rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .library-card {
+    padding: var(--education-space-sm);
+    min-height: 160px;
+  }
+  
+  .education-list .library-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--education-space-sm);
+  }
+  
+  .education-list .library-card__header {
+    width: 100%;
+  }
+  
+  .education-list .library-card__content {
+    width: 100%;
+  }
+  
+  .education-list .library-card__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .library-card__stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--education-space-xs);
+  }
+}
+
+@media (max-width: 480px) {
+  .library-card {
+    padding: var(--education-space-xs);
+    min-height: 140px;
+  }
+  
+  .library-card__icon {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+  }
+  
+  .library-card__title {
+    font-size: 0.8rem;
+  }
+  
+  .library-card__description {
+    font-size: 0.75rem;
+  }
+}

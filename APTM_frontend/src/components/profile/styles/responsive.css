@@ -1,0 +1,433 @@
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Large Desktop (1200px+) */
+@media (min-width: 1200px) {
+  .headerContent,
+  .profileHeader,
+  .mainContent {
+    max-width: 1200px;
+  }
+}
+
+/* Tablet (769px - 1199px) */
+@media (max-width: 1199px) {
+  .headerContent,
+  .profileHeader,
+  .mainContent {
+    max-width: 100%;
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
+  }
+  
+  .galleryGrid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  
+  .overviewGrid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+}
+
+/* Mobile (768px and below) */
+@media (max-width: 768px) {
+  .headerContent {
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+  }
+
+  .headerInfo {
+    display: none;
+  }
+  
+  .headerStats {
+    display: none;
+  }
+  
+  .backText, .actionText {
+    display: none;
+  }
+  
+  .backButton, .followButton, .messageButton, .editButton {
+    padding: var(--space-xs);
+  }
+
+  .backButton {
+    order: 1;
+  }
+  
+  .headerActions {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .banner {
+    min-height: 160px;
+  }
+  
+  .bannerOverlay {
+    padding: var(--space-md) var(--space-sm) var(--space-sm);
+  }
+  
+  .profileHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-md);
+    margin: 0 var(--space-sm);
+  }
+  
+  .avatarSection {
+    align-items: flex-start;
+  }
+  
+  .avatar, .avatarPlaceholder {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius-lg);
+  }
+  
+  .onlineIndicator {
+    width: 14px;
+    height: 14px;
+    bottom: 6px;
+    right: 6px;
+  }
+
+  .profileBadges {
+    max-width: none;
+    justify-content: flex-start;
+  }
+
+  .profileName {
+    font-size: 1.5rem;
+  }
+  
+  .profileUsername {
+    font-size: 0.9375rem;
+    margin-bottom: var(--space-sm);
+  }
+  
+  .profileBio {
+    -webkit-line-clamp: 3;
+    font-size: 0.875rem;
+    margin-bottom: var(--space-md);
+  }
+  
+  .profileDetails {
+    gap: var(--space-sm);
+  }
+  
+  .mainContent {
+    padding: var(--space-md) var(--space-sm) 80px var(--space-sm); /* Increased bottom padding for mobile tabs */
+  }
+
+  /* Hide desktop tabs, show mobile tabs */
+  .tabs {
+    display: none;
+  }
+
+  .mobileTabs {
+    display: block; /* Make mobile tabs visible */
+  }
+
+  .overviewGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .galleryGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-xs);
+  }
+  
+  .galleryCategories {
+    gap: var(--space-xs);
+  }
+  
+  .galleryCategory {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.75rem;
+  }
+
+  .createPostCard {
+    padding: var(--space-md);
+  }
+  
+  .postCard {
+    padding: var(--space-md);
+  }
+  
+  .postHeader {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  
+  .postAuthor {
+    width: 100%;
+  }
+  
+  .deletePostButton {
+    align-self: flex-end;
+  }
+
+  .modalOverlay {
+    padding: var(--space-sm);
+  }
+  
+  .modalContent {
+    max-width: 95%;
+    max-height: 95%;
+  }
+
+  .newsCard {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .newsImage {
+    width: 60px;
+    height: 60px;
+    align-self: center;
+  }
+
+  .chatRoomsList {
+    grid-template-columns: 1fr;
+  }
+  
+  .chartsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Comment cards full width on mobile */
+  .comment {
+    padding: var(--space-sm);
+    margin: 0;
+    width: 100%;
+  }
+
+  .commentsList {
+    padding: 0;
+    width: 100%;
+  }
+}
+
+/* Small Mobile (480px and below) */
+@media (max-width: 480px) {
+  .header {
+    padding: var(--space-xs) var(--space-sm);
+  }
+  
+  .headerActions {
+    gap: var(--space-xs);
+  }
+
+  .backButton, .followButton, .messageButton, .editButton {
+    padding: 6px;
+    font-size: 0.75rem;
+  }
+
+  .banner {
+    min-height: 140px;
+  }
+  
+  .bannerOverlay {
+    padding: var(--space-sm) var(--space-xs) var(--space-xs);
+  }
+
+  .profileHeader {
+    margin: 0 var(--space-xs);
+    gap: var(--space-sm);
+  }
+
+  .avatar, .avatarPlaceholder {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .onlineIndicator {
+    width: 12px;
+    height: 12px;
+    bottom: 4px;
+    right: 4px;
+  }
+  
+  .badge {
+    padding: 4px 8px;
+    font-size: 0.625rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .profileName {
+    font-size: 1.25rem;
+  }
+
+  .mainContent {
+    padding: var(--space-sm) var(--space-xs) 80px var(--space-xs); /* Increased bottom padding for mobile tabs */
+  }
+
+  .card {
+    padding: var(--space-md);
+  }
+  
+  .galleryGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-xs);
+  }
+  
+  .statsGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-xs);
+  }
+  
+  .statNumber {
+    font-size: 1.125rem;
+  }
+  
+  .statLabel {
+    font-size: 0.6875rem;
+  }
+
+  .mobileTabsList {
+    padding: 0 4px;
+  }
+  
+  .mobileTab {
+    font-size: 0.625rem;
+    min-height: 44px;
+    padding: 6px 2px;
+  }
+  
+  .mobileTabIcon {
+    font-size: 1rem;
+  }
+
+  .modalCloseButton {
+    top: var(--space-sm);
+    right: var(--space-sm);
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+  }
+
+  .createPostHeader {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  
+  .postInput {
+    width: 100%;
+  }
+
+  /* Even more compact comments on small mobile */
+  .comment {
+    padding: var(--space-xs);
+  }
+
+  .commentContent p {
+    font-size: 0.75rem;
+  }
+}
+
+/* Ultra-small Mobile (360px and below) */
+@media (max-width: 360px) {
+  .galleryGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .mobileTabsList {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  /* Hide less important tabs on very small screens */
+  .mobileTab:nth-child(4),
+  .mobileTab:nth-child(5) {
+    display: none;
+  }
+  
+  .headerActions {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+}
+
+/* ===== DARK MODE ENHANCEMENTS ===== */
+[data-theme="dark"] .header.scrolled {
+  background: rgba(30, 41, 59, 0.95);
+}
+
+[data-theme="dark"] .card {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .card:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .postInput,
+[data-theme="dark"] .commentInput input,
+[data-theme="dark"] .modalInput {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-dark);
+}
+
+[data-theme="dark"] .galleryCategory {
+  background: var(--color-bg-tertiary);
+}
+
+[data-theme="dark"] .statCard:hover {
+  background: var(--color-bg-tertiary);
+}
+
+/* ===== ACCESSIBILITY ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus styles for keyboard navigation */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-border: #000000;
+    --color-text-secondary: #000000;
+    --shadow-md: 0 2px 4px -1px rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* Print styles */
+@media print {
+  .header,
+  .tabs,
+  .mobileTabs,
+  .postActions,
+  .createPostCard,
+  .galleryActions {
+    display: none !important;
+  }
+  
+  .profileContainer {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .card {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #000 !important;
+  }
+}

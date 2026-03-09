@@ -1,0 +1,243 @@
+/* Chat.module.css */
+
+.chatContainer {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+  position: relative;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 350px;
+  height: 100%;
+  background: var(--color-card);
+  border-right: 1px solid var(--color-border);
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+}
+
+.sidebar.open {
+  transform: translateX(0);
+}
+
+.sidebar.closed {
+  transform: translateX(-100%);
+}
+
+/* Main Area */
+.mainArea {
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Welcome Screen */
+.welcomeScreen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  padding: var(--space-xl);
+  overflow-y: auto;
+}
+
+.welcomeContent {
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+  animation: fadeIn 0.5s ease;
+}
+
+.welcomeIcon {
+  font-size: 5rem;
+  margin-bottom: var(--space-lg);
+  opacity: 0.8;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.welcomeContent h2 {
+  font-size: 2.5rem;
+  margin-bottom: var(--space-md);
+  color: var(--color-text);
+  font-weight: 700;
+  font-family: var(--font-heading);
+}
+
+.welcomeContent p {
+  font-size: 1.1rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-xl);
+}
+
+.welcomeFeatures {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  text-align: left;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.feature:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+}
+
+.featureIcon {
+  font-size: 1.5rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-primary);
+  border-radius: var(--radius-md);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.feature span {
+  color: var(--color-text);
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+/* Loading State */
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100%;
+  background: var(--color-bg);
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--color-border);
+  border-top: 4px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--space-md);
+}
+
+.loadingContainer p {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    max-width: 320px;
+    z-index: 1000;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .sidebar.closed {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .welcomeContent {
+    max-width: 400px;
+    padding: var(--space-md);
+  }
+
+  .welcomeIcon {
+    font-size: 4rem;
+  }
+
+  .welcomeContent h2 {
+    font-size: 2rem;
+  }
+
+  .feature {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .featureIcon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcomeContent {
+    padding: var(--space-sm);
+  }
+
+  .welcomeIcon {
+    font-size: 3rem;
+  }
+
+  .welcomeContent h2 {
+    font-size: 1.75rem;
+  }
+
+  .welcomeContent p {
+    font-size: 1rem;
+  }
+
+  .feature {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .featureIcon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

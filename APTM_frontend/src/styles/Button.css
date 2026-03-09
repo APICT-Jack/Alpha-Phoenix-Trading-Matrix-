@@ -1,0 +1,70 @@
+/* ================ BUTTONS ================ */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-lg);
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+    border: none;
+    font-size: 1rem;
+    line-height: 1.5;
+    text-align: center;
+    white-space: nowrap;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .btn-primary {
+    background: var(--gradient-primary);
+    color: var(--color-white);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .btn-accent {
+    background: var(--gradient-accent);
+    color: var(--color-white);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .btn-accent:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .btn-outline {
+    background: transparent;
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+  }
+  
+  .btn-outline:hover {
+    background: var(--color-primary);
+    color: var(--color-white);
+  }
+  
+  .btn-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Responsive Styles */
+  @media (max-width: 480px) {
+    .btn {
+      width: 100%;
+    }
+  }

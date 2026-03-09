@@ -1,0 +1,168 @@
+/* ================ LOGO STYLES ================ */
+.logo-mark {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  
+  .logo-squares {
+    position: relative;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .logo-square {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--color-accent);
+    border-radius: 2px;
+    animation: 
+        shuffle 12s infinite cubic-bezier(0.68, -0.55, 0.27, 1.55),
+        pulse 2s infinite ease-in-out;
+    opacity: 0.9;
+  }
+  
+  .square-1 { animation-delay: 0s, 0s; }
+  .square-2 { animation-delay: 0.2s, 0.2s; }
+  .square-3 { animation-delay: 0.4s, 0.4s; }
+  
+  /* Keyframes for 7-shape formation and shuffling */
+  @keyframes shuffle {
+    /* Start in 7-shape */
+    0%, 20% {
+        transform: translate(0, 0);
+        background: var(--color-accent);
+    }
+    21%, 40% {
+        transform: translate(12px, 0);
+        background: var(--color-primary);
+    }
+    41%, 60% {
+        transform: translate(12px, 12px);
+        background: var(--color-accent-hover);
+    }
+    /* Return to 7-shape */
+    61%, 80% {
+        transform: translate(0, 12px);
+        background: var(--color-primary-hover);
+    }
+    /* Shuffled state */
+    81%, 100% {
+        transform: translate(6px, 6px);
+        background: var(--color-accent);
+    }
+  }
+  
+  /* 7-shape formation when paused */
+  .logo-container:hover .logo-square {
+    animation-play-state: paused;
+  }
+  
+  .logo-container:hover .square-1 {
+    transform: translate(0, 0) !important;
+    background: var(--color-accent) !important;
+  }
+  
+  .logo-container:hover .square-2 {
+    transform: translate(12px, 0) !important;
+    background: var(--color-primary) !important;
+  }
+  
+  .logo-container:hover .square-3 {
+    transform: translate(0, 12px) !important;
+    background: var(--color-accent-hover) !important;
+  }
+  
+  /* Alternative animation */
+  .logo-squares {
+      display: grid;
+      position: relative;
+      width: 36px;
+      height: 36px;
+  }
+  
+  .logo-square {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: var(--color-accent);
+      border-radius: 2px;
+      animation: shuffle 8s infinite cubic-bezier(0.65, 0, 0.35, 1);
+      opacity: 0.9;
+  }
+  
+  .square-1 { animation-delay: 0s; }
+  .square-2 { animation-delay: 0.2s; }
+  .square-3 { animation-delay: 0.4s; }
+  
+  @keyframes shuffle {
+      0%, 100% {
+          transform: translate(0, 0) rotate(0deg);
+          background: var(--color-accent);
+      }
+      16% {
+          transform: translate(18px, 0) rotate(90deg);
+          background: var(--color-primary);
+      }
+      32% {
+          transform: translate(18px, 18px) rotate(180deg);
+          background: var(--color-accent-hover);
+      }
+      48% {
+          transform: translate(0, 18px) rotate(270deg);
+          background: var(--color-primary-hover);
+      }
+      64% {
+          transform: translate(9px, 9px) rotate(360deg);
+          background: var(--color-accent);
+      }
+      80% {
+          transform: translate(-9px, 9px) rotate(450deg);
+          background: var(--color-primary);
+      }
+  }
+  
+  /* Add trail effect */
+  .logo-square::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: inherit;
+      opacity: 0;
+      border-radius: inherit;
+      animation: trail 2s infinite;
+  }
+  
+  .square-1::after { animation-delay: 0.1s; }
+  .square-2::after { animation-delay: 0.3s; }
+  .square-3::after { animation-delay: 0.5s; }
+  
+  @keyframes trail {
+      0% {
+          transform: scale(1);
+          opacity: 0.6;
+      }
+      100% {
+          transform: scale(1.8);
+          opacity: 0;
+      }
+  }
+  
+  /* Hover effects */
+  .logo-container:hover .logo-square {
+      animation-play-state: paused;
+      transform: scale(1.3);
+      filter: drop-shadow(0 0 4px currentColor);
+  }
+  
+  .logo-container:hover .logo-square::after {
+      animation: none;
+      opacity: 0;
+  }

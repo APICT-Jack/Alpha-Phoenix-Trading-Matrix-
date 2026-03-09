@@ -1,0 +1,342 @@
+
+.messageInputContainer {
+  background: var(--color-card);
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-md);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+/* AI Suggestion Banner */
+.suggestionBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--gradient-primary);
+  color: white;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-md);
+  animation: slideIn 0.3s ease;
+  box-shadow: var(--shadow-md);
+}
+
+.suggestionContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1;
+}
+
+.aiIcon {
+  font-size: 1.2rem;
+  background: rgba(255, 255, 255, 0.2);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+}
+
+.suggestionText {
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestionActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.useSuggestionButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.useSuggestionButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.dismissButton {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: var(--space-xs);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dismissButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
+
+/* Input Area */
+.inputArea {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xs);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+
+.inputArea:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.1);
+}
+
+.iconButton,
+.emojiButton,
+.sendButton {
+  background: none;
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-text);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+}
+
+.iconButton:hover:not(:disabled),
+.emojiButton:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  transform: scale(1.05);
+}
+
+.iconButton.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.sendButton {
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.sendButton:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+.sendButton:disabled,
+.iconButton:disabled,
+.emojiButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--color-text-tertiary);
+  transform: none;
+  box-shadow: none;
+}
+
+.inputWrapper {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.textInput {
+  width: 100%;
+  min-height: 44px;
+  max-height: 120px;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: none;
+  transition: all 0.2s ease;
+  line-height: 1.5;
+}
+
+.textInput:focus {
+  outline: none;
+}
+
+.textInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.textInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* AI Processing Indicator */
+.aiProcessing {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.8rem;
+  color: var(--color-text-tertiary);
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  margin-top: 4px;
+  border: 1px solid var(--color-border);
+  z-index: 10;
+}
+
+.aiProcessing .spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-border);
+  border-top: 2px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Quick Actions */
+.quickActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.quickAction {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.quickAction:hover:not(:disabled) {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: transparent;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.quickAction:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .messageInputContainer {
+    padding: var(--space-sm);
+  }
+
+  .inputArea {
+    gap: var(--space-xs);
+  }
+
+  .iconButton,
+  .emojiButton,
+  .sendButton {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+  }
+
+  .textInput {
+    min-height: 40px;
+    font-size: 0.9rem;
+  }
+
+  .quickActions {
+    gap: var(--space-xs);
+  }
+
+  .quickAction {
+    padding: 4px var(--space-sm);
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .suggestionBanner {
+    padding: var(--space-xs) var(--space-sm);
+    flex-direction: column;
+    gap: var(--space-xs);
+    align-items: stretch;
+  }
+
+  .suggestionActions {
+    justify-content: flex-end;
+  }
+
+  .quickActions {
+    justify-content: center;
+  }
+
+  .iconButton,
+  .emojiButton,
+  .sendButton {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
+  .textInput {
+    font-size: 0.85rem;
+  }
+}

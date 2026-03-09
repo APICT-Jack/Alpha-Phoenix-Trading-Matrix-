@@ -1,0 +1,176 @@
+/* ----------------------------
+   Academy / Course Cards
+   ---------------------------- */
+.tm-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  padding: var(--space-lg);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  transition: transform var(--transition-speed) var(--transition-easing), box-shadow var(--transition-speed) var(--transition-easing), border-color var(--transition-speed) var(--transition-easing);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  animation: fadeInUp 0.6s var(--transition-easing) forwards;
+}
+
+.tm-card:nth-child(odd) { animation-delay: 0.06s; }
+.tm-card:nth-child(even) { animation-delay: 0.12s; }
+
+/* top accent line for card */
+.tm-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--transition-speed) var(--transition-easing);
+  opacity: 0.95;
+}
+
+.tm-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-primary);
+}
+
+.tm-card:hover::before {
+  transform: scaleX(1);
+}
+
+/* Keyboard hint for clickable card */
+.tm-card[tabindex="0"] {
+  cursor: pointer;
+}
+
+.tm-card:focus {
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.08);
+  transform: translateY(-4px);
+}
+
+/* Card header */
+.tm-card-header {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* Profile / Avatar */
+.tm-card-profile {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  background: var(--gradient-primary);
+  color: var(--color-white);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+  border: 2px solid rgba(255,255,255,0.03);
+}
+
+/* Title & subtitle */
+.tm-card-title {
+  font-weight: 700;
+  font-size: var(--fs-lg);
+  font-family: var(--font-heading);
+  color: var(--color-text);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.tm-card-sub {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  margin-top: var(--space-xs);
+  line-height: 1.25;
+}
+
+/* Bio/truncated text */
+.tm-card-bio {
+  min-height: 48px;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Card meta / footer */
+.tm-card-meta {
+  display: flex;
+  gap: var(--space-md);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  align-items: center;
+  margin-top: auto;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.tm-card-meta > div {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+/* Card variation: highlighted / featured */
+.tm-card.featured {
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-card) 92%, var(--color-primary) 2%), var(--color-card));
+  box-shadow: 0 10px 30px rgba(37,99,235,0.06);
+}
+
+.tm-card.ghost {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  box-shadow: none;
+}
+
+/* Card actions row */
+.tm-card-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-top: var(--space-sm);
+}
+
+/* Favorite button */
+.tm-favorite-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-xs);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-speed-fast);
+  color: var(--color-text-tertiary);
+}
+
+.tm-favorite-btn:hover {
+  color: var(--color-warning);
+  background: rgba(245,158,11,0.1);
+}
+
+.tm-favorite-btn.active {
+  color: var(--color-warning);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .tm-card {
+    padding: var(--space-md);
+  }
+}

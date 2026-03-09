@@ -1,0 +1,995 @@
+/* ProfileHeader.module.css*/
+
+/*CSS VARIABLES */
+:root {
+  --ig-blue: #225cb3;
+  --ig-gradient: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  --ig-light-bg: #fafafa;
+  --ig-border: #dbdbdb;
+  --ig-text-secondary: #8e8e8e;
+  --ig-hover-bg: rgba(0, 0, 0, 0.05);
+  --ig-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --ig-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* PROFILE HEADER */
+.profileHeader {
+  position: relative;
+  width: 100%;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  margin-top: 0;
+  transition: var(--ig-transition);
+}
+
+/*BANNER SECTION*/
+.bannerSection {
+  position: relative;
+  height: var(--banner-height);
+  width: 100%;
+  overflow: hidden;
+  background: var(--gradient-1);
+}
+
+.bannerImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.bannerSection:hover .bannerImage {
+  transform: scale(1.02);
+}
+
+.bannerPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-1);
+  color: white;
+  font-size: var(--text-lg);
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.bannerEditOverlay {
+  position: absolute;
+  top: var(--space-lg);
+  right: var(--space-xxl);
+  z-index: 10;
+}
+
+.editBannerBtn {
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: var(--radius-full);
+  color: white;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(4px);
+  transition: var(--ig-transition);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.editBannerBtn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/*AVATAR SECTION*/
+.avatarContainer {
+  position: absolute;
+  top: calc(var(--banner-height) - var(--avatar-overlap));
+  left: var(--space-xxl);
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  z-index: 20;
+  transition: var(--ig-transition);
+}
+
+.avatarWrapper {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--gradient-2);
+  border: 4px solid var(--bg-secondary);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: var(--ig-transition);
+}
+
+.avatarWrapper:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarInitial {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-2);
+  color: white;
+  font-size: 3rem;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.avatarOnline {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  border: 3px solid var(--bg-secondary);
+}
+
+.avatarOnline.online {
+  background: var(--success);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  animation: pulse 2s infinite;
+}
+
+.avatarOnline.offline {
+  background: var(--text-tertiary);
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/*HEADER CONTENT*/
+.headerContent {
+  padding: calc(var(--avatar-size) - 35px) var(--space-xxl) var(--space-xl) var(--space-xxl);
+  background: var(--bg-secondary);
+  width: 100%;
+}
+
+.userInfoSection {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/*USER NAME ROW */
+.userNameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.userName {
+  font-size: var(--text-xxl);
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+  font-family: inherit;
+}
+
+.userUsername {
+  font-size: var(--text-md);
+  color: var(--text-tertiary);
+  font-weight: 400;
+  font-family: inherit;
+}
+
+.userBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ig-blue);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
+  vertical-align: middle;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.userBio {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+  max-width: 800px;
+  line-height: 1.6;
+  white-space: pre-line;
+  font-family: inherit;
+}
+
+.userBio a {
+  color: var(--ig-blue);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.userBio a:hover {
+  text-decoration: underline;
+}
+
+/*USER DETAILS */
+.userDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.detailItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  transition: var(--ig-transition);
+  font-family: inherit;
+  cursor: default;
+}
+
+.detailItem.clickable {
+  cursor: pointer;
+}
+
+.detailItem.clickable:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  background: var(--bg-hover);
+  box-shadow: var(--ig-card-shadow);
+}
+
+.detailIcon {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* SOCIAL LINKS*/
+.socialLinksContainer {
+  margin: var(--space-lg) 0;
+  padding: var(--space-lg) 0;
+  border-top: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--border-primary);
+  background: linear-gradient(to right, transparent, rgba(var(--primary-rgb), 0.02), transparent);
+}
+
+.socialLinksTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  margin-bottom: var(--space-md);
+  letter-spacing: 0.5px;
+  font-family: inherit;
+}
+
+.socialLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.socialLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--ig-transition);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.socialLink::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 0;
+}
+
+.socialLink:hover {
+  transform: translateY(-2px);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.socialLink:hover::before {
+  opacity: 0.1;
+}
+
+.socialLink i, .socialLink svg {
+  position: relative;
+  z-index: 1;
+  font-size: 16px;
+}
+
+.socialPlatformName {
+  position: relative;
+  z-index: 1;
+  font-weight: 500;
+}
+
+/* Platform hover colors */
+.socialLink.twitter:hover { background: #1DA1F2; }
+.socialLink.linkedin:hover { background: #0A66C2; }
+.socialLink.github:hover { background: #24292e; }
+.socialLink.whatsapp:hover { background: #25D366; }
+.socialLink.facebook:hover { background: #1877F2; }
+.socialLink.instagram:hover { background: var(--ig-gradient); background-size: 200% auto; }
+.socialLink.youtube:hover { background: #FF0000; }
+.socialLink.tiktok:hover { background: #000000; }
+.socialLink.pinterest:hover { background: #BD081C; }
+.socialLink.snapchat:hover { background: #FFFC00; color: #000; }
+.socialLink.telegram:hover { background: #0088cc; }
+.socialLink.discord:hover { background: #5865F2; }
+
+/* USER STATS*/
+.userStats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin: var(--space-lg) 0;
+  padding: var(--space-sm) 0;
+}
+
+.userStats .statItem {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  text-align: center;
+  background: none;
+  border: none;
+  padding: 0;
+  min-width: auto;
+  transition: opacity 0.2s ease;
+}
+
+.userStats .statItem:hover {
+  opacity: 0.7;
+  transform: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.userStats .statValue {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+  font-family: inherit;
+}
+
+.userStats .statLabel {
+  font-size: 12px;
+  color: var(--ig-text-secondary);
+  text-transform: lowercase;
+  letter-spacing: normal;
+  font-weight: 400;
+  font-family: inherit;
+}
+
+/*  ACTION BUTTONS */
+.actionButtons {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  padding: 6px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: var(--ig-transition);
+  min-width: 100px;
+  font-family: inherit;
+  position: relative;
+  overflow: hidden;
+}
+
+.actionBtn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.actionBtn:active::after {
+  width: 200px;
+  height: 200px;
+}
+
+.actionBtn.primary {
+  background: var(--ig-blue);
+  color: white;
+  border: none;
+}
+
+.actionBtn.primary:hover {
+  background: #1877f2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 149, 246, 0.3);
+}
+
+.actionBtn.secondary {
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.actionBtn.secondary:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+  transform: translateY(-1px);
+}
+
+.actionBtn.following {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.actionBtn.following:hover {
+  background: #ff3040;
+  color: white;
+  border-color: #ff3040;
+}
+
+/*  POLL STYLES */
+.pollContainer {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--ig-card-shadow);
+}
+
+.pollHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.pollQuestion {
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  margin: 0;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.pollExpired {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  font-family: inherit;
+}
+
+.pollVoted {
+  font-size: var(--text-xs);
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.1);
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  font-family: inherit;
+}
+
+.pollOptions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.pollOptionWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.pollOptionButton {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--ig-transition);
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: inherit;
+}
+
+.pollOptionButton:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.pollOptionButton.pollOptionResults {
+  cursor: default;
+}
+
+.pollOptionButton.pollOptionSelected {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  font-weight: 500;
+}
+
+.pollOptionButton:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+.pollOptionText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.pollPercentage {
+  font-weight: 600;
+  margin-left: var(--space-sm);
+  font-size: var(--text-xs);
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  font-family: inherit;
+}
+
+.pollProgressBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(var(--primary-rgb), 0.1);
+  border-radius: var(--radius-md);
+  z-index: 1;
+  transition: width 0.3s ease;
+  pointer-events: none;
+}
+
+.pollFooter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-primary);
+  flex-wrap: wrap;
+  font-family: inherit;
+}
+
+.pollTotalVotes {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: inherit;
+}
+
+.pollDot {
+  color: var(--border-primary);
+}
+
+.pollMultipleChoice {
+  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.1);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  font-family: inherit;
+}
+
+/* MOBILE SCALING */
+
+@media (max-width: 1024px) {
+  .headerContent {
+    padding-left: var(--space-xl);
+    padding-right: var(--space-xl);
+  }
+  
+  .avatarContainer {
+    left: var(--space-xl);
+  }
+}
+
+@media (max-width: 768px) {
+  .profileHeader {
+    margin-top: 0;
+  }
+  
+  .bannerSection {
+    height: calc(var(--banner-height) * 0.8);
+  }
+  
+  .avatarContainer {
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(var(--avatar-size) * 0.9);
+    height: calc(var(--avatar-size) * 0.9);
+    top: calc((var(--banner-height) * 0.8) - (var(--avatar-overlap) * 0.9));
+  }
+  
+  .avatarWrapper {
+    border-width: 3px;
+  }
+  
+  .headerContent {
+    padding: calc((var(--avatar-size) * 0.9) - 20px) var(--space-md) var(--space-lg) var(--space-md);
+  }
+  
+  .userInfoSection {
+    text-align: center;
+  }
+  
+  .userNameRow {
+    justify-content: center;
+    flex-direction: column;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-md);
+  }
+  
+  .userName {
+    font-size: calc(var(--text-xxl) * 0.9);
+  }
+  
+  .userDetails {
+    justify-content: center;
+  }
+  
+  .userStats {
+    justify-content: center;
+    gap: var(--space-xl);
+  }
+  
+  .userStats .statValue {
+    font-size: var(--text-md);
+  }
+  
+  .userStats .statLabel {
+    font-size: 11px;
+  }
+  
+  .actionButtons {
+    justify-content: center;
+  }
+  
+  .actionBtn {
+    min-width: 120px; 
+  }
+  
+  .socialLinks {
+    justify-content: center;
+  }
+  
+  .socialLink {
+    padding: 8px 14px;
+  }
+  
+  .socialPlatformName {
+    display: inline-block; 
+    font-size: 13px;
+  }
+  
+  /* Banner edit button */
+  .bannerEditOverlay {
+    top: var(--space-md);
+    right: var(--space-md);
+  }
+  
+  .editBannerBtn {
+    padding: 6px 12px;
+    font-size: var(--text-xs);
+  }
+}
+
+@media (max-width: 640px) {
+  .socialLinks {
+    gap: var(--space-xs);
+  }
+  
+  .socialLink {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .socialLink i, .socialLink svg {
+    font-size: 14px;
+  }
+  
+  .socialPlatformName {
+    font-size: 12px;
+  }
+  
+  .userStats {
+    gap: var(--space-lg);
+  }
+}
+
+@media (max-width: 480px) {
+  .bannerSection {
+    height: calc(var(--banner-height) * 0.7);
+  }
+  
+  .avatarContainer {
+    width: calc(var(--avatar-size) * 0.8);
+    height: calc(var(--avatar-size) * 0.8);
+    top: calc((var(--banner-height) * 0.7) - (var(--avatar-overlap) * 0.8));
+  }
+  
+  .headerContent {
+    padding: calc((var(--avatar-size) * 0.8) - 15px) var(--space-sm) var(--space-md) var(--space-sm);
+  }
+  
+  .userName {
+    font-size: calc(var(--text-xxl) * 0.8);
+  }
+  
+  .userUsername {
+    font-size: var(--text-sm);
+  }
+  
+  .userBio {
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-md);
+    padding: 0 var(--space-sm);
+  }
+  
+  .userStats {
+    gap: var(--space-lg);
+  }
+  
+  .userStats .statValue {
+    font-size: 16px;
+  }
+  
+  .userStats .statLabel {
+    font-size: 10px;
+  }
+  
+  .detailItem {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+  
+  .actionBtn {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-width: 90px;
+  }
+
+  .socialLink {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  
+  .socialLink i, .socialLink svg {
+    font-size: 13px;
+  }
+  
+  .socialPlatformName {
+    font-size: 11px;
+  }
+  
+  /* Poll styles */
+  .pollOptionButton {
+    padding: 10px 12px;
+    font-size: var(--text-xs);
+  }
+  
+  .pollFooter {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .pollPercentage {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+}
+
+/*VERY SMALL DEVICES */
+@media (max-width: 360px) {
+  .socialLink {
+    padding: 6px 8px;
+  }
+  
+  .socialPlatformName {
+    font-size: 10px;
+  }
+  
+  .socialLink i, .socialLink svg {
+    font-size: 12px;
+  }
+  
+  .userStats {
+    gap: var(--space-md);
+  }
+  
+  .actionBtn {
+    min-width: 80px;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+}
+
+/* DARK MODE  */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ig-light-bg: #1a1a1a;
+    --ig-border: #2e2e2e;
+    --ig-text-secondary: #a8a8a8;
+    --ig-hover-bg: rgba(255, 255, 255, 0.1);
+  }
+  
+  .userStats .statLabel {
+    color: var(--ig-text-secondary);
+  }
+  
+  .actionBtn.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .socialLink {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .detailItem {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* TOUCH OPTIMIZATIONS */
+@media (hover: none) and (pointer: coarse) {
+  .avatarWrapper:hover {
+    transform: none;
+  }
+  
+  .actionBtn:hover {
+    transform: none;
+  }
+  
+  .statItem:hover {
+    opacity: 1;
+  }
+  
+  .socialLink:hover {
+    transform: none;
+  }
+  
+  .editBannerBtn:hover {
+    transform: none;
+  }
+  
+  /* Increase touch targets on mobile */
+  .actionBtn,
+  .socialLink,
+  .statItem,
+  .detailItem {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .socialLink {
+    min-height: 40px;
+  }
+}
+
+.actionBtn:focus-visible,
+.socialLink:focus-visible,
+.editBannerBtn:focus-visible {
+  outline: 2px solid var(--ig-blue);
+  outline-offset: 2px;
+}
+
+/* ANIMATIONS  */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.userInfoSection {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.socialLink {
+  animation: slideIn 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+/* animation for social links */
+.socialLink:nth-child(1) { animation-delay: 0.05s; }
+.socialLink:nth-child(2) { animation-delay: 0.1s; }
+.socialLink:nth-child(3) { animation-delay: 0.15s; }
+.socialLink:nth-child(4) { animation-delay: 0.2s; }
+.socialLink:nth-child(5) { animation-delay: 0.25s; }
+.socialLink:nth-child(6) { animation-delay: 0.3s; }
+.socialLink:nth-child(7) { animation-delay: 0.35s; }
+.socialLink:nth-child(8) { animation-delay: 0.4s; }

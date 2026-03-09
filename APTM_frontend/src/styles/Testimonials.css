@@ -1,0 +1,117 @@
+/* ================ TESTIMONIALS SECTION ================ */
+.testimonials-section {
+    padding: var(--space-xxl) 0;
+    background: var(--color-bg-secondary);
+  }
+  
+  .testimonials-slider {
+    display: flex;
+    gap: var(--space-lg);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: var(--space-md) 0;
+  }
+  
+  .testimonials-slider::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .testimonial-card {
+    scroll-snap-align: start;
+    flex: 0 0 350px;
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    transition: all var(--transition-speed) var(--transition-easing);
+  }
+  
+  .testimonial-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .testimonial-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+  }
+  
+  .user-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+  
+  .user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .user-info {
+    flex: 1;
+  }
+  
+  .user-info h4 {
+    font-size: 1.1rem;
+    margin-bottom: var(--space-xxs);
+  }
+  
+  .user-title {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+  }
+  
+  .rating {
+    color: var(--color-warning);
+    font-size: 0.9rem;
+  }
+  
+  .testimonial-text {
+    font-style: italic;
+    margin-bottom: var(--space-md);
+    position: relative;
+  }
+  
+  .testimonial-text::before,
+  .testimonial-text::after {
+    content: '"';
+    font-size: 2rem;
+    line-height: 0;
+    color: var(--color-text-tertiary);
+    position: absolute;
+  }
+  
+  .testimonial-text::before {
+    top: 0;
+    left: -15px;
+  }
+  
+  .testimonial-text::after {
+    bottom: -20px;
+    right: -15px;
+  }
+  
+  .testimonial-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+  }
+  
+  .profit {
+    color: var(--color-success);
+    font-weight: 500;
+  }
+  
+  /* Responsive Styles */
+  @media (max-width: 768px) {
+    .testimonial-card {
+      flex: 0 0 300px;
+    }
+  }
