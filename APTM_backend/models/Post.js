@@ -1,27 +1,9 @@
-// models/Post.js
+// models/Post.js - COMPLETE FIXED VERSION WITH CORRECT SCHEMA ORDER
 import mongoose from 'mongoose';
 
-const mediaSchema = new mongoose.Schema({
-  url: {
-    type: String,
-    required: true
-  },
-  type: {
-    type: String,
-    enum: ['image', 'video', 'document', 'gif'],
-    required: true
-  },
-  thumbnail: String, // For video thumbnails
-  duration: Number, // For videos
-  size: Number, // File size in bytes
-  mimeType: String,
-  dimensions: {
-    width: Number,
-    height: Number
-  }
-});
-
-// In models/Post.js - Update replySchema
+// ============================================
+// REPLY SCHEMA (must be defined first)
+// ============================================
 const replySchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -53,6 +35,9 @@ const replySchema = new mongoose.Schema({
   }
 });
 
+// ============================================
+// COMMENT SCHEMA (depends on replySchema)
+// ============================================
 const commentSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -69,7 +54,7 @@ const commentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-  replies: [replySchema],
+  replies: [replySchema], // Now replySchema is defined
   createdAt: {
     type: Date,
     default: Date.now
@@ -80,6 +65,9 @@ const commentSchema = new mongoose.Schema({
   }
 });
 
+// ============================================
+// REPOST SCHEMA
+// ============================================
 const repostSchema = new mongoose.Schema({
   originalPostId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -102,6 +90,65 @@ const repostSchema = new mongoose.Schema({
   }
 });
 
+// ============================================
+// MEDIA SCHEMA (with chart support)
+// ============================================
+const mediaSchema = new mongoose.Schema({
+  url: {
+    type: String,
+    required: true
+  },
+  type: {
+    type: String,
+    enum: ['image', 'video', 'document', 'gif', 'chart'],
+    required: true
+  },
+  thumbnail: String,
+  duration: Number,
+  size: Number,
+  mimeType: String,
+  dimensions: {
+    width: Number,
+    height: Number
+  },
+  // Chart-specific fields
+  chartData: {
+    symbol: {
+      type: String,
+      default: 'BTCUSDT'
+    },
+    interval: {
+      type: String,
+      default: '30'
+    },
+    theme: {
+      type: String,
+      enum: ['dark', 'light'],
+      default: 'dark'
+    },
+    indicators: [String],
+    height: {
+      type: Number,
+      default: 300
+    },
+    width: {
+      type: String,
+      default: '100%'
+    },
+    hideToolbar: {
+      type: Boolean,
+      default: false
+    },
+    hideSideToolbar: {
+      type: Boolean,
+      default: false
+    }
+  }
+});
+
+// ============================================
+// MAIN POST SCHEMA
+// ============================================
 const postSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -119,7 +166,7 @@ const postSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-  comments: [commentSchema],
+  comments: [commentSchema], // Now commentSchema is defined
   reposts: [repostSchema],
   shares: {
     type: Number,
@@ -139,14 +186,14 @@ const postSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   }],
-   pollId: {
+  pollId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Poll'
   },
   location: {
     name: String,
     coordinates: {
-      type: [Number], // [longitude, latitude]
+      type: [Number],
       index: '2dsphere'
     },
     placeId: String
@@ -172,10 +219,6 @@ const postSchema = new mongoose.Schema({
     default: false
   },
   pinnedAt: Date,
-  pollId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Poll'
-  },
   scheduledFor: Date,
   isScheduled: {
     type: Boolean,
@@ -191,7 +234,9 @@ const postSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Indexes for better performance
+// ============================================
+// INDEXES
+// ============================================
 postSchema.index({ userId: 1, createdAt: -1 });
 postSchema.index({ createdAt: -1 });
 postSchema.index({ hashtags: 1 });
@@ -199,8 +244,11 @@ postSchema.index({ mentions: 1 });
 postSchema.index({ 'location.coordinates': '2dsphere' });
 postSchema.index({ repostOf: 1 });
 postSchema.index({ scheduledFor: 1 }, { sparse: true });
+postSchema.index({ 'media.type': 1, 'media.chartData.symbol': 1 });
 
-// Virtuals
+// ============================================
+// VIRTUALS
+// ============================================
 postSchema.virtual('likeCount').get(function() {
   return this.likes?.length || 0;
 });
@@ -220,7 +268,14 @@ postSchema.virtual('totalInteractionCount').get(function() {
          (this.shares || 0);
 });
 
-// Methods
+// Virtual for chart media only
+postSchema.virtual('charts').get(function() {
+  return this.media?.filter(item => item.type === 'chart') || [];
+});
+
+// ============================================
+// METHODS
+// ============================================
 postSchema.methods.isLikedByUser = function(userId) {
   return this.likes?.some(id => id.toString() === userId.toString());
 };
@@ -260,17 +315,55 @@ postSchema.methods.extractMentions = function() {
   return matches.map(mention => mention.slice(1));
 };
 
-// Pre-save middleware
+// Method to add chart to post
+postSchema.methods.addChart = function(chartData) {
+  if (!this.media) {
+    this.media = [];
+  }
+  
+  this.media.push({
+    url: '/api/charts/widget',
+    type: 'chart',
+    mimeType: 'application/json',
+    chartData: {
+      symbol: chartData.symbol || 'BTCUSDT',
+      interval: chartData.interval || '30',
+      theme: chartData.theme || 'dark',
+      indicators: chartData.indicators || [],
+      height: chartData.height || 300,
+      width: chartData.width || '100%',
+      hideToolbar: chartData.hideToolbar || false,
+      hideSideToolbar: chartData.hideSideToolbar || false
+    }
+  });
+  
+  return this.save();
+};
+
+// Method to get chart data
+postSchema.methods.getChartData = function() {
+  const chartMedia = this.media?.find(item => item.type === 'chart');
+  return chartMedia?.chartData || null;
+};
+
+// ============================================
+// PRE-SAVE MIDDLEWARE
+// ============================================
 postSchema.pre('save', function(next) {
   if (this.isModified('content')) {
     this.extractHashtags();
   }
   
   if (this.isModified('media') && this.media) {
-    // Ensure each media item has required fields
     this.media.forEach(item => {
       if (!item.type || !item.url) {
         throw new Error('Media must have type and url');
+      }
+      
+      if (item.type === 'chart' && item.chartData) {
+        if (!item.chartData.symbol) {
+          throw new Error('Chart must have a symbol');
+        }
       }
     });
   }
@@ -278,7 +371,9 @@ postSchema.pre('save', function(next) {
   next();
 });
 
-// Pre-update middleware
+// ============================================
+// PRE-UPDATE MIDDLEWARE
+// ============================================
 postSchema.pre('findOneAndUpdate', function(next) {
   const update = this.getUpdate();
   if (update.content || (update.$set && update.$set.content)) {
@@ -295,7 +390,8 @@ postSchema.pre('findOneAndUpdate', function(next) {
   }
   next();
 });
-// In models/Post.js - Check for any middleware that might filter
+
+// Query middleware for debugging
 postSchema.pre('find', function() {
   console.log('🔍 Post find query:', this.getQuery());
 });
@@ -303,7 +399,10 @@ postSchema.pre('find', function() {
 postSchema.pre('findOne', function() {
   console.log('🔍 Post findOne query:', this.getQuery());
 });
-// Static methods
+
+// ============================================
+// STATIC METHODS
+// ============================================
 postSchema.statics.getFeedForUser = async function(userId, followingIds = [], limit = 20, skip = 0) {
   return this.find({
     $and: [
@@ -332,6 +431,7 @@ postSchema.statics.getFeedForUser = async function(userId, followingIds = [], li
   .populate('userId', 'name username avatar isVerified')
   .populate('mentions', 'name username')
   .populate('repostOf')
+  .populate('pollId')
   .sort({ createdAt: -1 })
   .limit(limit)
   .skip(skip);
@@ -347,4 +447,47 @@ postSchema.statics.getTrendingHashtags = async function(limit = 10) {
   ]);
 };
 
+// Static method to get posts with charts
+postSchema.statics.getChartPosts = async function(symbol = null, limit = 20, skip = 0) {
+  const query = {
+    'media.type': 'chart',
+    isPublished: true,
+    isScheduled: false
+  };
+  
+  if (symbol) {
+    query['media.chartData.symbol'] = symbol;
+  }
+  
+  return this.find(query)
+    .populate('userId', 'name username avatar isVerified')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+};
+
+// Static method to get trending chart symbols
+postSchema.statics.getTrendingChartSymbols = async function(limit = 10) {
+  return this.aggregate([
+    { $match: { 'media.type': 'chart', isPublished: true } },
+    { $unwind: '$media' },
+    { $match: { 'media.type': 'chart' } },
+    { $group: { 
+      _id: '$media.chartData.symbol', 
+      count: { $sum: 1 },
+      posts: { $addToSet: '$_id' }
+    }},
+    { $sort: { count: -1 } },
+    { $limit: limit },
+    { $project: {
+      symbol: '$_id',
+      count: 1,
+      postCount: { $size: '$posts' }
+    }}
+  ]);
+};
+
+// ============================================
+// EXPORT
+// ============================================
 export default mongoose.model('Post', postSchema);

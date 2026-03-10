@@ -1,6 +1,7 @@
-// components/CreatePost.jsx - FIXED POLL FUNCTIONALITY
+// components/CreatePost.jsx - COMPLETE UPDATED VERSION WITH CHART SUPPORT
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import AvatarWithFallback from './AvatarWithFallback';
+import ChartWidget from './ChartWidget';
 import styles from './styles/CreatePost.module.css';
 import { 
   FaImage, 
@@ -8,7 +9,6 @@ import {
   FaFileAlt, 
   FaMapMarkerAlt, 
   FaUserTag,
-  FaHashtag,
   FaGlobe,
   FaUserFriends,
   FaLock,
@@ -21,23 +21,25 @@ import {
   FaExclamationCircle,
   FaPlus,
   FaTrash,
+  FaChartLine,
+  FaChartBar,
+  FaChartArea,
+  FaUndo,
   FaCheck
 } from 'react-icons/fa';
+
 import EmojiPicker from 'emoji-picker-react';
 
 // Simple notification service
 const notificationService = {
   showSuccess: (title, message) => {
     console.log(`✅ ${title}: ${message}`);
-   // alert(message || title);
   },
   showError: (title, message) => {
     console.error(`❌ ${title}: ${message}`);
-    //alert(message || title);
   },
   showWarning: (title, message) => {
     console.warn(`⚠️ ${title}: ${message}`);
-   // alert(message || title);
   },
   showInfo: (title, message) => {
     console.log(`ℹ️ ${title}: ${message}`);
@@ -74,20 +76,58 @@ const CreatePost = ({
   const [locations, setLocations] = useState([]);
   const [searchingLocation, setSearchingLocation] = useState(false);
   
-  // Mentions
+  // Mentions - FIXED
   const [mentions, setMentions] = useState([]);
   const [showMentionInput, setShowMentionInput] = useState(false);
   const [mentionText, setMentionText] = useState('');
   const [suggestedUsers, setSuggestedUsers] = useState([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   
-  // FIXED: Poll state - properly structured
+  // Chart state - NEW
+  const [showChartCreator, setShowChartCreator] = useState(false);
+  const [chartData, setChartData] = useState({
+    symbol: 'BTCUSDT',
+    interval: '30',
+    theme: 'dark',
+    indicators: [],
+    hideToolbar: false,
+    hideSideToolbar: false
+  });
+  const [chartPreview, setChartPreview] = useState(null);
+  
+  // Chart type options
+  const chartSymbols = [
+    { value: 'BTCUSDT', label: 'BTC/USDT' },
+    { value: 'ETHUSDT', label: 'ETH/USDT' },
+    { value: 'BNBUSDT', label: 'BNB/USDT' },
+    { value: 'SOLUSDT', label: 'SOL/USDT' },
+    { value: 'ADAUSDT', label: 'ADA/USDT' },
+    { value: 'DOTUSDT', label: 'DOT/USDT' },
+    { value: 'LINKUSDT', label: 'LINK/USDT' },
+    { value: 'AVAXUSDT', label: 'AVAX/USDT' },
+    { value: 'MATICUSDT', label: 'MATIC/USDT' },
+    { value: 'UNIUSDT', label: 'UNI/USDT' }
+  ];
+
+  const chartIntervals = [
+    { value: '1', label: '1m' },
+    { value: '5', label: '5m' },
+    { value: '15', label: '15m' },
+    { value: '30', label: '30m' },
+    { value: '60', label: '1h' },
+    { value: '240', label: '4h' },
+    { value: 'D', label: '1d' },
+    { value: 'W', label: '1w' },
+    { value: 'M', label: '1M' }
+  ];
+  
+  // Poll state
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [pollData, setPollData] = useState({
     question: '',
     options: ['', ''],
     multipleChoice: false,
-    endsIn: 86400000 // Keep as number, not string
+    endsIn: 86400000
   });
   
   // Schedule
@@ -109,6 +149,7 @@ const CreatePost = ({
   const contentInputRef = useRef(null);
   const locationInputRef = useRef(null);
   const scheduleTimeoutRef = useRef(null);
+  const mentionTimeoutRef = useRef(null);
   
   // ============ EFFECTS ============
   
@@ -118,7 +159,7 @@ const CreatePost = ({
       clearTimeout(scheduleTimeoutRef.current);
     }
     
-    if (newPostContent || mediaFiles.length > 0) {
+    if (newPostContent || mediaFiles.length > 0 || chartPreview) {
       scheduleTimeoutRef.current = setTimeout(() => {
         saveDraft();
       }, 3000);
@@ -129,7 +170,7 @@ const CreatePost = ({
         clearTimeout(scheduleTimeoutRef.current);
       }
     };
-  }, [newPostContent, mediaFiles, visibility, location, mentions, pollData, showPollCreator]);
+  }, [newPostContent, mediaFiles, chartPreview, visibility, location, mentions, pollData, showPollCreator]);
   
   // Load draft on mount
   useEffect(() => {
@@ -139,6 +180,15 @@ const CreatePost = ({
       contentInputRef.current.focus();
     }
   }, [autoFocus]);
+  
+  // Cleanup mention timeout
+  useEffect(() => {
+    return () => {
+      if (mentionTimeoutRef.current) {
+        clearTimeout(mentionTimeoutRef.current);
+      }
+    };
+  }, []);
   
   // ============ CALLBACKS ============
   
@@ -150,6 +200,8 @@ const CreatePost = ({
         visibility,
         location,
         mentions,
+        chartData: showChartCreator ? chartData : null,
+        chartPreview: chartPreview,
         pollData: showPollCreator ? pollData : null,
         scheduledDate,
         timestamp: Date.now()
@@ -162,7 +214,7 @@ const CreatePost = ({
     } catch (error) {
       console.error('Failed to save draft:', error);
     }
-  }, [newPostContent, mediaPreviews, visibility, location, mentions, showPollCreator, pollData, scheduledDate]);
+  }, [newPostContent, mediaPreviews, visibility, location, mentions, showChartCreator, chartData, chartPreview, showPollCreator, pollData, scheduledDate]);
   
   const loadDraft = useCallback(() => {
     try {
@@ -176,6 +228,12 @@ const CreatePost = ({
           setLocation(draft.location || null);
           setMentions(draft.mentions || []);
           setScheduledDate(draft.scheduledDate || null);
+          
+          if (draft.chartData) {
+            setShowChartCreator(true);
+            setChartData(draft.chartData);
+            setChartPreview(draft.chartPreview);
+          }
           
           if (draft.pollData) {
             setShowPollCreator(true);
@@ -284,6 +342,122 @@ const CreatePost = ({
     });
   }, []);
   
+  // FIXED: Mention functions with proper debouncing
+  const searchUsers = useCallback(async (query) => {
+    if (query.length < 2) {
+      setSuggestedUsers([]);
+      return;
+    }
+    
+    setSearchingUsers(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/users/search?q=${encodeURIComponent(query)}&limit=5`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to search users');
+      
+      const data = await response.json();
+      setSuggestedUsers(data.users || []);
+    } catch (error) {
+      console.error('Failed to search users:', error);
+      setSuggestedUsers([]);
+    } finally {
+      setSearchingUsers(false);
+    }
+  }, []);
+  
+  const handleMentionInputChange = useCallback((e) => {
+    const value = e.target.value;
+    setMentionText(value);
+    
+    // Clear previous timeout
+    if (mentionTimeoutRef.current) {
+      clearTimeout(mentionTimeoutRef.current);
+    }
+    
+    // Debounce search
+    mentionTimeoutRef.current = setTimeout(() => {
+      searchUsers(value);
+    }, 300);
+  }, [searchUsers]);
+  
+  const addMention = useCallback((user) => {
+    if (!user || !user._id) return;
+    
+    // Add to mentions array
+    if (!mentions.some(id => id === user._id)) {
+      setMentions(prev => [...prev, user._id]);
+    }
+    
+    // Replace the @mention text in content
+    const mentionRegex = new RegExp(`@${mentionText}$`);
+    if (mentionRegex.test(newPostContent)) {
+      const newContent = newPostContent.replace(mentionRegex, `@${user.username} `);
+      setNewPostContent(newContent);
+    } else {
+      setNewPostContent(prev => prev + `@${user.username} `);
+    }
+    
+    // Close mention input
+    setShowMentionInput(false);
+    setMentionText('');
+    setSuggestedUsers([]);
+    
+    // Focus back on content input
+    contentInputRef.current?.focus();
+  }, [mentions, mentionText, newPostContent]);
+  
+  const handleContentChange = useCallback((e) => {
+    const value = e.target.value;
+    setNewPostContent(value);
+    
+    // Check for @ symbol to show mention input
+    const lastChar = value[value.length - 1];
+    if (lastChar === '@') {
+      setShowMentionInput(true);
+      setMentionText('');
+      // Focus mention input after a short delay
+      setTimeout(() => {
+        mentionInputRef.current?.focus();
+      }, 100);
+    }
+  }, []);
+  
+  // Chart functions
+  const handleChartSymbolChange = useCallback((symbol) => {
+    setChartData(prev => ({ ...prev, symbol }));
+  }, []);
+  
+  const handleChartIntervalChange = useCallback((interval) => {
+    setChartData(prev => ({ ...prev, interval }));
+  }, []);
+  
+  const addChartToPost = useCallback(() => {
+    setChartPreview({
+      type: 'chart',
+      chartData: chartData
+    });
+    setShowChartCreator(false);
+    notificationService.showSuccess('Chart Added', 'Chart has been added to your post');
+  }, [chartData]);
+  
+  const removeChart = useCallback(() => {
+    setChartPreview(null);
+    setShowChartCreator(false);
+    setChartData({
+      symbol: 'BTCUSDT',
+      interval: '30',
+      theme: 'dark',
+      indicators: [],
+      hideToolbar: false,
+      hideSideToolbar: false
+    });
+  }, []);
+  
   const searchLocations = useCallback(async (query) => {
     if (!query.trim()) {
       setLocations([]);
@@ -317,58 +491,7 @@ const CreatePost = ({
     setLocations([]);
   }, []);
   
-  const searchUsers = useCallback(async (query) => {
-    if (query.length < 2) {
-      setSuggestedUsers([]);
-      return;
-    }
-    
-    setSearchingUsers(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/users/search?q=${encodeURIComponent(query)}&limit=5`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) throw new Error('Failed to search users');
-      
-      const data = await response.json();
-      setSuggestedUsers(data.users || []);
-    } catch (error) {
-      console.error('Failed to search users:', error);
-    } finally {
-      setSearchingUsers(false);
-    }
-  }, []);
-  
-  const addMention = useCallback((user) => {
-    if (!user || !user._id) return;
-    
-    if (!mentions.includes(user._id)) {
-      setMentions(prev => [...prev, user._id]);
-    }
-    
-    const cursorPosition = contentInputRef.current?.selectionStart || newPostContent.length;
-    const textBefore = newPostContent.substring(0, cursorPosition);
-    const textAfter = newPostContent.substring(cursorPosition);
-    
-    const lastAtIndex = textBefore.lastIndexOf('@');
-    if (lastAtIndex !== -1 && !textBefore.substring(lastAtIndex).includes(' ')) {
-      const newText = textBefore.substring(0, lastAtIndex) + `@${user.username} ` + textAfter;
-      setNewPostContent(newText);
-    } else {
-      setNewPostContent(prev => prev + `@${user.username} `);
-    }
-    
-    setShowMentionInput(false);
-    setMentionText('');
-    setSuggestedUsers([]);
-    contentInputRef.current?.focus();
-  }, [mentions, newPostContent]);
-  
-  // FIXED: Poll functions with proper state updates
+  // Poll functions
   const handlePollOptionChange = useCallback((index, value) => {
     setPollData(prev => ({
       ...prev,
@@ -431,15 +554,14 @@ const CreatePost = ({
   const validatePost = useCallback(() => {
     const errors = [];
     
-    if (!newPostContent.trim() && mediaFiles.length === 0 && !showPollCreator) {
-      errors.push('Post must have content, media, or a poll');
+    if (!newPostContent.trim() && mediaFiles.length === 0 && !showPollCreator && !chartPreview) {
+      errors.push('Post must have content, media, a poll, or a chart');
     }
     
     if (newPostContent.length > maxLength) {
       errors.push(`Post content exceeds ${maxLength} characters`);
     }
     
-    // FIXED: Poll validation
     if (showPollCreator) {
       if (!pollData.question.trim()) {
         errors.push('Poll must have a question');
@@ -464,151 +586,151 @@ const CreatePost = ({
     
     setValidationErrors(errors);
     return errors.length === 0;
-  }, [newPostContent, mediaFiles.length, showPollCreator, pollData, scheduledDate, maxLength]);
+  }, [newPostContent, mediaFiles.length, showPollCreator, pollData, scheduledDate, maxLength, chartPreview]);
   
-  // FIXED: Main post creation handler with proper poll data
-  // FIXED: Main post creation handler with proper poll data
-const handleCreatePost = useCallback(async () => {
-  if (!validatePost() || isSubmitting) return;
-  
-  setIsSubmitting(true);
-  setUploading(true);
-  
-  try {
-    const formData = new FormData();
+  // Main post creation handler with chart support
+  const handleCreatePost = useCallback(async () => {
+    if (!validatePost() || isSubmitting) return;
     
-    // Add text fields
-    const contentValue = newPostContent.trim() || '';
-    formData.append('content', contentValue);
-    formData.append('visibility', visibility);
+    setIsSubmitting(true);
+    setUploading(true);
     
-    // Add location if exists
-    if (location) {
-      formData.append('location', JSON.stringify(location));
-    }
-    
-    // Add mentions if any
-    if (mentions.length > 0) {
-      mentions.forEach(mention => {
-        if (mention && mention !== 'undefined' && mention !== 'null' && mention.trim() !== '') {
-          formData.append('mentions', mention);
-        }
-      });
-    }
-    
-    // Add scheduled date if exists
-    if (scheduledDate) {
-      formData.append('scheduledFor', scheduledDate);
-    }
-    
-    // Add media files
-    if (mediaFiles.length > 0) {
-      mediaFiles.forEach(file => {
-        formData.append('media', file);
-      });
-    }
-    
-    // FIXED: Add poll data if present - properly formatted
-    if (showPollCreator) {
-      console.log('📊 Poll creator is active');
-      console.log('📊 Poll data:', pollData);
+    try {
+      const formData = new FormData();
       
-      const validOptions = pollData.options
-        .filter(opt => opt && opt.trim() !== '')
-        .map(opt => opt.trim());
+      // Add text fields
+      const contentValue = newPostContent.trim() || '';
+      formData.append('content', contentValue);
+      formData.append('visibility', visibility);
       
-      console.log('📊 Valid options:', validOptions);
+      // Add location if exists
+      if (location) {
+        formData.append('location', JSON.stringify(location));
+      }
       
-      if (pollData.question.trim() && validOptions.length >= 2) {
-        const pollObject = {
-          question: pollData.question.trim(),
-          options: validOptions,
-          multipleChoice: pollData.multipleChoice,
-          endsIn: pollData.endsIn
-        };
-        
-        // Add poll as JSON string
-        const pollJson = JSON.stringify(pollObject);
-        formData.append('poll', pollJson);
-        console.log('📊 Adding poll JSON:', pollJson);
-      } else {
-        console.log('📊 Poll validation failed:', {
-          question: pollData.question.trim() ? 'valid' : 'invalid',
-          optionsCount: validOptions.length
+      // Add mentions if any
+      if (mentions.length > 0) {
+        mentions.forEach(mention => {
+          if (mention && mention !== 'undefined' && mention !== 'null' && mention.trim() !== '') {
+            formData.append('mentions', mention);
+          }
         });
       }
-    }
-    
-    // Log FormData contents for debugging
-    console.log('📦 FormData contents:');
-    for (let [key, value] of formData.entries()) {
-      if (key === 'media') {
-        console.log(`  ${key}: File - ${value.name} (${value.size} bytes)`);
-      } else if (key === 'poll') {
-        console.log(`  ${key}: ${value}`);
-      } else {
-        console.log(`  ${key}: ${value}`);
+      
+      // Add scheduled date if exists
+      if (scheduledDate) {
+        formData.append('scheduledFor', scheduledDate);
       }
+      
+      // Add media files
+      if (mediaFiles.length > 0) {
+        mediaFiles.forEach(file => {
+          formData.append('media', file);
+        });
+      }
+      
+      // Add chart if exists
+      if (chartPreview) {
+        const chartJson = JSON.stringify({
+          symbol: chartData.symbol,
+          interval: chartData.interval,
+          theme: chartData.theme,
+          indicators: chartData.indicators,
+          hideToolbar: chartData.hideToolbar,
+          hideSideToolbar: chartData.hideSideToolbar
+        });
+        formData.append('chart', chartJson);
+      }
+      
+      // Add poll data if present
+      if (showPollCreator) {
+        const validOptions = pollData.options
+          .filter(opt => opt && opt.trim() !== '')
+          .map(opt => opt.trim());
+        
+        if (pollData.question.trim() && validOptions.length >= 2) {
+          const pollObject = {
+            question: pollData.question.trim(),
+            options: validOptions,
+            multipleChoice: pollData.multipleChoice,
+            endsIn: pollData.endsIn
+          };
+          
+          formData.append('poll', JSON.stringify(pollObject));
+        }
+      }
+      
+      // Log FormData contents for debugging
+      console.log('📦 FormData contents:');
+      for (let [key, value] of formData.entries()) {
+        if (key === 'media') {
+          console.log(`  ${key}: File - ${value.name} (${value.size} bytes)`);
+        } else if (key === 'poll' || key === 'chart') {
+          console.log(`  ${key}: ${value}`);
+        } else {
+          console.log(`  ${key}: ${value}`);
+        }
+      }
+      
+      // Make API call
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/posts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Server response:', errorData);
+        throw new Error(errorData.message || 'Failed to create post');
+      }
+      
+      const result = await response.json();
+      console.log('✅ Post created successfully:', result);
+      
+      // Handle success
+      setSubmitSuccess(true);
+      clearDraft();
+      
+      // Reset form
+      setNewPostContent('');
+      setMediaFiles([]);
+      setMediaPreviews([]);
+      setVisibility('public');
+      setLocation(null);
+      setMentions([]);
+      resetPoll();
+      removeChart();
+      setScheduledDate(null);
+      setShowScheduler(false);
+      setUploadProgress({});
+      setValidationErrors([]);
+      
+      notificationService.showSuccess(
+        'Success',
+        scheduledDate ? 'Your post has been scheduled' : 'Your post has been published'
+      );
+      
+      if (onPostCreated) {
+        onPostCreated(result.post || result);
+      }
+      
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      notificationService.showError('Failed to Create Post', error.message || 'Unknown error occurred');
+    } finally {
+      setIsSubmitting(false);
+      setUploading(false);
+      setSubmitSuccess(false);
     }
-    
-    // Make API call
-    const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:5000/api/posts', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('❌ Server response:', errorData);
-      throw new Error(errorData.message || 'Failed to create post');
-    }
-    
-    const result = await response.json();
-    console.log('✅ Post created successfully:', result);
-    
-    // Handle success
-    setSubmitSuccess(true);
-    clearDraft();
-    
-    // Reset form
-    setNewPostContent('');
-    setMediaFiles([]);
-    setMediaPreviews([]);
-    setVisibility('public');
-    setLocation(null);
-    setMentions([]);
-    resetPoll();
-    setScheduledDate(null);
-    setShowScheduler(false);
-    setUploadProgress({});
-    setValidationErrors([]);
-    
-    notificationService.showSuccess(
-      'Success',
-      scheduledDate ? 'Your post has been scheduled' : 'Your post has been published'
-    );
-    
-    if (onPostCreated) {
-      onPostCreated(result.post || result);
-    }
-    
-  } catch (error) {
-    console.error('Failed to create post:', error);
-    notificationService.showError('Failed to Create Post', error.message || 'Unknown error occurred');
-  } finally {
-    setIsSubmitting(false);
-    setUploading(false);
-    setSubmitSuccess(false);
-  }
-}, [
-  newPostContent, mediaFiles, visibility, location, mentions, 
-  scheduledDate, showPollCreator, pollData, validatePost,
-  isSubmitting, onPostCreated, clearDraft, resetPoll
-]);
+  }, [
+    newPostContent, mediaFiles, visibility, location, mentions, 
+    scheduledDate, showPollCreator, pollData, chartPreview, chartData,
+    validatePost, isSubmitting, onPostCreated, clearDraft, resetPoll, removeChart
+  ]);
   
   const getVisibilityIcon = useCallback(() => {
     switch(visibility) {
@@ -624,6 +746,76 @@ const handleCreatePost = useCallback(async () => {
   }, [visibility]);
   
   // ============ RENDER FUNCTIONS ============
+  
+  const renderChartCreator = () => (
+    <div className={styles.chartCreator}>
+      <div className={styles.chartHeader}>
+        <h4>Add Trading Chart</h4>
+        <button 
+          className={styles.closeChartBtn}
+          onClick={removeChart}
+          disabled={isSubmitting}
+          type="button"
+        >
+          <FaTimes />
+        </button>
+      </div>
+      
+      <div className={styles.chartControls}>
+        <div className={styles.chartSettings}>
+          <div className={styles.chartSettingGroup}>
+            <label>Symbol</label>
+            <select
+              value={chartData.symbol}
+              onChange={(e) => handleChartSymbolChange(e.target.value)}
+              className={styles.chartSelect}
+              disabled={isSubmitting}
+            >
+              {chartSymbols.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className={styles.chartSettingGroup}>
+            <label>Interval</label>
+            <select
+              value={chartData.interval}
+              onChange={(e) => handleChartIntervalChange(e.target.value)}
+              className={styles.chartSelect}
+              disabled={isSubmitting}
+            >
+              {chartIntervals.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <div className={styles.chartPreview}>
+          <ChartWidget 
+            chartData={chartData}
+            isExpanded={false}
+          />
+        </div>
+        
+        <div className={styles.chartActions}>
+          <button
+            className={styles.addChartBtn}
+            onClick={addChartToPost}
+            disabled={isSubmitting}
+            type="button"
+          >
+            <FaChartLine /> Add Chart to Post
+          </button>
+        </div>
+      </div>
+    </div>
+  );
   
   const renderMediaPreviews = () => (
     <div className={styles.mediaPreviews}>
@@ -670,6 +862,22 @@ const handleCreatePost = useCallback(async () => {
           </button>
         </div>
       ))}
+      
+      {chartPreview && (
+        <div className={styles.chartPreviewItem}>
+          <ChartWidget 
+            chartData={chartPreview.chartData}
+            isExpanded={false}
+          />
+          <button 
+            className={styles.removeChartBtn}
+            onClick={removeChart}
+            disabled={isSubmitting}
+          >
+            <FaTimes />
+          </button>
+        </div>
+      )}
     </div>
   );
   
@@ -707,6 +915,55 @@ const handleCreatePost = useCallback(async () => {
     </div>
   );
   
+  const renderMentionInput = () => (
+    <div className={styles.mentionInput}>
+      <div className={styles.mentionInputWrapper}>
+        <span>@</span>
+        <input
+          ref={mentionInputRef}
+          type="text"
+          placeholder="Search users..."
+          value={mentionText}
+          onChange={handleMentionInputChange}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setShowMentionInput(false);
+              setMentionText('');
+              setSuggestedUsers([]);
+              contentInputRef.current?.focus();
+            }
+          }}
+          disabled={isSubmitting}
+        />
+        {searchingUsers && <FaSpinner className={styles.spinning} />}
+      </div>
+      
+      {suggestedUsers.length > 0 && (
+        <div className={styles.userSuggestions}>
+          {suggestedUsers.map(user => (
+            <div 
+              key={user._id}
+              className={styles.userSuggestion}
+              onClick={() => addMention(user)}
+            >
+              <AvatarWithFallback user={user} size="small" />
+              <div>
+                <strong>{user.name}</strong>
+                <span>@{user.username}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {mentionText.length >= 2 && suggestedUsers.length === 0 && !searchingUsers && (
+        <div className={styles.noUsersFound}>
+          No users found matching "{mentionText}"
+        </div>
+      )}
+    </div>
+  );
+  
   const renderScheduler = () => (
     <div className={styles.scheduler}>
       <div className={styles.schedulerInputs}>
@@ -736,22 +993,6 @@ const handleCreatePost = useCallback(async () => {
     </div>
   );
   
-  const renderValidationErrors = () => {
-    if (validationErrors.length === 0) return null;
-    
-    return (
-      <div className={styles.validationErrors}>
-        {validationErrors.map((error, index) => (
-          <div key={index} className={styles.validationError}>
-            <FaExclamationCircle />
-            <span>{error}</span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-  
-  // FIXED: Poll creator render with proper state handling
   const renderPollCreator = () => (
     <div className={styles.pollCreator}>
       <div className={styles.pollHeader}>
@@ -848,6 +1089,21 @@ const handleCreatePost = useCallback(async () => {
     </div>
   );
   
+  const renderValidationErrors = () => {
+    if (validationErrors.length === 0) return null;
+    
+    return (
+      <div className={styles.validationErrors}>
+        {validationErrors.map((error, index) => (
+          <div key={index} className={styles.validationError}>
+            <FaExclamationCircle />
+            <span>{error}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+  
   // ============ MAIN RENDER ============
   return (
     <div className={styles.createPostCard}>
@@ -868,7 +1124,7 @@ const handleCreatePost = useCallback(async () => {
             ref={contentInputRef}
             placeholder={placeholder}
             value={newPostContent}
-            onChange={(e) => setNewPostContent(e.target.value)}
+            onChange={handleContentChange}
             className={styles.postTextarea}
             rows={3}
             maxLength={maxLength}
@@ -883,7 +1139,7 @@ const handleCreatePost = useCallback(async () => {
         </div>
       </div>
       
-      {mediaPreviews.length > 0 && renderMediaPreviews()}
+      {(mediaPreviews.length > 0 || chartPreview) && renderMediaPreviews()}
       
       {location && (
         <div className={styles.locationDisplay}>
@@ -905,7 +1161,9 @@ const handleCreatePost = useCallback(async () => {
         </div>
       )}
       
-      {showPollCreator && renderPollCreator()}
+      {showChartCreator && !chartPreview && renderChartCreator()}
+      
+      {showPollCreator && !chartPreview && renderPollCreator()}
       
       {showLocationPicker && (
         <div className={styles.locationPickerModal}>
@@ -919,43 +1177,7 @@ const handleCreatePost = useCallback(async () => {
         </div>
       )}
       
-      {showMentionInput && (
-        <div className={styles.mentionInput}>
-          <div className={styles.mentionInputWrapper}>
-            <span>@</span>
-            <input
-              ref={mentionInputRef}
-              type="text"
-              placeholder="Search users..."
-              value={mentionText}
-              onChange={(e) => {
-                setMentionText(e.target.value);
-                searchUsers(e.target.value);
-              }}
-              disabled={isSubmitting}
-            />
-            {searchingUsers && <FaSpinner className={styles.spinning} />}
-          </div>
-          
-          {suggestedUsers.length > 0 && (
-            <div className={styles.userSuggestions}>
-              {suggestedUsers.map(user => (
-                <div 
-                  key={user._id}
-                  className={styles.userSuggestion}
-                  onClick={() => addMention(user)}
-                >
-                  <AvatarWithFallback user={user} size="small" />
-                  <div>
-                    <strong>{user.name}</strong>
-                    <span>@{user.username}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {showMentionInput && renderMentionInput()}
       
       {showEmojiPicker && (
         <div className={styles.emojiPicker}>
@@ -1042,17 +1264,22 @@ const handleCreatePost = useCallback(async () => {
             <FaUserTag />
           </button>
           
+          {/* Chart button */}
           <button 
             type="button"
             onClick={() => {
-              setNewPostContent(prev => prev + '#');
-              contentInputRef.current?.focus();
+              if (chartPreview) {
+                removeChart();
+              } else {
+                setShowChartCreator(!showChartCreator);
+                setShowPollCreator(false);
+              }
             }}
-            className={styles.mediaButton}
-            title="Add hashtag"
+            className={`${styles.mediaButton} ${showChartCreator || chartPreview ? styles.active : ''}`}
+            title="Add chart"
             disabled={isSubmitting}
           >
-            <FaHashtag />
+            <FaChartLine />
           </button>
           
           <button 
@@ -1062,6 +1289,7 @@ const handleCreatePost = useCallback(async () => {
                 resetPoll();
               } else {
                 setShowPollCreator(true);
+                setShowChartCreator(false);
               }
             }}
             className={`${styles.mediaButton} ${showPollCreator ? styles.active : ''}`}
@@ -1118,7 +1346,7 @@ const handleCreatePost = useCallback(async () => {
           
           <button 
             onClick={handleCreatePost}
-            disabled={(!newPostContent.trim() && mediaFiles.length === 0 && !showPollCreator) || uploading || isSubmitting}
+            disabled={(!newPostContent.trim() && mediaFiles.length === 0 && !showPollCreator && !chartPreview) || uploading || isSubmitting}
             className={styles.postButton}
           >
             {uploading || isSubmitting ? (

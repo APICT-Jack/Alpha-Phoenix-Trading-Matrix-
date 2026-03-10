@@ -1,4 +1,4 @@
-// PostComponent.jsx - Complete fixed version with working poll voting
+// PostComponent.jsx - Complete fixed version with working poll voting and chart support
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -42,9 +42,12 @@ import {
   FaExpand,
   FaCompress,
   FaExclamationCircle,
-  FaMapMarkerAlt  // <-- ADD THIS MISSING IMPORT
+  FaMapMarkerAlt,
+  FaChartLine,  // Added for charts
+  FaExpandArrowsAlt // Added for chart expansion
 } from 'react-icons/fa';
 import AvatarWithFallback from './AvatarWithFallback';
+import ChartWidget from './ChartWidget'; // Import ChartWidget
 import Lightbox from 'react-image-lightbox';
 import 'react-image-lightbox/style.css';
 
@@ -52,26 +55,21 @@ import 'react-image-lightbox/style.css';
 const notificationService = {
   success: (message) => {
     console.log(`✅ Success: ${message}`);
-    
   },
   error: (message) => {
     console.error(`❌ Error: ${message}`);
-    //alert(message);
   },
   warning: (message) => {
     console.warn(`⚠️ Warning: ${message}`);
-    //alert(message);
   },
   info: (message) => {
     console.log(`ℹ️ Info: ${message}`);
-   // alert(message);
   }
 };
 
 // Simple socket service
 const socketService = {
   getSocket: () => {
-    // Return a mock socket or try to get from window
     if (typeof window !== 'undefined' && window.io) {
       return window.io();
     }
@@ -133,6 +131,9 @@ const PostComponent = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
+  // Chart state - NEW
+  const [expandedChart, setExpandedChart] = useState(null);
+  
   // Interaction states
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
@@ -147,7 +148,7 @@ const PostComponent = ({
   const [isVoting, setIsVoting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [pollResults, setPollResults] = useState(null); // Store poll results separately
+  const [pollResults, setPollResults] = useState(null);
   
   // UI states
   const [showComments, setShowComments] = useState(expanded);
@@ -205,41 +206,38 @@ const PostComponent = ({
   const videoRefs = useRef({});
   
   // ============ INITIALIZATION ============
-  // ============ INITIALIZATION ============
-useEffect(() => {
-  if (post) {
-    console.log('📦 Post data received:', post);
-    setPostData(post);
-    setIsLiked(checkIfLiked());
-    setLikesCount(getLikesCount());
-    setIsSavedState(isSaved);
-    setIsReposted(checkIfReposted());
-    setRepostCount(getRepostCount());
-    setShareCount(getShareCount());
-    setCommentCount(getCommentCount());
-    setEditContent(post.content || '');
-    
-    // Initialize poll data if it exists - FIXED
-    if (post.poll) {
-      console.log('📊 Poll data found:', post.poll);
-      setPollData(post.poll);
+  useEffect(() => {
+    if (post) {
+      console.log('📦 Post data received:', post);
+      setPostData(post);
+      setIsLiked(checkIfLiked());
+      setLikesCount(getLikesCount());
+      setIsSavedState(isSaved);
+      setIsReposted(checkIfReposted());
+      setRepostCount(getRepostCount());
+      setShareCount(getShareCount());
+      setCommentCount(getCommentCount());
+      setEditContent(post.content || '');
       
-      // Check if user has already voted
-      if (post.poll.userVotes && post.poll.userVotes.length > 0) {
-        setHasVoted(true);
-        setSelectedOption(post.poll.userVotes[0]);
+      // Initialize poll data if it exists
+      if (post.poll) {
+        console.log('📊 Poll data found:', post.poll);
+        setPollData(post.poll);
+        
+        if (post.poll.userVotes && post.poll.userVotes.length > 0) {
+          setHasVoted(true);
+          setSelectedOption(post.poll.userVotes[0]);
+        } else {
+          setHasVoted(false);
+          setSelectedOption(null);
+        }
       } else {
+        setPollData(null);
         setHasVoted(false);
         setSelectedOption(null);
       }
-    } else {
-      // Reset poll state if no poll
-      setPollData(null);
-      setHasVoted(false);
-      setSelectedOption(null);
     }
-  }
-}, [post, isSaved]);
+  }, [post, isSaved]);
 
   // Generate share URL
   useEffect(() => {
@@ -502,80 +500,75 @@ useEffect(() => {
 
   // ============ POLL VOTING FUNCTIONALITY - FIXED ============
   const handleVote = useCallback(async (optionIndex) => {
-  if (!currentUserId) {
-    notificationService.warning('Please login to vote');
-    return;
-  }
-
-  if (!pollData) {
-    notificationService.error('Poll data not found');
-    return;
-  }
-
-  if (hasVoted) {
-    notificationService.info('You have already voted in this poll');
-    return;
-  }
-
-  // Check if poll has expired
-  const now = new Date();
-  const endsAt = new Date(pollData.endsAt);
-  if (now > endsAt) {
-    notificationService.info('This poll has ended');
-    return;
-  }
-
-  if (isVoting) return;
-
-  setIsVoting(true);
-  console.log('🗳️ Voting on poll:', pollData._id, 'Option:', optionIndex);
-
-  try {
-    const token = localStorage.getItem('token');
-    // FIXED URL - Added /posts/ prefix
-    const response = await fetch(`http://localhost:5000/api/posts/polls/${pollData._id}/vote`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ optionIndices: [optionIndex] })
-    });
-
-    const data = await response.json();
-    console.log('📥 Vote response:', data);
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to vote');
+    if (!currentUserId) {
+      notificationService.warning('Please login to vote');
+      return;
     }
 
-    // Update poll data with new results
-    if (data.poll) {
-      console.log('✅ Vote successful, updating poll data:', data.poll);
-      setPollData(data.poll);
-      setHasVoted(true);
-      setSelectedOption(optionIndex);
+    if (!pollData) {
+      notificationService.error('Poll data not found');
+      return;
+    }
+
+    if (hasVoted) {
+      notificationService.info('You have already voted in this poll');
+      return;
+    }
+
+    const now = new Date();
+    const endsAt = new Date(pollData.endsAt);
+    if (now > endsAt) {
+      notificationService.info('This poll has ended');
+      return;
+    }
+
+    if (isVoting) return;
+
+    setIsVoting(true);
+    console.log('🗳️ Voting on poll:', pollData._id, 'Option:', optionIndex);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/posts/polls/${pollData._id}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ optionIndices: [optionIndex] })
+      });
+
+      const data = await response.json();
+      console.log('📥 Vote response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to vote');
+      }
+
+      if (data.poll) {
+        console.log('✅ Vote successful, updating poll data:', data.poll);
+        setPollData(data.poll);
+        setHasVoted(true);
+        setSelectedOption(optionIndex);
+        
+        setPostData(prev => ({
+          ...prev,
+          poll: data.poll
+        }));
+      }
+
+      notificationService.success('Your vote has been recorded');
       
-      // Update postData as well
-      setPostData(prev => ({
-        ...prev,
-        poll: data.poll
-      }));
+    } catch (error) {
+      console.error('❌ Failed to vote:', error);
+      notificationService.error(error.message || 'Could not vote on poll');
+    } finally {
+      setIsVoting(false);
     }
-
-    notificationService.success('Your vote has been recorded');
-    
-  } catch (error) {
-    console.error('❌ Failed to vote:', error);
-    notificationService.error(error.message || 'Could not vote on poll');
-  } finally {
-    setIsVoting(false);
-  }
-}, [currentUserId, pollData, hasVoted, isVoting]);
+  }, [currentUserId, pollData, hasVoted, isVoting]);
 
   // ============ RENDER POLL - FIXED ============
   const renderPoll = () => {
-    // Use pollResults if available, otherwise use pollData
     const currentPoll = pollResults || pollData;
     if (!currentPoll) return null;
     
@@ -598,7 +591,6 @@ useEffect(() => {
             const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
             const isSelected = selectedOption === index;
             
-            // Check if this option should be selectable
             const canVote = !hasVoted && !hasExpired && !isVoting;
             
             return (
@@ -614,13 +606,11 @@ useEffect(() => {
                   data-selected={isSelected}
                 >
                   <span className={styles.pollOptionText}>{option.text}</span>
-                  {/* ALWAYS SHOW STATS - REMOVED THE CONDITION */}
                   <span className={styles.pollPercentage}>
                     {Math.round(percentage)}% ({voteCount} vote{voteCount !== 1 ? 's' : ''})
                   </span>
                 </button>
                 
-                {/* Progress bar always visible */}
                 <div 
                   className={styles.pollProgressBar}
                   style={{ width: `${percentage}%` }}
@@ -1268,42 +1258,21 @@ useEffect(() => {
     }
   }, []);
 
-  // ============ MEDIA LIGHTBOX ============
-  const openLightbox = useCallback((index) => {
-    setLightboxIndex(index);
-    setShowMediaLightbox(true);
-  }, []);
-
-  // ============ TOGGLE FUNCTIONS ============
-  const toggleReplies = useCallback((commentId) => {
-    setShowReplies(prev => ({
-      ...prev,
-      [commentId]: !prev[commentId]
-    }));
-  }, []);
-
-  const loadMoreComments = useCallback(() => {
-    setShowAllCommentsState(true);
-  }, []);
-
-  // ============ VISIBLE COMMENTS ============
-  const visibleComments = useMemo(() => {
-    if (!postData?.comments) return [];
-    const comments = Array.isArray(postData.comments) ? postData.comments : [];
-    
-    if (!showAllCommentsState && comments.length > maxInitialComments) {
-      return comments.slice(0, maxInitialComments);
-    }
-    return comments;
-  }, [postData?.comments, showAllCommentsState, maxInitialComments]);
-
-  const hasMoreComments = useMemo(() => {
-    if (!postData?.comments) return false;
-    return postData.comments.length > maxInitialComments && !showAllCommentsState;
-  }, [postData?.comments, maxInitialComments, showAllCommentsState]);
-
-  // ============ MEDIA RENDERING ============
+  // ============ MEDIA RENDERING WITH CHART SUPPORT ============
   const renderMedia = useCallback((media, index) => {
+    // Check if it's a chart
+    if (media.type === 'chart') {
+      return (
+        <div key={index} className={styles.chartMediaItem}>
+          <ChartWidget 
+            chartData={media.chartData}
+            onClick={() => setExpandedChart(media.chartData)}
+            isExpanded={expandedChart === media.chartData}
+          />
+        </div>
+      );
+    }
+
     const mediaUrl = formatMediaUrl(media);
     if (!mediaUrl) return null;
     
@@ -1374,7 +1343,41 @@ useEffect(() => {
         </a>
       </div>
     );
-  }, [formatMediaUrl, postData?._id, showMediaLightbox, autoPlayVideo, muteVideo, videoPlaying, videoMuted, videoFullscreen, openLightbox, handleVideoPlay, handleVideoPause, handleVideoMute, handleVideoFullscreen]);
+  }, [formatMediaUrl, postData?._id, showMediaLightbox, autoPlayVideo, muteVideo, videoPlaying, videoMuted, videoFullscreen, expandedChart]);
+
+  // ============ LIGHTBOX FUNCTIONS ============
+  const openLightbox = useCallback((index) => {
+    setLightboxIndex(index);
+    setShowMediaLightbox(true);
+  }, []);
+
+  // ============ TOGGLE FUNCTIONS ============
+  const toggleReplies = useCallback((commentId) => {
+    setShowReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }));
+  }, []);
+
+  const loadMoreComments = useCallback(() => {
+    setShowAllCommentsState(true);
+  }, []);
+
+  // ============ VISIBLE COMMENTS ============
+  const visibleComments = useMemo(() => {
+    if (!postData?.comments) return [];
+    const comments = Array.isArray(postData.comments) ? postData.comments : [];
+    
+    if (!showAllCommentsState && comments.length > maxInitialComments) {
+      return comments.slice(0, maxInitialComments);
+    }
+    return comments;
+  }, [postData?.comments, showAllCommentsState, maxInitialComments]);
+
+  const hasMoreComments = useMemo(() => {
+    if (!postData?.comments) return false;
+    return postData.comments.length > maxInitialComments && !showAllCommentsState;
+  }, [postData?.comments, maxInitialComments, showAllCommentsState]);
 
   // ============ RENDER MODALS ============
   const renderShareModal = () => (
@@ -1821,7 +1824,7 @@ useEffect(() => {
         </div>
       )}
       
-      {/* Post Content with Poll */}
+      {/* Post Content with Poll and Chart */}
       <div className={`${styles.postContent} ${isRepost ? styles.repostedContent : ''}`}>
         {isRepost && originalPost ? (
           <>
@@ -1859,7 +1862,7 @@ useEffect(() => {
             {/* Render poll if it exists */}
             {pollData && renderPoll()}
             
-            {/* Media attachments */}
+            {/* Media attachments including charts */}
             {postData.media && postData.media.length > 0 && (
               <div className={`${styles.postMedia} ${postData.media.length > 1 ? styles.mediaGrid : ''}`}>
                 {postData.media.map((media, index) => renderMedia(media, index))}
@@ -2044,7 +2047,7 @@ useEffect(() => {
                         </div>
                       )}
 
-                      {/* Replies count toggle - FIXED: Always show if there are replies */}
+                      {/* Replies count toggle */}
                       {repliesCount > 0 && (
                         <button 
                           className={styles.showRepliesBtn}
@@ -2125,7 +2128,7 @@ useEffect(() => {
                           >
                             {isNestedReply && <div className={styles.threadLine} />}
                             
-                            {/* Reply Avatar - FIXED: AvatarWithFallback properly used */}
+                            {/* Reply Avatar */}
                             <div 
                               className={styles.replyAvatar}
                               onClick={(e) => handleUserClick(replyUserId, e)}

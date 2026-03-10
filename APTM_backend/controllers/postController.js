@@ -1,4 +1,4 @@
-// controllers/postController.js - COMPLETE FIXED VERSION WITH ALL FUNCTIONS
+// controllers/postController.js - COMPLETE UPDATED VERSION WITH CHART SUPPORT
 import Post from '../models/Post.js';
 import Poll from '../models/Poll.js';
 import UserProfile from '../models/UserProfile.js';
@@ -13,7 +13,6 @@ const __dirname = path.dirname(__filename);
 // ============================================
 // MEDIA UPLOAD UTILITY
 // ============================================
-// In postController.js - Enhanced media upload function
 const uploadMediaFiles = async (files) => {
   const uploadedMedia = [];
   const uploadDir = path.join(__dirname, '..', 'uploads', 'posts');
@@ -64,12 +63,8 @@ const uploadMediaFiles = async (files) => {
 };
 
 // ============================================
-// CREATE POST
+// CREATE POST (WITH CHART SUPPORT)
 // ============================================
-// In postController.js - Updated createPost with better FormData handling
-// In postController.js - Update the createPost function
-// controllers/postController.js - Update the createPost function
-// controllers/postController.js - Fixed createPost function
 export const createPost = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -86,7 +81,8 @@ export const createPost = async (req, res) => {
       mentions, 
       scheduledFor,
       repostOf,
-      poll
+      poll,
+      chart  // Added chart field
     } = req.body;
 
     // Handle media files if present
@@ -104,10 +100,53 @@ export const createPost = async (req, res) => {
       }
     }
 
+    // ===== CHART HANDLING =====
+    // Handle chart if present
+    if (chart && chart !== 'undefined' && chart !== 'null') {
+      try {
+        const chartData = typeof chart === 'string' ? JSON.parse(chart) : chart;
+        console.log('📊 Adding chart to post:', chartData);
+        
+        // Validate chart data
+        if (!chartData.symbol) {
+          return res.status(400).json({
+            success: false,
+            message: 'Chart must have a symbol'
+          });
+        }
+
+        // Create chart media object
+        const chartMedia = {
+          url: '/api/charts/widget', // Endpoint for chart widget
+          type: 'chart',
+          mimeType: 'application/json',
+          size: 0, // Charts don't have physical size
+          chartData: {
+            symbol: chartData.symbol || 'BTCUSDT',
+            interval: chartData.interval || '30',
+            theme: chartData.theme || 'dark',
+            indicators: chartData.indicators || [],
+            hideToolbar: chartData.hideToolbar || false,
+            hideSideToolbar: chartData.hideSideToolbar || false
+          }
+        };
+        
+        media.push(chartMedia);
+        console.log('✅ Chart added to media array');
+      } catch (error) {
+        console.error('❌ Failed to parse chart data:', error);
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid chart data format: ' + error.message
+        });
+      }
+    }
+
     // Validate content or media
     const hasContent = content && content !== 'undefined' && content !== 'null' && content.trim() !== '';
     const hasMedia = media.length > 0;
     const isRepost = !!repostOf && repostOf !== 'null' && repostOf !== 'undefined';
+    const hasChart = media.some(m => m.type === 'chart');
     
     // Check for poll
     let pollData = null;
@@ -136,12 +175,12 @@ export const createPost = async (req, res) => {
 
     const hasPoll = !!pollData;
 
-    console.log('📊 Validation:', { hasContent, hasMedia, isRepost, hasPoll });
+    console.log('📊 Validation:', { hasContent, hasMedia, isRepost, hasPoll, hasChart });
 
-    if (!hasContent && !hasMedia && !isRepost && !hasPoll) {
+    if (!hasContent && !hasMedia && !isRepost && !hasPoll && !hasChart) {
       return res.status(400).json({
         success: false,
-        message: 'Post must have content, media, a poll, or be a repost'
+        message: 'Post must have content, media, a poll, a chart, or be a repost'
       });
     }
 
@@ -273,6 +312,7 @@ export const createPost = async (req, res) => {
       userId: postData.userId,
       contentLength: postData.content?.length,
       mediaCount: postData.media.length,
+      chartCount: postData.media.filter(m => m.type === 'chart').length,
       mentionsCount: postData.mentions.length,
       hashtagsCount: postData.hashtags.length,
       hasPoll: !!pollId,
@@ -294,8 +334,7 @@ export const createPost = async (req, res) => {
       { $inc: { 'stats.postsCount': 1 } }
     );
 
-    // ========== FIXED POPULATION SECTION ==========
-    // First populate basic fields
+    // Populate fields
     await post.populate([
       { path: 'userId', select: 'name username avatar isVerified' },
       { path: 'mentions', select: 'name username avatar' },
@@ -310,7 +349,7 @@ export const createPost = async (req, res) => {
     if (pollId) {
       pollDataForResponse = await Poll.findById(pollId)
         .populate('createdBy', 'name username avatar')
-        .lean(); // Use lean() for plain JavaScript object
+        .lean();
       
       console.log('📊 Fetched poll data for response:', pollDataForResponse);
     }
@@ -338,7 +377,7 @@ export const createPost = async (req, res) => {
       }
     }
 
-    console.log('✅ Post created successfully with poll:', !!pollDataForResponse);
+    console.log('✅ Post created successfully');
 
     res.status(201).json({
       success: true,
@@ -353,9 +392,7 @@ export const createPost = async (req, res) => {
     });
   }
 };
-// ============================================
-// VOTE ON POLL
-// ============================================
+
 // ============================================
 // VOTE ON POLL
 // ============================================
@@ -476,6 +513,7 @@ export const voteOnPoll = async (req, res) => {
     });
   }
 };
+
 // ============================================
 // GET POLL RESULTS
 // ============================================
@@ -528,10 +566,10 @@ export const getPollResults = async (req, res) => {
     });
   }
 };
+
 // ============================================
-// GET USER POSTS
+// GET USER POSTS (WITH CHART SUPPORT)
 // ============================================
-// In getUserPosts function - add poll population
 export const getUserPosts = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -550,6 +588,8 @@ export const getUserPosts = async (req, res) => {
       query.repostOf = { $ne: null };
     } else if (type === 'media') {
       query.media = { $ne: [] };
+    } else if (type === 'charts') {
+      query['media.type'] = 'chart';
     }
 
     console.log('🔍 Query:', JSON.stringify(query));
@@ -563,7 +603,7 @@ export const getUserPosts = async (req, res) => {
       })
       .populate('comments.userId', 'name username avatar isVerified')
       .populate('comments.replies.userId', 'name username avatar isVerified')
-      .populate('pollId') // Add this to populate poll data
+      .populate('pollId')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
@@ -590,7 +630,7 @@ export const getUserPosts = async (req, res) => {
           hasExpired: new Date() > new Date(postObj.pollId.endsAt),
           createdBy: postObj.pollId.createdBy
         };
-        delete postObj.pollId; // Remove the raw pollId
+        delete postObj.pollId;
       }
       
       // Add interaction status for current user
@@ -637,7 +677,7 @@ export const getUserPosts = async (req, res) => {
 };
 
 // ============================================
-// GET FEED
+// GET FEED (WITH CHART SUPPORT)
 // ============================================
 export const getFeed = async (req, res) => {
   try {
@@ -698,7 +738,7 @@ export const getFeed = async (req, res) => {
 };
 
 // ============================================
-// GET POST BY ID
+// GET POST BY ID (WITH CHART SUPPORT)
 // ============================================
 export const getPostById = async (req, res) => {
   try {
@@ -713,7 +753,8 @@ export const getPostById = async (req, res) => {
         populate: { path: 'userId', select: 'name username avatar isVerified' }
       })
       .populate('comments.userId', 'name username avatar isVerified')
-      .populate('comments.replies.userId', 'name username avatar isVerified');
+      .populate('comments.replies.userId', 'name username avatar isVerified')
+      .populate('pollId');
 
     if (!post) {
       return res.status(404).json({
@@ -821,12 +862,6 @@ export const likePost = async (req, res) => {
 // ============================================
 // COMMENT ON POST
 // ============================================
-// ============================================
-// COMMENT ON POST - WITH DEBUG LOGS
-// ============================================
-// ============================================
-// COMMENT ON POST - WITH EXTENSIVE DEBUG LOGS
-// ============================================
 export const commentOnPost = async (req, res) => {
   try {
     const { postId } = req.params;
@@ -922,18 +957,9 @@ export const commentOnPost = async (req, res) => {
     });
   }
 };
+
 // ============================================
 // REPLY TO COMMENT
-// ============================================
-// In your postController.js, ensure the reply object includes content
-// ============================================
-// REPLY TO COMMENT - COMPLETE FIXED VERSION
-// ============================================
-// ============================================
-// REPLY TO COMMENT - WITH EXTENSIVE DEBUG LOGS
-// ============================================
-// ============================================
-// REPLY TO COMMENT - WITH EXTENSIVE DEBUG LOGS
 // ============================================
 export const replyToComment = async (req, res) => {
   try {
@@ -1070,6 +1096,7 @@ export const replyToComment = async (req, res) => {
     });
   }
 };
+
 // ============================================
 // LIKE COMMENT
 // ============================================
@@ -1307,7 +1334,7 @@ export const repostPost = async (req, res) => {
 };
 
 // ============================================
-// DELETE POST
+// DELETE POST (WITH CHART SUPPORT)
 // ============================================
 export const deletePost = async (req, res) => {
   try {
@@ -1325,10 +1352,10 @@ export const deletePost = async (req, res) => {
       });
     }
 
-    // Delete associated media files
+    // Delete associated media files (skip chart files)
     if (post.media && post.media.length > 0) {
       post.media.forEach(media => {
-        if (media.url) {
+        if (media.url && media.type !== 'chart' && !media.url.includes('/api/')) {
           const filePath = path.join(__dirname, '..', media.url);
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
@@ -1637,6 +1664,64 @@ export const uploadPostMedia = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error uploading media: ' + error.message
+    });
+  }
+};
+
+// ============================================
+// GET TRENDING CHARTS
+// ============================================
+export const getTrendingCharts = async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    const trendingSymbols = await Post.getTrendingChartSymbols(parseInt(limit));
+
+    res.status(200).json({
+      success: true,
+      trending: trendingSymbols
+    });
+  } catch (error) {
+    console.error('❌ Error getting trending charts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting trending charts: ' + error.message
+    });
+  }
+};
+
+// ============================================
+// GET CHARTS BY SYMBOL
+// ============================================
+export const getChartsBySymbol = async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    const posts = await Post.getChartPosts(symbol, parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+
+    const total = await Post.countDocuments({
+      'media.type': 'chart',
+      'media.chartData.symbol': symbol,
+      isPublished: true
+    });
+
+    res.status(200).json({
+      success: true,
+      posts,
+      symbol,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit)),
+        total,
+        hasMore: (parseInt(page) * parseInt(limit)) < total
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error getting charts by symbol:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting charts: ' + error.message
     });
   }
 };
