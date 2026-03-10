@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import ConnectionPanel from './ConnectionPanel';
 import { io } from 'socket.io-client';
-
+import ChartTab from './ChartTab';
 // Import components
 import AvatarModal from './AvatarModal';
 import TabsNavigation from './TabsNavigation';
@@ -1353,7 +1353,13 @@ const handleReportPost = useCallback(async (postId, reportData) => {
       case 'chat-rooms':
         return renderPlaceholderTab(FaComments, 'Active Chat Rooms');
       case 'charts':
-        return renderPlaceholderTab(FaChartLine, 'Trading Charts & Analysis');
+        return (
+        <ChartTab 
+          currentUserId={currentUser?._id || currentUser?.id}
+          profileUserId={profileUser?.id}
+          isOwnProfile={isOwnProfile}
+        />
+      );
       case 'news':
         return renderPlaceholderTab(FaNewspaper, 'Market News & Reports');
       default:

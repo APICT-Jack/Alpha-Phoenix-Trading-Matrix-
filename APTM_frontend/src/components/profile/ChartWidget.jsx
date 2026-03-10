@@ -1,5 +1,5 @@
-// components/ChartWidget.jsx - FIXED HOVER BLINKING ISSUE
-import React, { useState, useRef, useEffect } from 'react';
+// components/ChartWidget.jsx - FIXED EXPANDED MODE
+import React, { useState } from 'react';
 import { FaChartLine, FaExpand, FaCompress, FaExternalLinkAlt, FaSpinner } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 import styles from './styles/ChartWidget.module.css';
@@ -8,9 +8,6 @@ const ChartWidget = ({ chartData, onClick, isExpanded = false }) => {
   const { darkMode } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [expanded, setExpanded] = useState(isExpanded);
-  const overlayRef = useRef(null);
-  const containerRef = useRef(null);
-  const hoverTimeoutRef = useRef(null);
 
   const {
     symbol = 'BTCUSDT',
@@ -41,64 +38,20 @@ const ChartWidget = ({ chartData, onClick, isExpanded = false }) => {
 
   const handleExpandToggle = (e) => {
     e.stopPropagation();
-    e.preventDefault();
     setExpanded(!expanded);
     if (onClick) onClick();
   };
 
-  const handleOverlayClick = (e) => {
-    // Only close if clicking directly on the overlay, not its children
-    if (e.target === overlayRef.current) {
-      setExpanded(false);
-    }
-  };
-
-  const handleContainerMouseEnter = () => {
-    // Clear any pending close timeout
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-  };
-
-  const handleContainerMouseLeave = () => {
-    // Don't auto-close, just clear any pending timeouts
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-  };
-
   const openFullChart = (e) => {
     e.stopPropagation();
-    e.preventDefault();
     window.open(`https://www.tradingview.com/chart/?symbol=BINANCE%3A${symbol}`, '_blank');
   };
-
-  // Clean up timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // If expanded, render in portal/modal
   if (expanded) {
     return (
-      <div 
-        ref={overlayRef}
-        className={styles.expandedOverlay} 
-        onClick={handleOverlayClick}
-      >
-        <div 
-          ref={containerRef}
-          className={styles.expandedContainer} 
-          onClick={(e) => e.stopPropagation()}
-          onMouseEnter={handleContainerMouseEnter}
-          onMouseLeave={handleContainerMouseLeave}
-        >
+      <div className={styles.expandedOverlay} onClick={() => setExpanded(false)}>
+        <div className={styles.expandedContainer} onClick={(e) => e.stopPropagation()}>
           <div className={styles.expandedHeader}>
             <div className={styles.chartInfo}>
               <FaChartLine className={styles.chartIcon} />
@@ -150,8 +103,7 @@ const ChartWidget = ({ chartData, onClick, isExpanded = false }) => {
                 width: '100%',
                 height: '100%',
                 border: 'none',
-                display: isLoading ? 'none' : 'block',
-                pointerEvents: 'auto' // Ensure iframe captures mouse events
+                display: isLoading ? 'none' : 'block'
               }}
               onLoad={() => setIsLoading(false)}
               title={`${symbol} Chart`}
