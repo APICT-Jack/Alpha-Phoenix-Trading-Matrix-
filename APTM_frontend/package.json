@@ -10,6 +10,7 @@
      "resolutions": {
     "react-image-lightbox/react": "^18.2.0",
     "react-image-lightbox/react-dom": "^18.2.0"
+  }
   },
   "type": "module",
   "scripts": {
