@@ -278,219 +278,138 @@ export const googleCallback = async (req, res) => {
 };
 
 // ✅ Enhanced Register user + OTP with all profile creation
+// In your userController.js - RegisterUser function
 export const RegisterUser = async (req, res) => {
-  const { name, email, password, username } = req.body;
-
-  console.log('📝 SIGNUP ATTEMPT ==========');
-  console.log('Name:', name);
-  console.log('Email:', email);
-  console.log('Username:', username);
-
-  const session = await mongoose.startSession();
-  
   try {
-    session.startTransaction();
+    const { name, username, email, password } = req.body;
 
     // Check if user exists
     const existingUser = await User.findOne({ 
-      $or: [
-        { email },
-        ...(username ? [{ username }] : [])
-      ]
-    }).session(session);
+      $or: [{ email }, { username }] 
+    });
     
     if (existingUser) {
-      await session.abortTransaction();
-      if (existingUser.email === email) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "User already exists with this email" 
-        });
-      }
-      if (username && existingUser.username === username) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Username already taken" 
-        });
-      }
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User already exists' 
+      });
     }
 
-    // Hash password
-    console.log('🔐 Hashing password...');
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Create new user - DO NOT hash password here
+    // The pre-save hook in User model will handle hashing
+    const user = new User({
+      name,
+      username,
+      email,
+      password, // Send plain password, model will hash it
+      isActive: false
+    });
 
     // Generate OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Create user
-    const newUser = new User({ 
-      name, 
-      email, 
-      password: hashedPassword,
-      username,
-      isActive: false,
-      otpCode: otpCode,
-      otpExpiry: Date.now() + 10 * 60 * 1000 // 10 minutes
-    });
-   
-    await newUser.save({ session });
-    console.log('✅ User saved to database');
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date();
+    otpExpiry.setMinutes(otpExpiry.getMinutes() + 10);
 
-    // Create all related documents
-    await Promise.all([
-      UserProfile.create([{
-        userId: newUser._id,
-        firstName: name.split(' ')[0] || '',
-        lastName: name.split(' ').slice(1).join(' ') || '',
-        username: username,
-        timezone: 'UTC',
-        stats: {
-          joinDate: new Date(),
-          lastActive: new Date()
-        }
-      }], { session }),
-      
-      Subscription.create([{
-        userId: newUser._id,
-        plan: 'free',
-        status: 'active'
-      }], { session }),
-      
-      UserSettings.create([{
-        userId: newUser._id
-      }], { session }),
-      
-      UserNotificationPreferences.create([{
-        userId: newUser._id
-      }], { session })
-    ]);
+    user.otpCode = otp;
+    user.otpExpiry = otpExpiry;
 
-    await session.commitTransaction();
-    console.log(`📧 OTP for ${email}: ${otpCode}`);
-    console.log('✅ All user profiles and settings created');
-    
-    res.status(200).json({ 
-      success: true, 
-      message: "User registered successfully. Please check your email for OTP." 
+    await user.save(); // This triggers the pre-save hook
+
+    // Send OTP email logic here...
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully. Please verify OTP.',
+      userId: user._id,
+      email: user.email
     });
-    
+
   } catch (error) {
-    await session.abortTransaction();
-    console.error("❌ Error in RegisterUser:", error);
-    
+    console.error('Registration error:', error);
     res.status(500).json({ 
       success: false, 
-      message: "Server Error during registration: " + error.message 
+      message: 'Server error during registration' 
     });
-  } finally {
-    session.endSession();
   }
 };
 
 // ✅ SINGLE CORRECTED Login user function
+// In your userController.js - loginUser function
 export const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-
-  console.log('🔐 LOGIN ATTEMPT ==========');
-  console.log('Email:', email);
-
   try {
+    const { email, password } = req.body;
+
     // Find user by email
     const user = await User.findOne({ email });
-    console.log('👤 User found:', user ? 'YES' : 'NO');
     
     if (!user) {
-      console.log('❌ No user found with this email');
-      return res.status(400).json({ 
+      return res.status(401).json({ 
         success: false, 
-        message: "Invalid credentials" 
+        message: 'Invalid credentials' 
       });
     }
 
-    console.log('✅ User exists');
-    console.log('🔓 User isActive:', user.isActive);
-
+    // Check if user is active (verified)
     if (!user.isActive) {
-      console.log('❌ User account not verified');
-      return res.status(400).json({ 
+      return res.status(401).json({ 
         success: false, 
-        message: "Please verify your account first" 
+        message: 'Please verify your email first' 
       });
     }
 
-    // Check password (skip for Google users without password)
-    if (user.password) {
-      console.log('🔄 Comparing passwords...');
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      console.log('🔑 Password comparison result:', isPasswordValid);
-      
-      if (!isPasswordValid) {
-        console.log('❌ Password comparison FAILED');
-        return res.status(400).json({ 
-          success: false, 
-          message: "Invalid credentials" 
-        });
-      }
-    } else {
-      console.log('⚠️ Google user - skipping password check');
+    // Check if account is locked
+    if (user.isLocked) {
+      const lockTimeRemaining = Math.ceil((user.lockUntil - Date.now()) / (60 * 1000));
+      return res.status(401).json({ 
+        success: false, 
+        message: `Account locked. Try again in ${lockTimeRemaining} minutes` 
+      });
     }
 
-    console.log('✅ Password comparison SUCCESS');
+    // Compare passwords
+    const isMatch = await user.comparePassword(password);
     
-    // Update last active in profile
-    await UserProfile.findOneAndUpdate(
-      { userId: user._id },
-      { $set: { 'stats.lastActive': new Date() } }
-    );
+    if (!isMatch) {
+      // Increment login attempts
+      await user.incrementLoginAttempts();
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid credentials' 
+      });
+    }
 
-    // Get complete user data for response - USING VIRTUALS
-    const [userProfile, subscription, settings] = await Promise.all([
-      UserProfile.findOne({ userId: user._id }),
-      Subscription.findOne({ userId: user._id }),
-      UserSettings.findOne({ userId: user._id })
-    ]);
+    // Reset login attempts on successful login
+    await user.resetLoginAttempts();
+    await user.updateLastLogin();
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
-        userId: user._id,
-        email: user.email 
-      },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '24h' }
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
     );
 
-    console.log('🎉 LOGIN SUCCESSFUL for:', email);
-    
-    // Use virtual properties from User model
-    res.status(200).json({
+    res.json({
       success: true,
-      message: "Login successful",
+      message: 'Login successful',
+      token,
       user: {
         id: user._id,
         name: user.name,
-        email: user.email,
         username: user.username,
-        isActive: user.isActive,
-        avatar: user.avatarUrl, // Use virtual property
-        avatarInitial: user.avatarInitial, // Use virtual property
-        displayName: user.displayName, // Use virtual property
-        profile: userProfile || {},
-        subscription: subscription || { plan: 'free', status: 'active' },
-        settings: settings || {}
-      },
-      token: token
+        email: user.email,
+        avatar: user.avatar
+      }
     });
 
   } catch (error) {
-    console.error('💥 LOGIN ERROR:', error);
-    return res.status(500).json({ 
+    console.error('Login error:', error);
+    res.status(500).json({ 
       success: false, 
-      message: "Server Error during login: " + error.message 
+      message: 'Server error during login' 
     });
   }
 };
-
 // ✅ SINGLE CORRECTED Check authentication function
 export const checkAuth = async (req, res) => {
   try {

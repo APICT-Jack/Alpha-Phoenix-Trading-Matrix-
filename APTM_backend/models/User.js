@@ -139,20 +139,38 @@ UserSchema.methods.updateLastLogin = function() {
   return this.save();
 };
 
+// In User.js - verify the comparePassword method
 UserSchema.methods.comparePassword = async function(candidatePassword) {
-  if (!this.password) return false;
-  return await bcrypt.compare(candidatePassword, this.password);
+  try {
+    // If user registered with Google (no password)
+    if (!this.password) return false;
+    
+    // Compare the candidate password with the stored hash
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    console.error('Password comparison error:', error);
+    return false;
+  }
 };
 
 // Pre-save middleware
+// In User.js - pre-save hook with logging
 UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password') || !this.password) return next();
+  if (!this.isModified('password')) return next();
   
   try {
+    console.log('🔐 Password being hashed for user:', this.email);
+    console.log('Original password length:', this.password ? this.password.length : 0);
+    
     const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    const hashedPassword = await bcrypt.hash(this.password, salt);
+    
+    console.log('Hashed password length:', hashedPassword.length);
+    
+    this.password = hashedPassword;
     next();
   } catch (error) {
+    console.error('Error hashing password:', error);
     next(error);
   }
 });
