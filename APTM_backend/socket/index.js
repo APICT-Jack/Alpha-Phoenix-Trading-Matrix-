@@ -1,4 +1,3 @@
-// socket/index.js - Make sure this is the file you're importing in server.js
 import { Server } from 'socket.io';
 import { Conversation, Message } from '../models/Chat.js';
 import User from '../models/User.js';
@@ -164,13 +163,23 @@ export const initializeSockets = (server) => {
               conversation.unreadCounts.set(userId.toString(), 0);
               await conversation.save();
 
-              // Notify other user that messages were read
-              io.to(`user:${otherParticipant}`).emit('messages:read', {
+              // Broadcast to ALL participants
+              const readEventData = {
                 conversationId,
                 readerId: userId,
                 count: result.modifiedCount,
                 timestamp: new Date()
+              };
+
+              // Emit to conversation room (all participants)
+              io.to(`conversation:${conversationId}`).emit('messages:read', readEventData);
+              
+              // Also emit to individual user rooms
+              conversation.participants.forEach(participantId => {
+                io.to(`user:${participantId}`).emit('messages:read', readEventData);
               });
+
+              console.log(`📖 Messages auto-marked as read when joining: ${result.modifiedCount} messages`);
             }
           }
         }
@@ -190,11 +199,11 @@ export const initializeSockets = (server) => {
     });
 
     // Send message
-    socket.on('message:send', async ({ conversationId, receiverId, text, type = 'text' }) => {
+    socket.on('message:send', async ({ conversationId, receiverId, text, type = 'text', tempId }) => {
       if (!text || !receiverId || !userId) return;
 
       try {
-        // Find or create conversation using the static method
+        // Find or create conversation
         const participants = [userId, receiverId].sort((a, b) => 
           a.toString().localeCompare(b.toString())
         );
@@ -230,10 +239,14 @@ export const initializeSockets = (server) => {
         conversation.lastMessage = message._id;
         conversation.lastMessageText = text;
         conversation.lastMessageTime = new Date();
-        conversation.unreadCounts.set(
-          receiverId.toString(),
-          (conversation.unreadCounts.get(receiverId.toString()) || 0) + 1
-        );
+        
+        // Only increment unread count for the receiver
+        const receiverUnreadCount = conversation.unreadCounts.get(receiverId.toString()) || 0;
+        conversation.unreadCounts.set(receiverId.toString(), receiverUnreadCount + 1);
+        
+        // Sender's unread count remains 0
+        conversation.unreadCounts.set(userId.toString(), 0);
+        
         await conversation.save();
 
         // Populate sender info
@@ -248,34 +261,28 @@ export const initializeSockets = (server) => {
             name: userData.name,
             username: userData.username,
             avatar: userData.avatar
-          }
+          },
+          tempId // Include tempId for client to match
         };
 
-        // Send to receiver if online
+        // Send to receiver
         if (onlineUsers.has(receiverId)) {
           io.to(`user:${receiverId}`).emit('message:receive', messageData);
-          
-          // Also send to conversation room
           io.to(`conversation:${conversation._id}`).emit('message:receive', messageData);
         }
 
         // Send back to sender for confirmation
         socket.emit('message:sent', messageData);
 
-        // Update unread count for receiver
-        const unreadCount = conversation.unreadCounts.get(receiverId.toString()) || 0;
-        io.to(`user:${receiverId}`).emit('conversation:unread', {
-          conversationId: conversation._id,
-          unreadCount,
-          lastMessage: messageData
-        });
+        console.log(`📨 Message sent in conversation ${conversation._id} from ${userId} to ${receiverId}`);
 
       } catch (error) {
         console.error('Error sending message:', error);
         socket.emit('message:error', { 
           error: 'Failed to send message',
           text,
-          receiverId
+          receiverId,
+          tempId
         });
       }
     });
@@ -313,15 +320,20 @@ export const initializeSockets = (server) => {
       });
     });
 
-    // Mark messages as read
-    socket.on('messages:read', async ({ conversationId, senderId }) => {
-      if (!conversationId || !senderId || !userId) return;
+    // Mark messages as read - FIXED VERSION
+    socket.on('messages:read', async ({ conversationId, senderId, readerId }) => {
+      // Use readerId if provided, otherwise fall back to socket.userId
+      const actualReaderId = readerId || userId;
+      
+      if (!conversationId || !senderId || !actualReaderId) return;
 
       try {
+        console.log(`📖 Processing messages:read for conversation ${conversationId}, sender ${senderId}, reader ${actualReaderId}`);
+        
         const result = await Message.updateMany(
           {
-            senderId,
-            receiverId: userId,
+            senderId: senderId,  // Messages from this user
+            receiverId: actualReaderId,  // To the current user
             status: { $ne: 'read' }
           },
           {
@@ -334,17 +346,30 @@ export const initializeSockets = (server) => {
           // Update conversation unread count
           const conversation = await Conversation.findById(conversationId);
           if (conversation) {
-            conversation.unreadCounts.set(userId.toString(), 0);
+            // Reset unread count for the reader
+            conversation.unreadCounts.set(actualReaderId.toString(), 0);
             await conversation.save();
-          }
 
-          // Notify sender that messages were read
-          io.to(`user:${senderId}`).emit('messages:read', {
-            conversationId,
-            readerId: userId,
-            count: result.modifiedCount,
-            timestamp: new Date()
-          });
+            // Create read event data
+            const readEventData = {
+              conversationId,
+              readerId: actualReaderId,
+              count: result.modifiedCount,
+              timestamp: new Date()
+            };
+
+            console.log(`📖 Marked ${result.modifiedCount} messages as read, emitting to all participants`);
+
+            // Emit to ALL participants in the conversation
+            io.to(`conversation:${conversationId}`).emit('messages:read', readEventData);
+            
+            // Also emit to individual user rooms for redundancy
+            conversation.participants.forEach(participantId => {
+              io.to(`user:${participantId}`).emit('messages:read', readEventData);
+            });
+          }
+        } else {
+          console.log('📖 No messages needed marking as read');
         }
       } catch (error) {
         console.error('Error marking messages as read:', error);
@@ -388,6 +413,19 @@ export const initializeSockets = (server) => {
         isOnline,
         userData: isOnline ? onlineUsers.get(targetUserId).userData : null
       });
+    });
+
+    // Get online users
+    socket.on('get-online-users', () => {
+      const onlineUsersList = Array.from(onlineUsers.entries()).reduce((acc, [id, data]) => {
+        acc[id] = {
+          online: true,
+          userData: data.userData
+        };
+        return acc;
+      }, {});
+      
+      socket.emit('users:online', onlineUsersList);
     });
 
     // Disconnect

@@ -30,7 +30,14 @@ import {
   FaSyncAlt
 } from 'react-icons/fa';
 
-const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, currentUser }) => {
+const ChatSidebar = ({ 
+  conversations, 
+  activeChat, 
+  onSelectChat, 
+  onStartChat, 
+  currentUser,
+  onConversationsUpdate 
+}) => {
   const navigate = useNavigate();
   const { darkMode } = useTheme();
   
@@ -48,7 +55,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [localConversations, setLocalConversations] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   const modalSearchRef = useRef(null);
   const panelRef = useRef(null);
@@ -56,9 +63,20 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
   const processedMessageIds = useRef(new Set());
   const processedReadIds = useRef(new Set());
 
-  // Update local conversations when props change
+  // Force refresh when unreadCounts change
   useEffect(() => {
-    // Initialize unread counts from conversations
+    console.log('🔄 Unread counts changed:', unreadCounts);
+    setRefreshKey(prev => prev + 1);
+  }, [unreadCounts]);
+
+  // Force refresh when conversations prop changes
+  useEffect(() => {
+    console.log('🔄 Conversations prop changed:', conversations);
+    setRefreshKey(prev => prev + 1);
+  }, [conversations]);
+
+  // Initialize unread counts from conversations
+  useEffect(() => {
     const initialUnreadCounts = {};
     conversations.forEach(conv => {
       if (conv.unreadCount > 0) {
@@ -66,7 +84,6 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
       }
     });
     setUnreadCounts(initialUnreadCounts);
-    setLocalConversations(conversations);
   }, [conversations]);
 
   // Socket event handlers
@@ -88,6 +105,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
       userName: data.userData?.name,
       timestamp: new Date().toISOString()
     });
+    setRefreshKey(prev => prev + 1);
   }, []);
 
   const handleUserOffline = useCallback((data) => {
@@ -103,6 +121,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
       userId: data.userId,
       timestamp: new Date().toISOString()
     });
+    setRefreshKey(prev => prev + 1);
   }, []);
 
   const handleUserStatusResponse = useCallback((data) => {
@@ -112,6 +131,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
         ...prev,
         [data.userId]: { online: data.isOnline, userData: data.userData }
       }));
+      setRefreshKey(prev => prev + 1);
     }
   }, []);
 
@@ -120,6 +140,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
       ...prev,
       [conversationId]: { userId, username }
     }));
+    setRefreshKey(prev => prev + 1);
   }, []);
 
   const handleTypingStop = useCallback(({ conversationId, userId }) => {
@@ -130,6 +151,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
       }
       return newState;
     });
+    setRefreshKey(prev => prev + 1);
   }, []);
 
   const handleNewMessage = useCallback((message) => {
@@ -145,46 +167,34 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
     // Mark as processed
     if (messageId) {
       processedMessageIds.current.add(messageId);
-      // Clear after 5 seconds to prevent memory leak
       setTimeout(() => {
         processedMessageIds.current.delete(messageId);
       }, 5000);
     }
     
-    // Check if message is from current user
-    const isFromCurrentUser = message.senderId === currentUser?.id || 
-                              message.sender?._id === currentUser?.id;
+    // Check if message is from current user with better comparison
+    const isFromCurrentUser = 
+      message.senderId === currentUser?.id || 
+      message.sender?._id === currentUser?.id ||
+      message.senderId?.toString() === currentUser?.id?.toString() ||
+      message.sender?._id?.toString() === currentUser?.id?.toString();
     
-    // Update local conversations with new message
-    setLocalConversations(prev => {
-      return prev.map(conv => {
-        if (conv.id === message.conversationId) {
-          // Only increment unread count if message is not from current user 
-          // AND conversation is not currently active
-          const shouldIncrement = !isFromCurrentUser && activeChat?.id !== message.conversationId;
-          
-          const newUnreadCount = shouldIncrement ? (conv.unreadCount || 0) + 1 : conv.unreadCount || 0;
-          
-          console.log(`📨 Updating conversation ${conv.id}:`, {
-            isFromCurrentUser,
-            shouldIncrement,
-            oldUnreadCount: conv.unreadCount,
-            newUnreadCount,
-            activeChatId: activeChat?.id
-          });
-          
-          return {
-            ...conv,
-            lastMessage: message.text || conv.lastMessage,
-            lastMessageTime: message.createdAt || new Date().toISOString(),
-            unreadCount: newUnreadCount
-          };
-        }
-        return conv;
-      });
+    console.log('📨 Message sender check:', {
+      messageSenderId: message.senderId,
+      messageSender: message.sender?._id,
+      currentUserId: currentUser?.id,
+      isFromCurrentUser
     });
     
-    // Only update unread count state if message is not from current user
+    // Update parent conversations if needed
+    if (onConversationsUpdate) {
+      onConversationsUpdate(message.conversationId, {
+        lastMessage: message.text,
+        lastMessageTime: message.createdAt || new Date().toISOString()
+      });
+    }
+    
+    // Only update unread count if message is NOT from current user
     if (message.conversationId && !isFromCurrentUser) {
       // Don't increment if this conversation is currently active
       if (activeChat?.id === message.conversationId) {
@@ -202,9 +212,8 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
         };
       });
 
-      // Add notification (with duplicate prevention)
+      // Add notification
       setNotifications(prev => {
-        // Check if similar notification already exists
         const exists = prev.some(n => 
           n.conversationId === message.conversationId && 
           Math.abs(new Date(n.timestamp) - new Date(message.createdAt)) < 1000
@@ -224,7 +233,10 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
         return [newNotification, ...prev].slice(0, 20);
       });
     }
-  }, [currentUser, activeChat]);
+
+    // Force re-render
+    setRefreshKey(prev => prev + 1);
+  }, [currentUser, activeChat, onConversationsUpdate]);
 
   const handleMessagesRead = useCallback(({ conversationId, readerId, count }) => {
     console.log(`📖 Messages read in conversation ${conversationId} by ${readerId}`);
@@ -238,8 +250,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
     processedReadIds.current.add(readKey);
     setTimeout(() => processedReadIds.current.delete(readKey), 2000);
     
-    // If current user read the messages OR someone else read messages in this conversation
-    // Update unread counts regardless of who read them
+    // Immediately clear unread count for this conversation
     setUnreadCounts(prev => {
       console.log(`📖 Clearing unread count for ${conversationId}`);
       const newState = { ...prev };
@@ -247,17 +258,13 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
       return newState;
     });
 
-    // Update local conversations
-    setLocalConversations(prev => 
-      prev.map(conv => 
-        conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
-      )
-    );
-
     // Remove notifications for this conversation
     setNotifications(prev => 
       prev.filter(n => n.conversationId !== conversationId)
     );
+
+    // Force a re-render
+    setRefreshKey(prev => prev + 1);
   }, []);
 
   // Add recent activity
@@ -272,7 +279,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
       socketService.getSocket()?.emit('get-online-users');
       
       // Request status for each user in conversations
-      localConversations.forEach(conv => {
+      conversations.forEach(conv => {
         socketService.getUserStatus(conv.userId);
       });
       
@@ -335,12 +342,12 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
   // Update online status for conversations when onlineUsers changes
   useEffect(() => {
     // Request status for each user in conversations to ensure accuracy
-    localConversations.forEach(conv => {
+    conversations.forEach(conv => {
       if (socketService.isConnected()) {
         socketService.getUserStatus(conv.userId);
       }
     });
-  }, [localConversations]);
+  }, [conversations]);
 
   // Handle click outside
   useEffect(() => {
@@ -458,7 +465,8 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
 
   // Filter and enhance conversations
   const enhancedConversations = useMemo(() => {
-    return localConversations
+    console.log('🔄 Recalculating enhanced conversations with refreshKey:', refreshKey);
+    return conversations
       .map(conv => {
         const isOnline = onlineUsers[conv.userId]?.online || false;
         // Use unreadCount from state first, then from conversation
@@ -488,7 +496,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
         // Finally by last message time
         return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
       });
-  }, [localConversations, onlineUsers, typingStatus, unreadCounts, searchQuery]);
+  }, [conversations, onlineUsers, typingStatus, unreadCounts, searchQuery, refreshKey]);
 
   // Handle user selection
   const handleUserSelect = (user) => {
@@ -501,7 +509,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
   const handleConversationClick = (conversation) => {
     console.log(`💬 Clicked conversation ${conversation.id}, unread count: ${conversation.unreadCount}`);
     
-    // Clear unread count locally
+    // Clear unread count locally first
     if (conversation.unreadCount > 0) {
       setUnreadCounts(prev => {
         const newState = { ...prev };
@@ -510,24 +518,9 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
         return newState;
       });
 
-      // Update local conversations
-      setLocalConversations(prev => 
-        prev.map(conv => 
-          conv.id === conversation.id ? { ...conv, unreadCount: 0 } : conv
-        )
-      );
-
-      // Also emit socket event to mark messages as read
+      // Emit socket event to mark messages as read
       if (socketService.isConnected()) {
         socketService.markMessagesAsRead(conversation.id, conversation.userId);
-        
-        // Emit additional event for real-time update
-        socketService.getSocket()?.emit('messages:read', {
-          conversationId: conversation.id,
-          readerId: currentUser?.id,
-          count: conversation.unreadCount,
-          timestamp: new Date().toISOString()
-        });
       }
     }
     
@@ -549,7 +542,7 @@ const ChatSidebar = ({ conversations, activeChat, onSelectChat, onStartChat, cur
   const handleNotificationClick = (notification) => {
     setShowNotifications(false);
     if (notification.conversationId) {
-      const conversation = localConversations.find(c => c.id === notification.conversationId);
+      const conversation = conversations.find(c => c.id === notification.conversationId);
       if (conversation) {
         handleConversationClick(conversation);
       }

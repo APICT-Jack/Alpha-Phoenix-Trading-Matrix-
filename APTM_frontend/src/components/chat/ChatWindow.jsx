@@ -78,12 +78,77 @@ const ChatWindow = ({ chat, currentUser, onBack, onToggleSidebar, isMobile }) =>
   }, [chat?.userId]);
 
   // Function to mark messages as read
-  const markMessagesAsRead = useCallback(() => {
-    if (conversationId && chat?.userId && socketService.isConnected()) {
-      console.log('📖 Marking messages as read for conversation:', conversationId);
+  // In ChatWindow.js, update the markMessagesAsRead function:
+
+// In ChatWindow.js - Replace the markMessagesAsRead function and related useEffects
+
+// Function to mark messages as read
+const markMessagesAsRead = useCallback(() => {
+  if (conversationId && chat?.userId && socketService.isConnected()) {
+    console.log('📖 Marking messages as read for conversation:', conversationId);
+    
+    // Get unread messages count (messages from other user that are not read)
+    const unreadMessages = messages.filter(m => 
+      m.senderId === chat?.userId && 
+      m.status !== 'read' && 
+      m.status !== 'sending'
+    );
+    
+    if (unreadMessages.length > 0) {
+      console.log(`📖 Found ${unreadMessages.length} unread messages to mark as read`);
+      
+      // Mark messages as read via socket
       socketService.markMessagesAsRead(conversationId, chat.userId);
+      
+      // Update local message statuses immediately
+      setMessages(prev => prev.map(msg => {
+        if (msg.senderId === chat?.userId && msg.status !== 'read') {
+          return { ...msg, status: 'read', read: true };
+        }
+        return msg;
+      }));
     }
-  }, [conversationId, chat?.userId]);
+  }
+}, [conversationId, chat?.userId, messages]);
+
+// Use this useEffect to mark messages as read when chat becomes active
+useEffect(() => {
+  if (conversationId && chat?.userId && messages.length > 0 && !loading) {
+    // Small delay to ensure messages are loaded
+    const timer = setTimeout(() => {
+      markMessagesAsRead();
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }
+}, [conversationId, chat?.userId, messages.length, loading, markMessagesAsRead]);
+
+// Also mark as read when the window gains focus
+useEffect(() => {
+  const handleFocus = () => {
+    if (conversationId && !loading) {
+      markMessagesAsRead();
+    }
+  };
+
+  window.addEventListener('focus', handleFocus);
+  
+  return () => {
+    window.removeEventListener('focus', handleFocus);
+  };
+}, [conversationId, loading, markMessagesAsRead]);
+
+// Remove the duplicate useEffect that was causing multiple calls
+
+// Also ensure this is called when the chat becomes active
+useEffect(() => {
+  if (conversationId && chat?.userId && messages.length > 0 && !loading) {
+    // Small delay to ensure messages are loaded
+    setTimeout(() => {
+      markMessagesAsRead();
+    }, 500);
+  }
+}, [conversationId, chat?.userId, messages.length, loading, markMessagesAsRead]);
 
   // Fetch messages function
   const fetchMessages = useCallback(async (convId, pageNum) => {

@@ -1,0 +1,91 @@
+/* src/components/chat/TypingIndicator.module.css */
+.typingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  margin: 8px 0;
+  animation: fadeIn 0.3s ease;
+}
+
+.light {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.dark {
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #404040;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatarInitial {
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.dots {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  font-size: 24px;
+  line-height: 1;
+  animation: typing 1.4s infinite;
+  color: #667eea;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
