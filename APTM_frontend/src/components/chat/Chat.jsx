@@ -1,4 +1,3 @@
-// eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -18,9 +17,8 @@ const Chat = () => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [onlineUsers, setOnlineUsers] = useState({});
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [unreadCounts, setUnreadCounts] = useState({});
+  const [conversationsFetched, setConversationsFetched] = useState(false);
 
   // Handle window resize
   useEffect(() => {
@@ -37,83 +35,6 @@ const Chat = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Socket event handlers
-  const handleOnlineUsers = useCallback((users) => {
-    console.log('📊 Chat - Online users received:', users);
-    setOnlineUsers(users);
-  }, []);
-
-  const handleUserOnline = useCallback(({ userId, userData }) => {
-    console.log('🟢 Chat - User online:', userId);
-    setOnlineUsers(prev => ({ ...prev, [userId]: { online: true, userData } }));
-  }, []);
-
-  const handleUserOffline = useCallback(({ userId }) => {
-    console.log('🔴 Chat - User offline:', userId);
-    setOnlineUsers(prev => ({ ...prev, [userId]: { online: false } }));
-  }, []);
-
-  const handleConversationUnread = useCallback(({ conversationId, unreadCount }) => {
-    console.log('📬 Chat - Unread count update:', { conversationId, unreadCount });
-    
-    setUnreadCounts(prev => ({
-      ...prev,
-      [conversationId]: unreadCount
-    }));
-    
-    setConversations(prev => prev.map(conv => 
-      conv.id === conversationId ? { ...conv, unreadCount } : conv
-    ));
-  }, []);
-
-  const handleMessageReceive = useCallback((message) => {
-    console.log('📨 Chat - Message received:', message);
-    
-    if (message.conversationId) {
-      setConversations(prev => prev.map(conv => {
-        if (conv.id === message.conversationId) {
-          // Only increment unread count if not currently viewing this conversation
-          const shouldIncrement = activeChat?.id !== message.conversationId && 
-                                  message.senderId !== currentUser?.id;
-          
-          const newUnreadCount = shouldIncrement ? (conv.unreadCount || 0) + 1 : conv.unreadCount;
-          
-          // Update unread counts state
-          if (shouldIncrement) {
-            setUnreadCounts(prev => ({
-              ...prev,
-              [message.conversationId]: newUnreadCount
-            }));
-          }
-          
-          return {
-            ...conv,
-            lastMessage: message.text,
-            lastMessageTime: message.createdAt,
-            unreadCount: newUnreadCount
-          };
-        }
-        return conv;
-      }));
-    }
-  }, [activeChat, currentUser]);
-
-  const handleMessagesRead = useCallback(({ conversationId, readerId, count }) => {
-    console.log('📖 Chat - Messages read:', { conversationId, readerId, count });
-    
-    if (readerId === currentUser?.id) {
-      setUnreadCounts(prev => {
-        const newState = { ...prev };
-        delete newState[conversationId];
-        return newState;
-      });
-      
-      setConversations(prev => prev.map(conv => 
-        conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
-      ));
-    }
-  }, [currentUser]);
-
   // Initialize socket and fetch conversations
   useEffect(() => {
     if (!currentUser) return;
@@ -124,41 +45,22 @@ const Chat = () => {
     const token = localStorage.getItem('token');
     socketService.connect(currentUser.id, token);
 
-    // Set up socket listeners
-    socketService.on('users:online', handleOnlineUsers);
-    socketService.on('user:online', handleUserOnline);
-    socketService.on('user:offline', handleUserOffline);
-    socketService.on('conversation:unread', handleConversationUnread);
-    socketService.on('message:receive', handleMessageReceive);
-    socketService.on('messages:read', handleMessagesRead);
-
     // Request online users
     if (socketService.isConnected()) {
       socketService.getSocket()?.emit('get-online-users');
     }
 
-    // Fetch conversations
-    fetchConversations();
+    // Fetch conversations only once
+    if (!conversationsFetched) {
+      fetchConversations();
+    }
 
     // Cleanup
     return () => {
-      console.log('🧹 Chat - Cleaning up socket listeners');
-      socketService.off('users:online');
-      socketService.off('user:online');
-      socketService.off('user:offline');
-      socketService.off('conversation:unread');
-      socketService.off('message:receive');
-      socketService.off('messages:read');
+      console.log('🧹 Chat - Cleaning up');
+      // Don't disconnect socket here, just remove specific listeners
     };
-  }, [currentUser]);
-
-  // Update conversations when onlineUsers changes
-  useEffect(() => {
-    setConversations(prev => prev.map(conv => ({
-      ...conv,
-      isOnline: onlineUsers[conv.userId]?.online || false
-    })));
-  }, [onlineUsers]);
+  }, [currentUser, conversationsFetched]);
 
   const fetchConversations = async () => {
     try {
@@ -172,29 +74,23 @@ const Chat = () => {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Add online status from socket
           const conversationsWithStatus = (result.conversations || []).map(conv => ({
             ...conv,
             id: conv.id || conv._id,
-            isOnline: onlineUsers[conv.userId]?.online || false,
+            isOnline: false, // Will be updated by socket
             unreadCount: conv.unreadCount || 0
           }));
           
           console.log('📋 Fetched conversations:', conversationsWithStatus);
           setConversations(conversationsWithStatus);
-          
-          // Initialize unread counts
-          const unreadMap = {};
-          conversationsWithStatus.forEach(conv => {
-            if (conv.unreadCount > 0) {
-              unreadMap[conv.id] = conv.unreadCount;
-            }
-          });
-          setUnreadCounts(unreadMap);
+          setConversationsFetched(true);
           
           // If chatId is provided, set active chat
           if (chatId && conversationsWithStatus.length > 0) {
-            handleSelectChat(chatId);
+            const chat = conversationsWithStatus.find(c => c.userId === chatId || c.id === chatId);
+            if (chat) {
+              setTimeout(() => handleSelectChat(chat), 100);
+            }
           }
         }
       }
@@ -228,17 +124,6 @@ const Chat = () => {
 
     if (selectedChat) {
       console.log('💬 Selected chat:', selectedChat);
-      
-      // Clear unread count for this conversation
-      setUnreadCounts(prev => {
-        const newState = { ...prev };
-        delete newState[selectedChat.id];
-        return newState;
-      });
-      
-      setConversations(prev => prev.map(conv => 
-        conv.id === selectedChat.id ? { ...conv, unreadCount: 0 } : conv
-      ));
       
       setActiveChat(selectedChat);
       
@@ -279,7 +164,10 @@ const Chat = () => {
           const newChat = {
             ...result.conversation,
             id: result.conversation.id || result.conversation._id,
-            isOnline: onlineUsers[userId]?.online || false,
+            userId: userId,
+            userName: result.conversation.userName || 'User',
+            userAvatar: result.conversation.userAvatar || null,
+            isOnline: false,
             unreadCount: 0
           };
           
@@ -290,7 +178,7 @@ const Chat = () => {
             if (!prev.find(c => c.userId === userId)) {
               return [newChat, ...prev];
             }
-            return prev;
+            return prev.map(c => c.userId === userId ? newChat : c);
           });
           
           return newChat;
@@ -356,7 +244,6 @@ const Chat = () => {
             currentUser={currentUser}
             onBack={handleBackToConversations}
             onToggleSidebar={toggleSidebar}
-            socketService={socketService}
             isMobile={isMobile}
           />
         ) : (

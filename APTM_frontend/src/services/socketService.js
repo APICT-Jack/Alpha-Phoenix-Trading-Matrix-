@@ -13,9 +13,16 @@ class SocketService {
 
   // Initialize socket connection
   connect(userId, token) {
-    if (this.socket && this.socket.connected) {
-      console.log('🔄 Socket already connected');
+    // If already connected with same userId, return existing socket
+    if (this.socket && this.socket.connected && this.userId === userId) {
+      console.log('🔄 Socket already connected with same user');
       return this.socket;
+    }
+    
+    // If socket exists but different user, disconnect first
+    if (this.socket) {
+      console.log('🔄 Disconnecting existing socket for different user');
+      this.disconnect();
     }
 
     this.userId = userId;
@@ -33,7 +40,7 @@ class SocketService {
       reconnectionDelayMax: 5000,
       timeout: 20000,
       autoConnect: true,
-      forceNew: true
+      forceNew: false // Don't force new connection
     });
 
     this.setupEventListeners();
@@ -204,7 +211,6 @@ class SocketService {
     return false;
   }
 
-  // FIXED: Simplified markMessagesAsRead
   markMessagesAsRead(conversationId, senderId) {
     if (this.isConnected()) {
       const readData = { 

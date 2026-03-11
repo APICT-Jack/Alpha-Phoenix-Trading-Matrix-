@@ -1,7 +1,16 @@
 {
   "name": "frontend.json",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "overrides": {
+    "react-image-lightbox": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    },
+     "resolutions": {
+    "react-image-lightbox/react": "^18.2.0",
+    "react-image-lightbox/react-dom": "^18.2.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

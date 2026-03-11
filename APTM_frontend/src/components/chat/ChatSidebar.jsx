@@ -12,8 +12,6 @@ import {
   FaSearch,
   FaCircle,
   FaRegCircle,
-  FaUserPlus,
-  FaUserCheck,
   FaUsers,
   FaChevronLeft,
   FaChevronRight,
@@ -25,8 +23,6 @@ import {
   FaCrown,
   FaFire,
   FaClock,
-  FaReply,
-  FaEllipsisH,
   FaSyncAlt
 } from 'react-icons/fa';
 
@@ -35,8 +31,7 @@ const ChatSidebar = ({
   activeChat, 
   onSelectChat, 
   onStartChat, 
-  currentUser,
-  onConversationsUpdate 
+  currentUser 
 }) => {
   const navigate = useNavigate();
   const { darkMode } = useTheme();
@@ -51,29 +46,16 @@ const ChatSidebar = ({
   const [hoveredItem, setHoveredItem] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({});
-  const [recentActivity, setRecentActivity] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   
   const modalSearchRef = useRef(null);
   const panelRef = useRef(null);
   const notificationsRef = useRef(null);
   const processedMessageIds = useRef(new Set());
   const processedReadIds = useRef(new Set());
-
-  // Force refresh when unreadCounts change
-  useEffect(() => {
-    console.log('🔄 Unread counts changed:', unreadCounts);
-    setRefreshKey(prev => prev + 1);
-  }, [unreadCounts]);
-
-  // Force refresh when conversations prop changes
-  useEffect(() => {
-    console.log('🔄 Conversations prop changed:', conversations);
-    setRefreshKey(prev => prev + 1);
-  }, [conversations]);
+  const usersFetchedRef = useRef(false);
 
   // Initialize unread counts from conversations
   useEffect(() => {
@@ -98,14 +80,6 @@ const ChatSidebar = ({
       ...prev, 
       [data.userId]: { online: true, userData: data.userData } 
     }));
-
-    addRecentActivity({
-      type: 'user-online',
-      userId: data.userId,
-      userName: data.userData?.name,
-      timestamp: new Date().toISOString()
-    });
-    setRefreshKey(prev => prev + 1);
   }, []);
 
   const handleUserOffline = useCallback((data) => {
@@ -115,13 +89,6 @@ const ChatSidebar = ({
       delete newState[data.userId];
       return newState;
     });
-
-    addRecentActivity({
-      type: 'user-offline',
-      userId: data.userId,
-      timestamp: new Date().toISOString()
-    });
-    setRefreshKey(prev => prev + 1);
   }, []);
 
   const handleUserStatusResponse = useCallback((data) => {
@@ -131,7 +98,6 @@ const ChatSidebar = ({
         ...prev,
         [data.userId]: { online: data.isOnline, userData: data.userData }
       }));
-      setRefreshKey(prev => prev + 1);
     }
   }, []);
 
@@ -140,7 +106,6 @@ const ChatSidebar = ({
       ...prev,
       [conversationId]: { userId, username }
     }));
-    setRefreshKey(prev => prev + 1);
   }, []);
 
   const handleTypingStop = useCallback(({ conversationId, userId }) => {
@@ -151,7 +116,6 @@ const ChatSidebar = ({
       }
       return newState;
     });
-    setRefreshKey(prev => prev + 1);
   }, []);
 
   const handleNewMessage = useCallback((message) => {
@@ -172,27 +136,11 @@ const ChatSidebar = ({
       }, 5000);
     }
     
-    // Check if message is from current user with better comparison
+    // Check if message is from current user
     const isFromCurrentUser = 
       message.senderId === currentUser?.id || 
       message.sender?._id === currentUser?.id ||
-      message.senderId?.toString() === currentUser?.id?.toString() ||
-      message.sender?._id?.toString() === currentUser?.id?.toString();
-    
-    console.log('📨 Message sender check:', {
-      messageSenderId: message.senderId,
-      messageSender: message.sender?._id,
-      currentUserId: currentUser?.id,
-      isFromCurrentUser
-    });
-    
-    // Update parent conversations if needed
-    if (onConversationsUpdate) {
-      onConversationsUpdate(message.conversationId, {
-        lastMessage: message.text,
-        lastMessageTime: message.createdAt || new Date().toISOString()
-      });
-    }
+      message.senderId?.toString() === currentUser?.id?.toString();
     
     // Only update unread count if message is NOT from current user
     if (message.conversationId && !isFromCurrentUser) {
@@ -205,7 +153,6 @@ const ChatSidebar = ({
       setUnreadCounts(prev => {
         const currentCount = prev[message.conversationId] || 0;
         const newCount = currentCount + 1;
-        console.log(`📨 Unread count for ${message.conversationId}: ${currentCount} -> ${newCount}`);
         return {
           ...prev,
           [message.conversationId]: newCount
@@ -233,12 +180,9 @@ const ChatSidebar = ({
         return [newNotification, ...prev].slice(0, 20);
       });
     }
+  }, [currentUser, activeChat]);
 
-    // Force re-render
-    setRefreshKey(prev => prev + 1);
-  }, [currentUser, activeChat, onConversationsUpdate]);
-
-  const handleMessagesRead = useCallback(({ conversationId, readerId, count }) => {
+  const handleMessagesRead = useCallback(({ conversationId, readerId }) => {
     console.log(`📖 Messages read in conversation ${conversationId} by ${readerId}`);
     
     // Prevent duplicate processing
@@ -250,9 +194,8 @@ const ChatSidebar = ({
     processedReadIds.current.add(readKey);
     setTimeout(() => processedReadIds.current.delete(readKey), 2000);
     
-    // Immediately clear unread count for this conversation
+    // Clear unread count for this conversation
     setUnreadCounts(prev => {
-      console.log(`📖 Clearing unread count for ${conversationId}`);
       const newState = { ...prev };
       delete newState[conversationId];
       return newState;
@@ -262,15 +205,45 @@ const ChatSidebar = ({
     setNotifications(prev => 
       prev.filter(n => n.conversationId !== conversationId)
     );
-
-    // Force a re-render
-    setRefreshKey(prev => prev + 1);
   }, []);
 
-  // Add recent activity
-  const addRecentActivity = (activity) => {
-    setRecentActivity(prev => [activity, ...prev].slice(0, 10));
-  };
+  // Initialize socket connection
+  useEffect(() => {
+    if (!currentUser) return;
+
+    console.log('🔌 Chat sidebar - Setting up socket listeners');
+
+    // Set up event listeners
+    socketService.on('users:online', handleOnlineUsers);
+    socketService.on('user:online', handleUserOnline);
+    socketService.on('user:offline', handleUserOffline);
+    socketService.on('user:status:response', handleUserStatusResponse);
+    socketService.on('typing:start', handleTypingStart);
+    socketService.on('typing:stop', handleTypingStop);
+    socketService.on('message:receive', handleNewMessage);
+    socketService.on('messages:read', handleMessagesRead);
+
+    // Request online users
+    if (socketService.isConnected()) {
+      socketService.getSocket()?.emit('get-online-users');
+      socketService.getUserStatus(currentUser.id);
+    }
+
+    return () => {
+      socketService.off('users:online', handleOnlineUsers);
+      socketService.off('user:online', handleUserOnline);
+      socketService.off('user:offline', handleUserOffline);
+      socketService.off('user:status:response', handleUserStatusResponse);
+      socketService.off('typing:start', handleTypingStart);
+      socketService.off('typing:stop', handleTypingStop);
+      socketService.off('message:receive', handleNewMessage);
+      socketService.off('messages:read', handleMessagesRead);
+      
+      // Clear processed IDs
+      processedMessageIds.current.clear();
+      processedReadIds.current.clear();
+    };
+  }, [currentUser]);
 
   // Refresh online status
   const refreshOnlineStatus = () => {
@@ -291,64 +264,6 @@ const ChatSidebar = ({
     setTimeout(() => setIsRefreshing(false), 1000);
   };
 
-  // Initialize socket connection
-  useEffect(() => {
-    if (!currentUser) return;
-
-    console.log('🔌 Chat sidebar - Initializing socket connection');
-
-    if (!socketService.isConnected()) {
-      socketService.connect(currentUser.id, localStorage.getItem('token'));
-    }
-
-    socketService.joinUser(currentUser.id);
-
-    // Set up event listeners
-    socketService.on('users:online', handleOnlineUsers);
-    socketService.on('user:online', handleUserOnline);
-    socketService.on('user:offline', handleUserOffline);
-    socketService.on('user:status:response', handleUserStatusResponse);
-    socketService.on('typing:start', handleTypingStart);
-    socketService.on('typing:stop', handleTypingStop);
-    socketService.on('message:receive', handleNewMessage);
-    socketService.on('messages:read', handleMessagesRead);
-
-    // Request online users
-    if (socketService.isConnected()) {
-      socketService.getSocket()?.emit('get-online-users');
-      
-      // Request status for current user
-      socketService.getUserStatus(currentUser.id);
-    }
-
-    return () => {
-      socketService.off('users:online', handleOnlineUsers);
-      socketService.off('user:online', handleUserOnline);
-      socketService.off('user:offline', handleUserOffline);
-      socketService.off('user:status:response', handleUserStatusResponse);
-      socketService.off('typing:start', handleTypingStart);
-      socketService.off('typing:stop', handleTypingStop);
-      socketService.off('message:receive', handleNewMessage);
-      socketService.off('messages:read', handleMessagesRead);
-      
-      // Clear processed IDs
-      processedMessageIds.current.clear();
-      processedReadIds.current.clear();
-    };
-  }, [currentUser, handleOnlineUsers, handleUserOnline, handleUserOffline, 
-      handleUserStatusResponse, handleTypingStart, handleTypingStop, 
-      handleNewMessage, handleMessagesRead]);
-
-  // Update online status for conversations when onlineUsers changes
-  useEffect(() => {
-    // Request status for each user in conversations to ensure accuracy
-    conversations.forEach(conv => {
-      if (socketService.isConnected()) {
-        socketService.getUserStatus(conv.userId);
-      }
-    });
-  }, [conversations]);
-
   // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -361,10 +276,15 @@ const ChatSidebar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showNotifications]);
 
-  // Fetch users for new chat
+  // Fetch users for new chat - only when modal opens
   useEffect(() => {
+    if (!showNewChat) {
+      usersFetchedRef.current = false;
+      return;
+    }
+    
     const fetchUsers = async () => {
-      if (!showNewChat) return;
+      if (usersFetchedRef.current) return;
       
       setLoadingUsers(true);
       try {
@@ -390,6 +310,7 @@ const ChatSidebar = ({
                 };
               });
             setUsers(usersWithStatus);
+            usersFetchedRef.current = true;
             
             // Request status for each user
             if (socketService.isConnected()) {
@@ -465,17 +386,16 @@ const ChatSidebar = ({
 
   // Filter and enhance conversations
   const enhancedConversations = useMemo(() => {
-    console.log('🔄 Recalculating enhanced conversations with refreshKey:', refreshKey);
-    return conversations
+    return (conversations || [])
       .map(conv => {
         const isOnline = onlineUsers[conv.userId]?.online || false;
-        // Use unreadCount from state first, then from conversation
         const unreadCount = unreadCounts[conv.id] !== undefined ? unreadCounts[conv.id] : (conv.unreadCount || 0);
+        const isTyping = typingStatus[conv.id] || null;
         
         return {
           ...conv,
           isOnline,
-          isTyping: typingStatus[conv.id] || null,
+          isTyping,
           userAvatar: formatAvatarUrl(conv.userAvatar),
           unreadCount,
           lastMessageTime: conv.lastMessageTime || conv.updatedAt || new Date().toISOString()
@@ -485,18 +405,13 @@ const ChatSidebar = ({
         conv.userName?.toLowerCase().includes(searchQuery.toLowerCase())
       )
       .sort((a, b) => {
-        // Sort by typing first
         if (a.isTyping && !b.isTyping) return -1;
         if (!a.isTyping && b.isTyping) return 1;
-        
-        // Then by unread
         if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
         if (a.unreadCount === 0 && b.unreadCount > 0) return 1;
-        
-        // Finally by last message time
         return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
       });
-  }, [conversations, onlineUsers, typingStatus, unreadCounts, searchQuery, refreshKey]);
+  }, [conversations, onlineUsers, typingStatus, unreadCounts, searchQuery]);
 
   // Handle user selection
   const handleUserSelect = (user) => {
@@ -514,7 +429,6 @@ const ChatSidebar = ({
       setUnreadCounts(prev => {
         const newState = { ...prev };
         delete newState[conversation.id];
-        console.log(`💬 Cleared unread count for ${conversation.id}`);
         return newState;
       });
 
@@ -888,32 +802,6 @@ const ChatSidebar = ({
           )}
         </div>
       </div>
-
-      {/* Recent Activity */}
-      {recentActivity.length > 0 && (
-        <div className={styles.recentActivity}>
-          <div className={styles.activityHeader}>
-            <FaFire className={styles.activityFire} />
-            <span>Recent Activity</span>
-            <FaClock className={styles.activityClock} />
-          </div>
-          <div className={styles.activityList}>
-            {recentActivity.map((activity, index) => (
-              <div key={index} className={styles.activityItem}>
-                {activity.type === 'user-online' && <FaCircle className={styles.onlineIcon} />}
-                {activity.type === 'user-offline' && <FaRegCircle className={styles.offlineIcon} />}
-                <span className={styles.activityText}>
-                  {activity.type === 'user-online' && `${activity.userName || 'Someone'} came online`}
-                  {activity.type === 'user-offline' && `${activity.userName || 'Someone'} went offline`}
-                </span>
-                <span className={styles.activityTime}>
-                  {formatTime(activity.timestamp)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* New Chat Modal */}
       {showNewChat && (
