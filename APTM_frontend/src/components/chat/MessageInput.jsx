@@ -1,15 +1,43 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import styles from './MessageInput.module.css';
 
-const MessageInput = ({ onSendMessage, onTyping }) => {
+// Import icons
+import {
+  FaRegSmile,
+  FaPaperclip,
+  FaMicrophone,
+  FaPaperPlane,
+  FaTimes,
+  FaImage,
+  FaFile,
+  FaMusic,
+  FaVideo
+} from 'react-icons/fa';
+
+const MessageInput = forwardRef(({ 
+  onSendMessage, 
+  onTyping,
+  editingMessage,
+  onCancelEdit
+}, ref) => {
   const { darkMode } = useTheme();
   const [message, setMessage] = useState('');
-  const [isAIProcessing, setIsAIProcessing] = useState(false);
-  const [suggestedMessage, setSuggestedMessage] = useState('');
-  const [showSuggestion, setShowSuggestion] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+
+  // Handle editing
+  useEffect(() => {
+    if (editingMessage) {
+      setMessage(editingMessage.text);
+      textareaRef.current?.focus();
+    }
+  }, [editingMessage]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -19,53 +47,25 @@ const MessageInput = ({ onSendMessage, onTyping }) => {
     }
   }, [message]);
 
-  const handleInputChange = (e) => {
-    const newMessage = e.target.value;
-    setMessage(newMessage);
+  // Handle input change
+  const handleChange = (e) => {
+    setMessage(e.target.value);
     
-    // Handle typing indicator
+    // Typing indicator
     if (onTyping) {
-      onTyping(true);
+      onTyping(e.target.value.length > 0);
       
-      // Clear existing timeout
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
       
-      // Set new timeout to stop typing after user stops typing
       typingTimeoutRef.current = setTimeout(() => {
         onTyping(false);
-      }, 1000);
-    }
-    
-    // Debounce AI suggestion
-    clearTimeout(window.suggestionTimeout);
-    window.suggestionTimeout = setTimeout(() => {
-      getAISuggestion(newMessage);
-    }, 500);
-  };
-
-  const handleSend = () => {
-    if (message.trim()) {
-      onSendMessage(message.trim());
-      setMessage('');
-      setShowSuggestion(false);
-      
-      // Stop typing indicator
-      if (onTyping) {
-        onTyping(false);
-      }
-      
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
+      }, 2000);
     }
   };
 
+  // Handle key press
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -73,156 +73,173 @@ const MessageInput = ({ onSendMessage, onTyping }) => {
     }
   };
 
-  const getAISuggestion = async (text) => {
-    if (!text.trim() || text.length < 3) {
-      setShowSuggestion(false);
-      return;
-    }
-
-    setIsAIProcessing(true);
+  // Handle send
+  const handleSend = () => {
+    if (!message.trim() && attachments.length === 0) return;
     
-    try {
-      // Simulate AI processing - replace with actual AI service
-      setTimeout(() => {
-        let improvedText = text;
-        
-        // Capitalize first letter
-        improvedText = improvedText.charAt(0).toUpperCase() + improvedText.slice(1);
-        
-        // Add punctuation if missing
-        if (!['.', '!', '?'].includes(improvedText.slice(-1))) {
-          improvedText += '.';
-        }
-        
-        // Replace common slang
-        const slangMap = {
-          'u ': 'you ',
-          ' ur ': ' your ',
-          ' r ': ' are ',
-          ' pls ': ' please ',
-          ' thx ': ' thanks ',
-          ' lol ': ' ',
-          ' btw ': ' by the way '
-        };
-        
-        Object.entries(slangMap).forEach(([slang, proper]) => {
-          improvedText = improvedText.replace(new RegExp(slang, 'gi'), proper);
-        });
-
-        setSuggestedMessage(improvedText);
-        setShowSuggestion(true);
-        setIsAIProcessing(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Error getting AI suggestion:', error);
-      setIsAIProcessing(false);
-      setShowSuggestion(false);
-    }
+    onSendMessage(message, attachments);
+    setMessage('');
+    setAttachments([]);
+    
+    if (onTyping) onTyping(false);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
 
-  const useSuggestion = () => {
-    setMessage(suggestedMessage);
-    setShowSuggestion(false);
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-    }
+  // Handle file selection
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    
+    const newAttachments = files.map(file => ({
+      file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      url: URL.createObjectURL(file),
+      uploading: true
+    }));
+    
+    setAttachments(prev => [...prev, ...newAttachments]);
+    setShowAttachmentMenu(false);
+    
+    // Simulate upload (replace with actual upload)
+    setTimeout(() => {
+      setAttachments(prev => 
+        prev.map(att => ({ ...att, uploading: false }))
+      );
+    }, 2000);
   };
 
-  const dismissSuggestion = () => {
-    setShowSuggestion(false);
+  // Remove attachment
+  const removeAttachment = (index) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Get attachment icon
+  const getAttachmentIcon = (type) => {
+    if (type?.startsWith('image/')) return <FaImage />;
+    if (type?.startsWith('video/')) return <FaVideo />;
+    if (type?.startsWith('audio/')) return <FaMusic />;
+    return <FaFile />;
   };
 
   return (
-    <div className={`${styles.messageInputContainer} ${darkMode ? styles.dark : styles.light}`}>
-      {/* AI Suggestion Banner */}
-      {showSuggestion && (
-        <div className={styles.suggestionBanner}>
-          <div className={styles.suggestionContent}>
-            <span className={styles.aiIcon}>✨</span>
-            <span className={styles.suggestionText}>
-              AI Suggestion: "{suggestedMessage}"
-            </span>
-          </div>
-          <div className={styles.suggestionActions}>
-            <button 
-              className={styles.useSuggestionButton}
-              onClick={useSuggestion}
-            >
-              Use
-            </button>
-            <button 
-              className={styles.dismissButton}
-              onClick={dismissSuggestion}
-            >
-              ×
-            </button>
-          </div>
+    <div className={`${styles.messageInput} ${darkMode ? styles.dark : styles.light}`}>
+      {/* Editing indicator */}
+      {editingMessage && (
+        <div className={styles.editingIndicator}>
+          <span>Editing message</span>
+          <button onClick={onCancelEdit}>
+            <FaTimes />
+          </button>
         </div>
       )}
 
-      {/* Input Area */}
+      {/* Attachments preview */}
+      {attachments.length > 0 && (
+        <div className={styles.attachmentsPreview}>
+          {attachments.map((att, index) => (
+            <div key={index} className={styles.attachmentPreview}>
+              {att.type?.startsWith('image/') ? (
+                <img src={att.url} alt={att.name} />
+              ) : (
+                <div className={styles.filePreview}>
+                  {getAttachmentIcon(att.type)}
+                  <span className={styles.fileName}>{att.name}</span>
+                </div>
+              )}
+              {att.uploading && (
+                <div className={styles.uploadProgress}>
+                  <div className={styles.spinner}></div>
+                </div>
+              )}
+              <button 
+                className={styles.removeAttachment}
+                onClick={() => removeAttachment(index)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Input area */}
       <div className={styles.inputArea}>
-        <button className={styles.attachmentButton}>
-          <span>📎</span>
+        <button 
+          className={styles.emojiButton}
+          type="button"
+          title="Emoji"
+        >
+          <FaRegSmile />
         </button>
-        
-        <div className={styles.inputWrapper}>
+
+        <div className={styles.textareaWrapper}>
           <textarea
             ref={textareaRef}
             value={message}
-            onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
-            placeholder="Type a message..."
-            className={styles.textInput}
-            rows={1}
+            onChange={handleChange}
+            onKeyDown={handleKeyPress}
+            placeholder={editingMessage ? "Edit message..." : "Type a message..."}
+            rows="1"
           />
-          
-          {isAIProcessing && (
-            <div className={styles.aiProcessing}>
-              <div className={styles.spinner}></div>
-              <span>AI is improving your message...</span>
-            </div>
+        </div>
+
+        <div className={styles.actionButtons}>
+          <button 
+            className={styles.attachButton}
+            onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+            title="Attach file"
+          >
+            <FaPaperclip />
+          </button>
+
+          {message.trim() || attachments.length > 0 ? (
+            <button 
+              className={styles.sendButton}
+              onClick={handleSend}
+              title="Send"
+            >
+              <FaPaperPlane />
+            </button>
+          ) : (
+            <button 
+              className={styles.micButton}
+              onClick={() => setIsRecording(!isRecording)}
+              title={isRecording ? "Stop recording" : "Voice message"}
+            >
+              <FaMicrophone />
+            </button>
           )}
         </div>
 
-        {message.trim() ? (
-          <button 
-            className={styles.sendButton}
-            onClick={handleSend}
-            disabled={!message.trim()}
-          >
-            <span>➤</span>
-          </button>
-        ) : (
-          <button className={styles.emojiButton}>
-            <span>😊</span>
-          </button>
+        {/* Attachment menu */}
+        {showAttachmentMenu && (
+          <div className={styles.attachmentMenu}>
+            <button onClick={() => fileInputRef.current?.click()}>
+              <FaImage /> Image
+            </button>
+            <button onClick={() => fileInputRef.current?.click()}>
+              <FaFile /> Document
+            </button>
+            <button onClick={() => fileInputRef.current?.click()}>
+              <FaMusic /> Audio
+            </button>
+            <button onClick={() => fileInputRef.current?.click()}>
+              <FaVideo /> Video
+            </button>
+          </div>
         )}
-      </div>
 
-      {/* Quick Actions */}
-      <div className={styles.quickActions}>
-        <button 
-          className={styles.quickAction}
-          onClick={() => setMessage("How's your trading going?")}
-        >
-          Trading check
-        </button>
-        <button 
-          className={styles.quickAction}
-          onClick={() => setMessage("What's your current strategy?")}
-        >
-          Strategy
-        </button>
-        <button 
-          className={styles.quickAction}
-          onClick={() => setMessage("Any market insights?")}
-        >
-          Market insights
-        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+        />
       </div>
     </div>
   );
-};
+});
 
-export default MessageInput
+export default MessageInput;

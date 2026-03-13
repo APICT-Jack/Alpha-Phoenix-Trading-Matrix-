@@ -1,278 +1,566 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { socketService } from '../../services/socketService';
-import ChatSidebar from './ChatSidebar';
-import ChatWindow from './ChatWindow';
+import { chatService } from '../../services/chatService';
+import ChatList from './ChatList';
+import ChatConversation from './ChatConversation';
+import NewChatModal from './NewChatModal';
+import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
 import styles from './Chat.module.css';
+
+// Import icons
+import {
+  FaComments,
+  FaSearch,
+  FaPlus,
+  FaMoon,
+  FaSun,
+  FaCog
+} from 'react-icons/fa';
 
 const Chat = () => {
   const { chatId } = useParams();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const { darkMode } = useTheme();
+  const { darkMode, setDarkMode } = useTheme();
 
-  const [activeChat, setActiveChat] = useState(null);
+  // State management
   const [conversations, setConversations] = useState([]);
+  const [activeChat, setActiveChat] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState({});
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [conversationsFetched, setConversationsFetched] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState('connected');
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-      if (window.innerWidth > 768) {
-        setSidebarOpen(true);
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setShowSidebar(!activeChat);
       } else {
-        setSidebarOpen(false);
+        setShowSidebar(true);
       }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [activeChat]);
 
-  // Initialize socket and fetch conversations
+  // Initialize chat service
   useEffect(() => {
     if (!currentUser) return;
 
-    console.log('🔌 Chat - Initializing socket connection');
+    console.log('🔌 Initializing chat service');
+    
+    chatService.init(currentUser, {
+      onConnect: () => {
+        console.log('✅ Chat service connected');
+        setConnectionStatus('connected');
+        loadConversations();
+      },
+      onDisconnect: () => {
+        console.log('❌ Chat service disconnected');
+        setConnectionStatus('disconnected');
+      },
+      onConversationUpdate: (conversation) => {
+        console.log('🔄 Conversation update:', conversation);
+        updateConversationInList(conversation);
+      },
+      onNewMessage: (message) => {
+        console.log('📨 New message:', message);
+        handleNewMessage(message);
+      },
+      onMessagesRead: ({ conversationId, readerId }) => {
+        console.log('📖 Messages read:', conversationId, readerId);
+        handleMessagesRead(conversationId, readerId);
+      },
+      onTypingStart: ({ conversationId, userId, username }) => {
+        handleTypingStart(conversationId, userId, username);
+      },
+      onTypingStop: ({ conversationId, userId }) => {
+        handleTypingStop(conversationId, userId);
+      },
+      onUserOnline: (data) => {
+        console.log('🟢 User online:', data);
+        setOnlineUsers(prev => ({ ...prev, [data.userId]: true }));
+      },
+      onUserOffline: (data) => {
+        console.log('🔴 User offline:', data);
+        setOnlineUsers(prev => ({ ...prev, [data.userId]: false }));
+      },
+      onOnlineUsers: (users) => {
+        console.log('📊 Online users:', users);
+        setOnlineUsers(users);
+      }
+    });
 
-    // Initialize socket connection
-    const token = localStorage.getItem('token');
-    socketService.connect(currentUser.id, token);
-
-    // Request online users
-    if (socketService.isConnected()) {
-      socketService.getSocket()?.emit('get-online-users');
-    }
-
-    // Fetch conversations only once
-    if (!conversationsFetched) {
-      fetchConversations();
-    }
-
-    // Cleanup
     return () => {
-      console.log('🧹 Chat - Cleaning up');
-      // Don't disconnect socket here, just remove specific listeners
+      chatService.disconnect();
     };
-  }, [currentUser, conversationsFetched]);
+  }, [currentUser]);
 
-  const fetchConversations = async () => {
+  // Handle chatId from URL params
+  useEffect(() => {
+    if (chatId && conversations.length > 0 && !activeChat) {
+      const chat = conversations.find(c => c.userId === chatId);
+      if (chat) {
+        selectChat(chat);
+      } else {
+        // If conversation doesn't exist yet, create it
+        createChatFromUserId(chatId);
+      }
+    }
+  }, [chatId, conversations, activeChat]);
+
+  // Function to create chat from user ID
+  const createChatFromUserId = async (userId) => {
+    try {
+      const conversation = await chatService.getOrCreateConversation(userId);
+      setConversations(prev => {
+        const exists = prev.some(c => c.id === conversation.id);
+        if (!exists) {
+          return [conversation, ...prev];
+        }
+        return prev;
+      });
+      setActiveChat(conversation);
+    } catch (error) {
+      console.error('Error creating chat from user ID:', error);
+    }
+  };
+
+  // Deduplicate conversations helper
+  const deduplicateConversations = (convs) => {
+    const seen = new Map();
+    return convs.filter(conv => {
+      if (seen.has(conv.userId)) {
+        // Keep the one with the most recent message
+        const existing = seen.get(conv.userId);
+        if (new Date(conv.lastMessageTime) > new Date(existing.lastMessageTime)) {
+          seen.set(conv.userId, conv);
+          return false;
+        }
+        return false;
+      }
+      seen.set(conv.userId, conv);
+      return true;
+    });
+  };
+
+  // Load conversations
+  const loadConversations = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/chat/conversations', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
+      const data = await chatService.getConversations();
+      console.log('📋 Loaded conversations:', data);
+      
+      const conversationsWithStatus = data.map(conv => ({
+        ...conv,
+        online: onlineUsers[conv.userId] || false,
+        unreadCount: conv.unreadCount || 0
+      }));
+      
+      // Deduplicate conversations
+      const uniqueConvs = deduplicateConversations(conversationsWithStatus);
+      setConversations(uniqueConvs);
+      
+      // Initialize unread counts
+      const counts = {};
+      uniqueConvs.forEach(conv => {
+        if (conv.unreadCount > 0) {
+          counts[conv.id] = conv.unreadCount;
+        }
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          const conversationsWithStatus = (result.conversations || []).map(conv => ({
-            ...conv,
-            id: conv.id || conv._id,
-            isOnline: false, // Will be updated by socket
-            unreadCount: conv.unreadCount || 0
-          }));
-          
-          console.log('📋 Fetched conversations:', conversationsWithStatus);
-          setConversations(conversationsWithStatus);
-          setConversationsFetched(true);
-          
-          // If chatId is provided, set active chat
-          if (chatId && conversationsWithStatus.length > 0) {
-            const chat = conversationsWithStatus.find(c => c.userId === chatId || c.id === chatId);
-            if (chat) {
-              setTimeout(() => handleSelectChat(chat), 100);
-            }
-          }
+      setUnreadCounts(counts);
+      
+      // Check if chatId from URL exists
+      if (chatId && uniqueConvs.length > 0) {
+        const chat = uniqueConvs.find(c => c.userId === chatId);
+        if (chat) {
+          setActiveChat(chat);
         }
       }
     } catch (error) {
-      console.error('Error fetching conversations:', error);
+      console.error('Error loading conversations:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectChat = async (chatOrUserId) => {
-    let selectedChat = null;
+  // Update conversation in list
+  const updateConversationInList = (updatedConv) => {
+    setConversations(prev => {
+      const index = prev.findIndex(c => c.id === updatedConv.id);
+      if (index >= 0) {
+        const newConvs = [...prev];
+        newConvs[index] = { ...newConvs[index], ...updatedConv };
+        return newConvs;
+      }
+      return [updatedConv, ...prev];
+    });
+  };
+
+  // Handle new message
+  // In Chat.jsx, update the handleNewMessage function:
+
+// Handle new message
+const handleNewMessage = (message) => {
+  console.log('📨 New message in Chat:', message);
+  
+  // Update conversations list
+  setConversations(prev => {
+    let updated = false;
+    const newConvs = prev.map(conv => {
+      if (conv.id === message.conversationId) {
+        updated = true;
+        return {
+          ...conv,
+          lastMessage: message.text,
+          lastMessageTime: message.createdAt,
+          unreadCount: message.senderId !== currentUser?.id 
+            ? (conv.unreadCount || 0) + 1 
+            : conv.unreadCount
+        };
+      }
+      return conv;
+    });
     
-    // Leave current conversation before switching
-    if (activeChat?.id && socketService.isConnected()) {
-      console.log('👋 Leaving conversation:', activeChat.id);
-      socketService.leaveConversation(activeChat.id);
+    // If conversation doesn't exist yet, we might need to fetch it
+    if (!updated && message.senderId !== currentUser?.id) {
+      // Trigger a reload of conversations
+      setTimeout(() => loadConversations(), 500);
     }
     
-    if (typeof chatOrUserId === 'string') {
-      // Find in existing conversations
-      selectedChat = conversations.find(conv => conv.id === chatOrUserId || conv.userId === chatOrUserId);
-      
-      if (!selectedChat) {
-        // Check if it's a user ID
-        selectedChat = await handleUserChat(chatOrUserId);
-      }
-    } else {
-      selectedChat = chatOrUserId;
-    }
+    return newConvs;
+  });
 
-    if (selectedChat) {
-      console.log('💬 Selected chat:', selectedChat);
-      
-      setActiveChat(selectedChat);
-      
-      // Small delay to ensure state is updated
-      setTimeout(() => {
-        // Join new conversation room for real-time updates
-        if (selectedChat.id && socketService.isConnected()) {
-          console.log('👋 Joining conversation:', selectedChat.id);
-          socketService.joinConversation(selectedChat.id);
-          
-          // Mark messages as read
-          socketService.markMessagesAsRead(selectedChat.id, selectedChat.userId);
-        }
-      }, 100);
+  // Update unread counts
+  if (message.senderId !== currentUser?.id) {
+    setUnreadCounts(prev => ({
+      ...prev,
+      [message.conversationId]: (prev[message.conversationId] || 0) + 1
+    }));
+  }
+};
 
-      // On mobile, close sidebar
-      if (isMobile) {
-        setSidebarOpen(false);
-      }
+  // Handle messages read
+  const handleMessagesRead = (conversationId, readerId) => {
+    if (readerId === currentUser?.id) {
+      setUnreadCounts(prev => {
+        const newCounts = { ...prev };
+        delete newCounts[conversationId];
+        return newCounts;
+      });
 
-      // Update URL
-      navigate(`/chat/${selectedChat.userId}`);
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === conversationId 
+            ? { ...conv, unreadCount: 0 }
+            : conv
+        )
+      );
     }
   };
 
-  const handleUserChat = async (userId) => {
+  // Handle typing indicators
+  const handleTypingStart = (conversationId, userId, username) => {
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === conversationId 
+          ? { ...conv, isTyping: true, typingUser: username }
+          : conv
+      )
+    );
+  };
+
+  const handleTypingStop = (conversationId, userId) => {
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === conversationId 
+          ? { ...conv, isTyping: false, typingUser: null }
+          : conv
+      )
+    );
+  };
+
+  // Select chat
+  const selectChat = async (chat) => {
+    console.log('💬 Selecting chat:', chat);
+    
+    // Clear unread count
+    if (unreadCounts[chat.id] > 0) {
+      chatService.markMessagesAsRead(chat.id, chat.userId);
+    }
+    
+    setActiveChat(chat);
+    
+    // Update URL
+    navigate(`/chat/${chat.userId}`);
+    
+    // On mobile, hide sidebar
+    if (isMobile) {
+      setShowSidebar(false);
+    }
+  };
+
+  // Create new chat
+  const createNewChat = async (user) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/chat/conversation/${userId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
+      const conversation = await chatService.getOrCreateConversation(user.id);
+      setShowNewChatModal(false);
+      
+      // Check if conversation already exists
+      setConversations(prev => {
+        const exists = prev.some(c => c.userId === user.id);
+        if (!exists) {
+          return [conversation, ...prev];
+        }
+        return prev;
       });
       
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          const newChat = {
-            ...result.conversation,
-            id: result.conversation.id || result.conversation._id,
-            userId: userId,
-            userName: result.conversation.userName || 'User',
-            userAvatar: result.conversation.userAvatar || null,
-            isOnline: false,
-            unreadCount: 0
-          };
-          
-          console.log('🆕 New chat created:', newChat);
-          
-          // Add to conversations list if not already there
-          setConversations(prev => {
-            if (!prev.find(c => c.userId === userId)) {
-              return [newChat, ...prev];
-            }
-            return prev.map(c => c.userId === userId ? newChat : c);
-          });
-          
-          return newChat;
-        }
-      }
+      selectChat(conversation);
     } catch (error) {
-      console.error('Error creating user chat:', error);
+      console.error('Error creating chat:', error);
     }
-    return null;
   };
 
-  const handleStartChat = (user) => {
-    handleSelectChat(user);
-  };
-
-  const handleBackToConversations = () => {
-    // Leave current conversation room
-    if (activeChat?.id && socketService.isConnected()) {
-      console.log('👋 Leaving conversation on back:', activeChat.id);
-      socketService.leaveConversation(activeChat.id);
-    }
-    
+  // Go back to conversations list (mobile)
+  const goBackToList = () => {
     setActiveChat(null);
+    setShowSidebar(true);
     navigate('/chat');
-    
-    // On mobile, open sidebar
-    if (isMobile) {
-      setSidebarOpen(true);
-    }
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  // Filter conversations
+  const filteredConversations = conversations.filter(conv => 
+    conv.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    conv.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  if (loading) {
-    return (
-      <div className={`${styles.loadingContainer} ${darkMode ? styles.dark : styles.light}`}>
-        <div className={styles.spinner}></div>
-        <p>Loading chats...</p>
-      </div>
-    );
-  }
+  // Calculate total unread
+  const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 
   return (
-    <div className={`${styles.chatContainer} ${darkMode ? styles.dark : styles.light}`}>
+    <div className={`${styles.chatApp} ${darkMode ? styles.dark : styles.light}`}>
       {/* Sidebar */}
-      <div className={`${styles.sidebar} ${sidebarOpen ? styles.open : styles.closed}`}>
-        <ChatSidebar
-          conversations={conversations}
-          activeChat={activeChat}
-          onSelectChat={handleSelectChat}
-          onStartChat={handleStartChat}
-          currentUser={currentUser}
-        />
+      <div className={`${styles.sidebar} ${showSidebar ? styles.show : styles.hide}`}>
+        {/* Sidebar Header */}
+        <div className={styles.sidebarHeader}>
+          <div className={styles.userInfo}>
+            <div className={styles.avatar}>
+              {currentUser?.avatar ? (
+                <img src={currentUser.avatar} alt={currentUser.name} />
+              ) : (
+                <div 
+                  className={styles.avatarPlaceholder}
+                  style={{ backgroundColor: getAvatarColor(currentUser?.id) }}
+                >
+                  {getAvatarInitial(currentUser)}
+                </div>
+              )}
+            </div>
+            <div className={styles.userDetails}>
+              <h3>{currentUser?.name || 'User'}</h3>
+              <span className={styles.userStatus}>
+                <span className={`${styles.statusDot} ${styles.online}`}></span>
+                Online
+              </span>
+            </div>
+          </div>
+          <div className={styles.headerActions}>
+            <button 
+              className={styles.iconButton}
+              onClick={() => setDarkMode(!darkMode)}
+              title={darkMode ? 'Light mode' : 'Dark mode'}
+            >
+              {darkMode ? <FaSun /> : <FaMoon />}
+            </button>
+            <button className={styles.iconButton} title="Settings">
+              <FaCog />
+            </button>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className={styles.searchContainer}>
+          <FaSearch className={styles.searchIcon} />
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={styles.searchInput}
+          />
+          <button 
+            className={styles.newChatButton}
+            onClick={() => setShowNewChatModal(true)}
+            title="New chat"
+          >
+            <FaPlus />
+          </button>
+        </div>
+
+        {/* Connection Status */}
+        {connectionStatus !== 'connected' && (
+          <div className={styles.connectionStatus}>
+            <span>Connecting...</span>
+          </div>
+        )}
+
+        {/* Conversations List */}
+        <div className={styles.conversationsList}>
+          {loading ? (
+            <div className={styles.loadingState}>
+              <div className={styles.spinner}></div>
+              <p>Loading conversations...</p>
+            </div>
+          ) : filteredConversations.length > 0 ? (
+            filteredConversations.map(conv => (
+              <ChatListItem
+                key={conv.id}
+                conversation={conv}
+                isActive={activeChat?.id === conv.id}
+                onClick={() => selectChat(conv)}
+                online={onlineUsers[conv.userId] || false}
+                unreadCount={unreadCounts[conv.id] || 0}
+              />
+            ))
+          ) : (
+            <div className={styles.emptyState}>
+              <FaComments className={styles.emptyIcon} />
+              <p>No conversations yet</p>
+              <button 
+                className={styles.startChatButton}
+                onClick={() => setShowNewChatModal(true)}
+              >
+                Start a new chat
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Chat Area */}
       <div className={styles.mainArea}>
         {activeChat ? (
-          <ChatWindow
-            chat={activeChat}
+          <ChatConversation
+            conversation={activeChat}
             currentUser={currentUser}
-            onBack={handleBackToConversations}
-            onToggleSidebar={toggleSidebar}
+            onBack={goBackToList}
             isMobile={isMobile}
+            online={onlineUsers[activeChat.userId] || false}
           />
         ) : (
           <div className={styles.welcomeScreen}>
             <div className={styles.welcomeContent}>
-              <div className={styles.welcomeIcon}>💬</div>
+              <FaComments className={styles.welcomeIcon} />
               <h2>Welcome to Chat</h2>
-              <p>Select a conversation or start a new chat</p>
-              <div className={styles.welcomeFeatures}>
-                <div className={styles.feature}>
-                  <span className={styles.featureIcon}>🤖</span>
-                  <span>AI-powered message suggestions</span>
-                </div>
-                <div className={styles.feature}>
-                  <span className={styles.featureIcon}>✨</span>
-                  <span>Smart message correction</span>
-                </div>
-                <div className={styles.feature}>
-                  <span className={styles.featureIcon}>🔒</span>
-                  <span>Real-time encryption</span>
-                </div>
-                <div className={styles.feature}>
-                  <span className={styles.featureIcon}>👥</span>
-                  <span>Online status indicators</span>
-                </div>
-              </div>
+              <p>Select a conversation or start a new one</p>
+              {isMobile && (
+                <button 
+                  className={styles.startChatButton}
+                  onClick={() => setShowNewChatModal(true)}
+                >
+                  Start new chat
+                </button>
+              )}
             </div>
           </div>
         )}
+      </div>
+
+      {/* New Chat Modal */}
+      <NewChatModal
+        isOpen={showNewChatModal}
+        onClose={() => setShowNewChatModal(false)}
+        onSelectUser={createNewChat}
+        currentUser={currentUser}
+      />
+    </div>
+  );
+};
+
+// Chat List Item Component
+const ChatListItem = ({ conversation, isActive, onClick, online, unreadCount }) => {
+  const { darkMode } = useTheme();
+  const [imgError, setImgError] = useState(false);
+  
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getAvatarContent = () => {
+    if (conversation.userAvatar && !imgError) {
+      return (
+        <img 
+          src={conversation.userAvatar} 
+          alt={conversation.userName}
+          onError={() => setImgError(true)}
+        />
+      );
+    }
+    
+    // Generate consistent color based on user ID
+    const color = getAvatarColor(conversation.userId || conversation.id);
+    const initial = getAvatarInitial({ name: conversation.userName });
+    
+    return (
+      <div 
+        className={styles.avatarPlaceholder}
+        style={{ backgroundColor: color }}
+      >
+        {initial}
+      </div>
+    );
+  };
+
+  return (
+    <div 
+      className={`${styles.chatListItem} ${isActive ? styles.active : ''}`}
+      onClick={onClick}
+    >
+      <div className={styles.chatAvatar}>
+        {getAvatarContent()}
+        {online && <span className={styles.onlineBadge}></span>}
+      </div>
+      
+      <div className={styles.chatInfo}>
+        <div className={styles.chatHeader}>
+          <h4>{conversation.userName}</h4>
+          <span className={styles.chatTime}>{formatTime(conversation.lastMessageTime)}</span>
+        </div>
+        
+        <div className={styles.chatPreview}>
+          {conversation.isTyping ? (
+            <span className={styles.typingIndicator}>
+              {conversation.typingUser} is typing...
+            </span>
+          ) : (
+            <>
+              <p className={styles.lastMessage}>
+                {conversation.lastMessage || 'No messages yet'}
+              </p>
+              {unreadCount > 0 && (
+                <span className={styles.unreadBadge}>{unreadCount}</span>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

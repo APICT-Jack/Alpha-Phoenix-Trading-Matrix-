@@ -1,88 +1,159 @@
 // utils/avatarUtils.js
 
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+/**
+ * Format avatar URL to ensure it's properly constructed
+ * @param {string|object} avatarData - Raw avatar path/URL or object containing avatar data
+ * @returns {string|null} - Formatted avatar URL or null
+ */
 export const formatAvatarUrl = (avatarData) => {
-  if (!avatarData) {
-    console.log('❌ No avatar data provided');
+  // If it's null, undefined, or empty string, return null silently (no console.error)
+  if (!avatarData || avatarData === 'null' || avatarData === 'undefined') {
     return null;
   }
-
-  console.log('🖼️ Raw avatar data in formatAvatarUrl:', avatarData);
-  console.log('🖼️ Avatar data type:', typeof avatarData);
 
   try {
     // Extract the avatar path from different possible formats
     let avatarPath;
 
     if (typeof avatarData === 'string') {
-      // Old format: avatar is a direct string path
       avatarPath = avatarData;
-      console.log('📝 Using string avatar path:', avatarPath);
     } else if (avatarData && typeof avatarData === 'object') {
-      // New format: avatar is an object with url property
       avatarPath = avatarData.url || avatarData.path || avatarData.avatarUrl || null;
-      console.log('📝 Using object avatar path:', avatarPath);
     } else {
-      console.error('❌ Unexpected avatar data format:', typeof avatarData, avatarData);
       return null;
     }
 
     // Check if we have a valid path
-    if (!avatarPath) {
-      console.log('❌ No avatar path found in data');
+    if (!avatarPath || avatarPath === 'null' || avatarPath === 'undefined') {
       return null;
     }
 
-    // Ensure avatarPath is a string before using string methods
+    // Ensure avatarPath is a string
     if (typeof avatarPath !== 'string') {
-      console.error('❌ Avatar path is not a string:', typeof avatarPath, avatarPath);
       return null;
     }
-
-    console.log('🔗 Final avatar path to format:', avatarPath);
 
     // If it's already a full URL, return as is
-    if (avatarPath.startsWith('http')) {
-      console.log('🌐 Already full URL, returning as is');
+    if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
       return avatarPath;
     }
 
-    // If it starts with /uploads, prepend the base URL
-    if (avatarPath.startsWith('/uploads')) {
-      const url = `http://localhost:5000${avatarPath}`;
-      console.log('🔗 Formatted uploads URL:', url);
-      return url;
+    // If it's a data URL (base64), return as is
+    if (avatarPath.startsWith('data:')) {
+      return avatarPath;
     }
 
-    // If it's just a filename, construct the full path
+    // Handle /uploads paths
+    if (avatarPath.startsWith('/uploads/')) {
+      return `${BASE_URL}${avatarPath}`;
+    }
+
+    // Handle uploads paths without leading slash
+    if (avatarPath.startsWith('uploads/')) {
+      return `${BASE_URL}/${avatarPath}`;
+    }
+
+    // If it contains avatar- (likely a filename)
     if (avatarPath.includes('avatar-')) {
-      const url = `http://localhost:5000/uploads/avatars/${avatarPath}`;
-      console.log('🔗 Formatted filename URL:', url);
-      return url;
+      return `${BASE_URL}/uploads/avatars/${avatarPath}`;
     }
 
-    // Default case - assume it's a relative path
-    const url = `http://localhost:5000${avatarPath}`;
-    console.log('🔗 Default formatted URL:', url);
-    return url;
+    // Default case - try to construct a path
+    return `${BASE_URL}/uploads/avatars/${avatarPath}`;
 
   } catch (error) {
-    console.error('💥 Error in formatAvatarUrl:', error);
+    // Silent fail - just return null
     return null;
   }
 };
 
+/**
+ * Format banner URL to ensure it's properly constructed
+ * @param {string|object} bannerData - Raw banner path/URL or object containing banner data
+ * @returns {string|null} - Formatted banner URL or null
+ */
+export const formatBannerUrl = (bannerData) => {
+  if (!bannerData || bannerData === 'null' || bannerData === 'undefined') {
+    return null;
+  }
+
+  try {
+    let bannerPath;
+
+    if (typeof bannerData === 'string') {
+      bannerPath = bannerData;
+    } else if (bannerData && typeof bannerData === 'object') {
+      bannerPath = bannerData.url || bannerData.path || bannerData.bannerUrl || null;
+    } else {
+      return null;
+    }
+
+    if (!bannerPath || bannerPath === 'null' || bannerPath === 'undefined') {
+      return null;
+    }
+
+    if (typeof bannerPath !== 'string') {
+      return null;
+    }
+
+    if (bannerPath.startsWith('http://') || bannerPath.startsWith('https://')) {
+      return bannerPath;
+    }
+
+    if (bannerPath.startsWith('data:')) {
+      return bannerPath;
+    }
+
+    if (bannerPath.startsWith('/uploads/banners/')) {
+      return `${BASE_URL}${bannerPath}`;
+    }
+
+    if (bannerPath.startsWith('uploads/banners/')) {
+      return `${BASE_URL}/${bannerPath}`;
+    }
+
+    if (bannerPath.includes('banner-')) {
+      return `${BASE_URL}/uploads/banners/${bannerPath}`;
+    }
+
+    return `${BASE_URL}/uploads/banners/${bannerPath}`;
+
+  } catch (error) {
+    return null;
+  }
+};
+
+/**
+ * Get avatar initial from user data
+ * @param {Object} user - User object
+ * @returns {string} - Initial character
+ */
 export const getAvatarInitial = (user) => {
-  if (user?.name) return user.name.charAt(0).toUpperCase();
-  if (user?.username) return user.username.charAt(0).toUpperCase();
-  if (user?.email) return user.email.charAt(0).toUpperCase();
+  if (!user) return 'U';
+  
+  // Try to get the best available name
+  const name = user.name || user.username || user.email || '';
+  
+  if (name && typeof name === 'string' && name.length > 0) {
+    return name.charAt(0).toUpperCase();
+  }
+  
   return 'U';
 };
 
+/**
+ * Check if user has a valid avatar
+ * @param {string|object} avatarData - Avatar data to check
+ * @returns {boolean} - Whether avatar exists and is valid
+ */
 export const hasValidAvatar = (avatarData) => {
-  if (!avatarData) return false;
+  if (!avatarData || avatarData === 'null' || avatarData === 'undefined') {
+    return false;
+  }
   
   try {
-    // Extract the actual path from the data
     let avatarPath;
     
     if (typeof avatarData === 'string') {
@@ -91,8 +162,11 @@ export const hasValidAvatar = (avatarData) => {
       avatarPath = avatarData.url || avatarData.path || avatarData.avatarUrl;
     }
     
-    // Check if we have a valid path
-    if (!avatarPath || typeof avatarPath !== 'string') {
+    if (!avatarPath || avatarPath === 'null' || avatarPath === 'undefined') {
+      return false;
+    }
+    
+    if (typeof avatarPath !== 'string') {
       return false;
     }
     
@@ -103,34 +177,130 @@ export const hasValidAvatar = (avatarData) => {
     if (avatarPath.startsWith('http')) return true;
     
     // Check if it's a local file path
-    if (avatarPath.includes('/') || avatarPath.includes('\\') || avatarPath.includes('avatar-')) {
+    if (avatarPath.includes('/') || avatarPath.includes('\\')) {
+      return true;
+    }
+    
+    // Check if it looks like a filename
+    if (avatarPath.includes('avatar-') || avatarPath.length > 0) {
       return true;
     }
     
     return false;
+    
   } catch (error) {
-    console.error('Error checking avatar validity:', error);
     return false;
   }
 };
-// In avatarUtils.js, add:
 
-export const formatBannerUrl = (bannerData) => {
-  if (!bannerData) return null;
-  
-  if (typeof bannerData === 'string') {
-    if (bannerData.startsWith('http')) {
-      return bannerData;
-    }
-    // Handle local file paths
-    if (bannerData.startsWith('/uploads/banners/')) {
-      return `http://localhost:5000${bannerData}`;
-    }
-    if (bannerData.includes('banners/')) {
-      return `http://localhost:5000/uploads/${bannerData}`;
-    }
-    return `http://localhost:5000/uploads/banners/${bannerData}`;
+/**
+ * Check if user has a valid banner
+ * @param {string|object} bannerData - Banner data to check
+ * @returns {boolean} - Whether banner exists and is valid
+ */
+export const hasValidBanner = (bannerData) => {
+  if (!bannerData || bannerData === 'null' || bannerData === 'undefined') {
+    return false;
   }
   
-  return null;
+  try {
+    let bannerPath;
+    
+    if (typeof bannerData === 'string') {
+      bannerPath = bannerData;
+    } else if (bannerData && typeof bannerData === 'object') {
+      bannerPath = bannerData.url || bannerData.path || bannerData.bannerUrl;
+    }
+    
+    if (!bannerPath || bannerPath === 'null' || bannerPath === 'undefined') {
+      return false;
+    }
+    
+    if (typeof bannerPath !== 'string') {
+      return false;
+    }
+    
+    if (bannerPath.startsWith('data:')) return true;
+    if (bannerPath.startsWith('http')) return true;
+    if (bannerPath.includes('/uploads/banners/')) return true;
+    if (bannerPath.includes('banner-')) return true;
+    
+    return bannerPath.length > 0;
+    
+  } catch (error) {
+    return false;
+  }
+};
+
+// Default avatar colors for initials
+const AVATAR_COLORS = [
+  '#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', 
+  '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50', 
+  '#8BC34A', '#CDDC39', '#FFC107', '#FF9800', '#FF5722'
+];
+
+/**
+ * Get consistent color based on string (user id or name)
+ * @param {string} str - String to generate color from
+ * @returns {string} - Color hex code
+ */
+export const getAvatarColor = (str) => {
+  if (!str) return AVATAR_COLORS[0];
+  
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  const index = Math.abs(hash) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[index];
+};
+
+/**
+ * Get avatar props for a user
+ * @param {Object} user - User object
+ * @returns {Object} - Avatar props (src, initial, color, hasImage)
+ */
+export const getAvatarProps = (user) => {
+  if (!user) {
+    return {
+      src: null,
+      initial: 'U',
+      color: AVATAR_COLORS[0],
+      hasImage: false
+    };
+  }
+  
+  const userId = user.id || user._id || user.userId || '';
+  const initial = getAvatarInitial(user);
+  const color = getAvatarColor(userId || user.name || user.email || '');
+  const src = hasValidAvatar(user.avatar) ? formatAvatarUrl(user.avatar) : null;
+  
+  return {
+    src,
+    initial,
+    color,
+    hasImage: !!src
+  };
+};
+
+/**
+ * Get banner props for a user
+ * @param {Object} user - User object
+ * @returns {Object} - Banner props (src, hasImage)
+ */
+export const getBannerProps = (user) => {
+  if (!user) {
+    return {
+      src: null,
+      hasImage: false
+    };
+  }
+  
+  const src = hasValidBanner(user.banner) ? formatBannerUrl(user.banner) : null;
+  
+  return {
+    src,
+    hasImage: !!src
+  };
 };

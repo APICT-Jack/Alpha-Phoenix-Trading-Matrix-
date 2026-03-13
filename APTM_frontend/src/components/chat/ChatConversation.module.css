@@ -1,0 +1,350 @@
+.conversation {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--chat-bg, #ffffff);
+  position: relative;
+}
+
+.conversation.dark {
+  --chat-bg: #0f172a;
+  --chat-header-bg: #1e293b;
+  --chat-text: #f8fafc;
+  --chat-text-secondary: #cbd5e1;
+  --chat-border: #334155;
+  --chat-hover: #2d3a4f;
+  --chat-accent: #3b82f6;
+  --chat-message-own: #2563eb;
+  --chat-message-other: #334155;
+}
+
+.conversation.light {
+  --chat-bg: #ffffff;
+  --chat-header-bg: #ffffff;
+  --chat-text: #1e293b;
+  --chat-text-secondary: #64748b;
+  --chat-border: #e2e8f0;
+  --chat-hover: #f1f5f9;
+  --chat-accent: #3b82f6;
+  --chat-message-own: #3b82f6;
+  --chat-message-other: #e2e8f0;
+}
+
+/* Header */
+.header {
+  height: 70px;
+  padding: 0 1.5rem;
+  background: var(--chat-header-bg);
+  border-bottom: 1px solid var(--chat-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.backButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--chat-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+}
+
+.backButton:hover {
+  background: var(--chat-hover);
+  color: var(--chat-accent);
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 30px;
+  transition: all 0.2s ease;
+}
+
+.userInfo:hover {
+  background: var(--chat-hover);
+}
+
+.avatar {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarPlaceholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--chat-accent), #8b5cf6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+
+.onlineBadge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid var(--chat-header-bg);
+  animation: pulse 2s infinite;
+}
+
+.userDetails h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--chat-text);
+}
+
+.userStatus {
+  font-size: 0.8rem;
+  color: var(--chat-text-secondary);
+}
+
+.headerRight {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.headerButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--chat-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+}
+
+.headerButton:hover {
+  background: var(--chat-hover);
+  color: var(--chat-accent);
+}
+
+/* Messages Area */
+.messagesArea {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  background: var(--chat-bg);
+}
+
+.loadingMore {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid transparent;
+  border-top: 3px solid var(--chat-accent);
+  border-right: 3px solid var(--chat-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loadingMessages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--chat-text-secondary);
+  gap: 1rem;
+}
+
+/* Date Group */
+.dateGroup {
+  margin-bottom: 1.5rem;
+}
+
+.dateHeader {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.dateHeader span {
+  padding: 0.3rem 1rem;
+  background: var(--chat-hover);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: var(--chat-text-secondary);
+}
+
+/* Typing Indicator */
+.typingIndicator {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.5rem;
+}
+
+.typingBubble {
+  background: var(--chat-message-other);
+  border-radius: 20px;
+  padding: 0.8rem 1.2rem;
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.typingBubble span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chat-text-secondary);
+  animation: typing 1.4s infinite;
+}
+
+.typingBubble span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typingBubble span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Reply Preview */
+.replyPreview {
+  padding: 0.75rem 1.5rem;
+  background: var(--chat-hover);
+  border-top: 1px solid var(--chat-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.replyContent {
+  flex: 1;
+}
+
+.replyLabel {
+  font-size: 0.7rem;
+  color: var(--chat-accent);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.replyText {
+  font-size: 0.85rem;
+  color: var(--chat-text-secondary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 500px;
+}
+
+.closeReply {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--chat-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+}
+
+.closeReply:hover {
+  background: var(--chat-hover);
+  color: var(--chat-danger, #ef4444);
+}
+
+/* Animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 1rem;
+  }
+
+  .userDetails h3 {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .headerRight {
+    gap: 0.25rem;
+  }
+
+  .messagesArea {
+    padding: 1rem;
+  }
+
+  .replyText {
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .headerButton {
+    width: 35px;
+    height: 35px;
+  }
+
+  .userDetails h3 {
+    max-width: 120px;
+  }
+
+  .replyText {
+    max-width: 150px;
+  }
+}

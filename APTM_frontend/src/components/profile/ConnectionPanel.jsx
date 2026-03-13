@@ -684,11 +684,13 @@ const ConnectionPanel = () => {
   };
 
   // Handle message user
-  const handleMessageUser = (userId, e) => {
-    e.stopPropagation();
-    navigate(`/chat/${userId}`);
-    if (isMobileOpen) setIsMobileOpen(false);
-  };
+  // Handle message user - FIXED to navigate to chat
+const handleMessageUser = (userId, e) => {
+  e.stopPropagation();
+  console.log('💬 Starting chat with user:', userId);
+  navigate(`/chat/${userId}`);
+  if (isMobileOpen) setIsMobileOpen(false);
+};
 
   // Handle create room
   const handleCreateRoom = () => {

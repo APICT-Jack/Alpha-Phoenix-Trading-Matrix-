@@ -321,55 +321,65 @@ export const initializeSockets = (server) => {
     });
 
     // Mark messages as read - FIXED VERSION
+    // In socket/index.js, find and replace the messages:read handler:
+
+    // Mark messages as read - FIXED VERSION
     socket.on('messages:read', async ({ conversationId, senderId, readerId }) => {
       // Use readerId if provided, otherwise fall back to socket.userId
       const actualReaderId = readerId || userId;
       
-      if (!conversationId || !senderId || !actualReaderId) return;
+      if (!conversationId || !senderId || !actualReaderId) {
+        console.log('❌ Missing required fields for messages:read', { conversationId, senderId, actualReaderId });
+        return;
+      }
 
       try {
         console.log(`📖 Processing messages:read for conversation ${conversationId}, sender ${senderId}, reader ${actualReaderId}`);
         
+        // Find the conversation first
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) {
+          console.log('❌ Conversation not found:', conversationId);
+          return;
+        }
+
+        // Update messages
         const result = await Message.updateMany(
           {
-            senderId: senderId,  // Messages from this user
-            receiverId: actualReaderId,  // To the current user
+            senderId: senderId,
+            receiverId: actualReaderId,
             status: { $ne: 'read' }
           },
           {
-            status: 'read',
-            readAt: new Date()
+            $set: {
+              status: 'read',
+              readAt: new Date()
+            }
           }
         );
 
+        console.log(`📖 Marked ${result.modifiedCount} messages as read`);
+
         if (result.modifiedCount > 0) {
-          // Update conversation unread count
-          const conversation = await Conversation.findById(conversationId);
-          if (conversation) {
-            // Reset unread count for the reader
-            conversation.unreadCounts.set(actualReaderId.toString(), 0);
-            await conversation.save();
+          // Reset unread count for the reader
+          conversation.unreadCounts.set(actualReaderId.toString(), 0);
+          await conversation.save();
 
-            // Create read event data
-            const readEventData = {
-              conversationId,
-              readerId: actualReaderId,
-              count: result.modifiedCount,
-              timestamp: new Date()
-            };
+          // Create read event data
+          const readEventData = {
+            conversationId: conversationId.toString(),
+            readerId: actualReaderId.toString(),
+            count: result.modifiedCount,
+            timestamp: new Date().toISOString()
+          };
 
-            console.log(`📖 Marked ${result.modifiedCount} messages as read, emitting to all participants`);
+          console.log(`📖 Emitting messages:read to conversation room:`, readEventData);
 
-            // Emit to ALL participants in the conversation
-            io.to(`conversation:${conversationId}`).emit('messages:read', readEventData);
-            
-            // Also emit to individual user rooms for redundancy
-            conversation.participants.forEach(participantId => {
-              io.to(`user:${participantId}`).emit('messages:read', readEventData);
-            });
-          }
-        } else {
-          console.log('📖 No messages needed marking as read');
+          // Emit to conversation room
+          io.to(`conversation:${conversationId}`).emit('messages:read', readEventData);
+          
+          // Also emit to sender's personal room
+          io.to(`user:${senderId}`).emit('messages:read', readEventData);
         }
       } catch (error) {
         console.error('Error marking messages as read:', error);

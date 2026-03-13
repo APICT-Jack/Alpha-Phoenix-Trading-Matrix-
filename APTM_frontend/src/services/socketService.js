@@ -9,6 +9,8 @@ class SocketService {
     this.reconnectTimer = null;
     this.pendingMessages = new Map();
     this.userId = null;
+    this.connectionCallbacks = new Set();
+    this.disconnectionCallbacks = new Set();
   }
 
   // Initialize socket connection
@@ -16,6 +18,7 @@ class SocketService {
     // If already connected with same userId, return existing socket
     if (this.socket && this.socket.connected && this.userId === userId) {
       console.log('🔄 Socket already connected with same user');
+      this.triggerConnectionCallbacks(true);
       return this.socket;
     }
     
@@ -40,7 +43,7 @@ class SocketService {
       reconnectionDelayMax: 5000,
       timeout: 20000,
       autoConnect: true,
-      forceNew: false // Don't force new connection
+      forceNew: true // Force new connection to ensure clean state
     });
 
     this.setupEventListeners();
@@ -59,10 +62,13 @@ class SocketService {
       if (this.userId) {
         this.joinUser(this.userId);
       }
+      this.triggerConnectionCallbacks(true);
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('❌ Socket disconnected:', reason);
+      this.triggerConnectionCallbacks(false);
+      
       if (reason === 'io server disconnect') {
         setTimeout(() => this.socket?.connect(), 1000);
       }
@@ -71,6 +77,8 @@ class SocketService {
     this.socket.on('connect_error', (error) => {
       this.connectionAttempts++;
       console.error('❌ Socket connection error:', error.message);
+      this.triggerConnectionCallbacks(false);
+      
       if (this.connectionAttempts >= this.maxAttempts) {
         console.log('⚠️ Max connection attempts reached, falling back to polling');
         if (this.socket) {
@@ -83,6 +91,7 @@ class SocketService {
       console.log(`🔄 Socket reconnected after ${attemptNumber} attempts`);
       this.connectionAttempts = 0;
       this.retryPendingMessages();
+      this.triggerConnectionCallbacks(true);
     });
 
     this.socket.on('reconnect_attempt', (attemptNumber) => {
@@ -102,21 +111,46 @@ class SocketService {
     });
   }
 
+  // Add connection status callbacks
+  onConnectionChange(callback) {
+    this.connectionCallbacks.add(callback);
+    // Immediately call with current status
+    if (this.socket) {
+      callback(this.socket.connected);
+    }
+  }
+
+  removeConnectionChange(callback) {
+    this.connectionCallbacks.delete(callback);
+  }
+
+  triggerConnectionCallbacks(isConnected) {
+    this.connectionCallbacks.forEach(callback => {
+      try {
+        callback(isConnected);
+      } catch (error) {
+        console.error('Error in connection callback:', error);
+      }
+    });
+  }
+
   // ============ CHAT METHODS ============
 
   joinConversation(conversationId) {
     if (this.isConnected() && conversationId) {
+      console.log(`💬 Joining conversation: ${conversationId}`);
       this.socket.emit('conversation:join', { conversationId });
-      console.log(`💬 Joined conversation: ${conversationId}`);
       return true;
+    } else {
+      console.log('⚠️ Cannot join conversation - socket not connected');
+      return false;
     }
-    return false;
   }
 
   leaveConversation(conversationId) {
     if (this.isConnected() && conversationId) {
+      console.log(`💬 Leaving conversation: ${conversationId}`);
       this.socket.emit('conversation:leave', { conversationId });
-      console.log(`💬 Left conversation: ${conversationId}`);
       return true;
     }
     return false;
@@ -126,22 +160,26 @@ class SocketService {
     if (this.isConnected()) {
       const enrichedData = {
         ...messageData,
-        senderId: this.userId
+        senderId: this.userId,
+        timestamp: Date.now()
       };
       
+      console.log('📤 Sending message:', enrichedData);
       this.socket.emit('message:send', enrichedData);
       
       if (messageData.tempId) {
         this.pendingMessages.set(messageData.tempId, {
           ...enrichedData,
-          timestamp: Date.now(),
-          attempts: 1
+          attempts: 1,
+          timestamp: Date.now()
         });
         
+        // Auto-clear after 30 seconds
         setTimeout(() => {
           if (this.pendingMessages.has(messageData.tempId)) {
             console.log('🧹 Clearing pending message:', messageData.tempId);
             this.pendingMessages.delete(messageData.tempId);
+            this.emit('message:timeout', { tempId: messageData.tempId });
           }
         }, 30000);
       }
@@ -153,10 +191,13 @@ class SocketService {
         this.pendingMessages.set(messageData.tempId, {
           ...messageData,
           senderId: this.userId,
-          timestamp: Date.now(),
           attempts: 1,
-          queued: true
+          queued: true,
+          timestamp: Date.now()
         });
+        
+        // Try to reconnect if not connected
+        this.reconnect();
       }
       return false;
     }
@@ -188,7 +229,7 @@ class SocketService {
   }
 
   startTyping(conversationId, receiverId) {
-    if (this.isConnected()) {
+    if (this.isConnected() && conversationId && receiverId) {
       this.socket.emit('typing:start', { 
         conversationId, 
         receiverId,
@@ -200,7 +241,7 @@ class SocketService {
   }
 
   stopTyping(conversationId, receiverId) {
-    if (this.isConnected()) {
+    if (this.isConnected() && conversationId && receiverId) {
       this.socket.emit('typing:stop', { 
         conversationId, 
         receiverId,
@@ -212,7 +253,7 @@ class SocketService {
   }
 
   markMessagesAsRead(conversationId, senderId) {
-    if (this.isConnected()) {
+    if (this.isConnected() && conversationId && senderId) {
       const readData = { 
         conversationId, 
         senderId,
@@ -252,7 +293,7 @@ class SocketService {
   }
 
   getUserStatus(targetUserId) {
-    if (this.isConnected()) {
+    if (this.isConnected() && targetUserId) {
       this.socket.emit('user:status', { 
         targetUserId,
         requesterId: this.userId
@@ -286,6 +327,7 @@ class SocketService {
 
   on(event, callback) {
     if (this.socket) {
+      // Remove existing listener to avoid duplicates
       this.socket.off(event, callback);
       this.socket.on(event, callback);
       
@@ -373,6 +415,7 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
       this.userId = null;
+      this.connectionCallbacks.clear();
       console.log('🔌 Socket disconnected');
     }
   }
