@@ -23,6 +23,6 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../APTM_backend/APTM_frontend/dist',
+    outDir: 'dist',
   }
 })
