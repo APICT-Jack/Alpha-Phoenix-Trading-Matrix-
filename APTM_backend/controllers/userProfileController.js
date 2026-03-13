@@ -14,6 +14,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ============================================
+// HELPER FUNCTION FOR URLS - ADD THIS AT THE TOP
+// ============================================
+const getBaseUrl = () => {
+  return process.env.VITE_API_URL?.replace('/api', '') || 
+         process.env.API_URL?.replace('/api', '') || 
+         'http://localhost:5000';
+};
+
+// ============================================
 // PUBLIC PROFILE (NO AUTH REQUIRED) - FIXED WITH POSTS COUNT
 // ============================================
 export const getPublicProfile = async (req, res) => {
@@ -93,6 +102,8 @@ export const getPublicProfile = async (req, res) => {
       });
     }
 
+    const BASE_URL = getBaseUrl();
+
     // Format banner URL properly
     let bannerUrl = null;
     if (profile.bannerImage) {
@@ -102,11 +113,11 @@ export const getPublicProfile = async (req, res) => {
       } 
       // If it's a path starting with /uploads
       else if (profile.bannerImage.startsWith('/uploads/')) {
-        bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${profile.bannerImage}`;
+        bannerUrl = `${BASE_URL}${profile.bannerImage}`;
       }
       // If it's just a filename
       else {
-        bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/banners/${profile.bannerImage}`;
+        bannerUrl = `${BASE_URL}/uploads/banners/${profile.bannerImage}`;
       }
     }
 
@@ -138,12 +149,12 @@ export const getPublicProfile = async (req, res) => {
       tradingExperience: profile.tradingExperience || 'beginner',
       joinDate: profile.stats?.joinDate || user.createdAt,
       
-      // Banner - CRITICAL FIX
+      // Banner - FIXED
       bannerImage: bannerUrl,
       banner: bannerUrl,
       hasBanner: !!bannerUrl,
       
-      // Social Links - CRITICAL FIX
+      // Social Links - FIXED
       socialLinks: socialLinks,
       
       // Stats with correct counts
@@ -189,24 +200,44 @@ export const getPublicProfile = async (req, res) => {
 // ============================================
 // GET COMPLETE PROFILE (AUTH REQUIRED) - FIXED WITH POSTS COUNT
 // ============================================
+// ============================================
+// GET COMPLETE PROFILE (AUTH REQUIRED) - WITH DETAILED DEBUG LOGGING
+// ============================================
 export const getCompleteProfile = async (req, res) => {
   try {
-    console.log('📡 Fetching complete profile for user:', req.user._id);
+    console.log('='.repeat(50));
+    console.log('📡 FETCHING COMPLETE PROFILE');
+    console.log('='.repeat(50));
+    console.log('👤 User ID from request:', req.user?._id);
+    console.log('👤 Full req.user object:', JSON.stringify(req.user, null, 2));
 
-    // Get user
+    // Step 1: Get user
+    console.log('\n📌 STEP 1: Finding user...');
     const user = await User.findById(req.user._id)
       .select('-password -otpCode -loginAttempts -lockUntil');
       
     if (!user) {
+      console.log('❌ User not found with ID:', req.user._id);
       return res.status(404).json({ 
         success: false, 
         message: 'User not found' 
       });
     }
+    console.log('✅ User found:', { 
+      id: user._id, 
+      name: user.name, 
+      username: user.username,
+      email: user.email,
+      avatar: user.avatarUrl 
+    });
 
-    // Get or create profile
+    // Step 2: Get or create profile
+    console.log('\n📌 STEP 2: Getting/creating profile...');
     let profile = await UserProfile.findOne({ userId: user._id });
+    console.log('📋 Profile found?', profile ? 'YES' : 'NO');
+    
     if (!profile) {
+      console.log('📝 Creating new profile for user:', user._id);
       profile = new UserProfile({ 
         userId: user._id,
         firstName: user.name?.split(' ')[0] || '',
@@ -214,47 +245,87 @@ export const getCompleteProfile = async (req, res) => {
         username: user.username
       });
       await profile.save();
+      console.log('✅ Profile created with ID:', profile._id);
+    } else {
+      console.log('✅ Existing profile found:', profile._id);
     }
 
-    // Get settings
+    // Step 3: Get settings
+    console.log('\n📌 STEP 3: Getting settings...');
     let settings = await UserSettings.findOne({ userId: user._id });
+    console.log('⚙️ Settings found?', settings ? 'YES' : 'NO');
+    
     if (!settings) {
+      console.log('📝 Creating new settings for user:', user._id);
       settings = await UserSettings.create({ userId: user._id });
+      console.log('✅ Settings created');
     }
 
-    // Get subscription
+    // Step 4: Get subscription
+    console.log('\n📌 STEP 4: Getting subscription...');
     const subscription = await Subscription.findOne({ userId: user._id });
+    console.log('💳 Subscription found?', subscription ? 'YES' : 'NO');
 
-    // Get followers and following counts
+    // Step 5: Get followers count
+    console.log('\n📌 STEP 5: Getting followers count...');
     const followersCount = await Follow.countDocuments({ following: user._id });
-    const followingCount = await Follow.countDocuments({ follower: user._id });
+    console.log('👥 Followers count:', followersCount);
 
-    // ========== FIXED: Get actual posts count from Post model ==========
+    // Step 6: Get following count
+    console.log('\n📌 STEP 6: Getting following count...');
+    const followingCount = await Follow.countDocuments({ follower: user._id });
+    console.log('👥 Following count:', followingCount);
+
+    // Step 7: Get posts count
+    console.log('\n📌 STEP 7: Getting posts count...');
     let postsCount = 0;
     try {
-      // Import Post model dynamically to avoid circular dependencies
+      console.log('📦 Dynamically importing Post model...');
       const Post = (await import('../models/Post.js')).default;
+      console.log('✅ Post model imported successfully');
+      
       postsCount = await Post.countDocuments({ userId: user._id });
-      console.log(`📊 Found ${postsCount} posts for user ${user._id}`);
+      console.log(`📊 Posts count: ${postsCount}`);
     } catch (error) {
-      console.log('Could not get posts count:', error.message);
-      // If Post model doesn't exist yet, default to 0
+      console.log('❌ Could not get posts count:', error.message);
+      console.log('❌ Error stack:', error.stack);
       postsCount = 0;
     }
 
-    // Format banner URL properly
+    // Step 8: Get base URL
+    console.log('\n📌 STEP 8: Getting base URL...');
+    const BASE_URL = getBaseUrl();
+    console.log('🔗 Base URL:', BASE_URL);
+
+    // Step 9: Format banner URL
+    console.log('\n📌 STEP 9: Formatting banner URL...');
     let bannerUrl = null;
     if (profile.bannerImage) {
-      if (profile.bannerImage.startsWith('http')) {
-        bannerUrl = profile.bannerImage;
-      } else if (profile.bannerImage.startsWith('/uploads/')) {
-        bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${profile.bannerImage}`;
-      } else {
-        bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/banners/${profile.bannerImage}`;
+      console.log('🖼️ Raw banner image:', profile.bannerImage);
+      try {
+        if (profile.bannerImage.startsWith('http')) {
+          bannerUrl = profile.bannerImage;
+        } else if (profile.bannerImage.startsWith('/uploads/')) {
+          bannerUrl = `${BASE_URL}${profile.bannerImage}`;
+        } else {
+          bannerUrl = `${BASE_URL}/uploads/banners/${profile.bannerImage}`;
+        }
+        console.log('✅ Formatted banner URL:', bannerUrl);
+      } catch (bannerError) {
+        console.log('❌ Error formatting banner:', bannerError.message);
+        bannerUrl = null;
       }
+    } else {
+      console.log('ℹ️ No banner image found');
     }
 
-    // Format response with CORRECT postsCount
+    // Step 10: Format social links
+    console.log('\n📌 STEP 10: Formatting social links...');
+    const socialLinks = profile.socialLinks || {};
+    console.log('🔗 Social links found:', Object.keys(socialLinks).length);
+
+    // Step 11: Build response object
+    console.log('\n📌 STEP 11: Building response object...');
     const userData = {
       id: user._id,
       _id: user._id,
@@ -272,23 +343,26 @@ export const getCompleteProfile = async (req, res) => {
       tradingExperience: profile.tradingExperience || 'beginner',
       joinDate: profile.stats?.joinDate || user.createdAt,
       
-      // Banner - FIXED
+      // Banner
       bannerImage: bannerUrl,
       banner: bannerUrl,
       hasBanner: !!bannerUrl,
       
-      // Social Links - FIXED
-      socialLinks: profile.socialLinks || {},
+      // Social Links
+      socialLinks: socialLinks,
       
-      // Stats with correct counts
+      // Stats
       followers: followersCount,
       following: followingCount,
-      postsCount: postsCount, // Now this is the actual count!
+      postsCount: postsCount,
       
       stats: {
+        posts: postsCount,
+        chatRooms: profile.stats?.chatRooms || 0,
+        charts: profile.stats?.charts || 0,
+        news: profile.stats?.news || 0,
         followers: followersCount,
         following: followingCount,
-        posts: postsCount, // Now this is the actual count!
         tradesCompleted: profile.stats?.tradesCompleted || 0,
         successRate: profile.stats?.successRate || 0,
         lastActive: profile.stats?.lastActive || new Date()
@@ -298,14 +372,22 @@ export const getCompleteProfile = async (req, res) => {
         ...profile.toObject(),
         followers: followersCount,
         following: followingCount,
-        postsCount: postsCount // Now this is the actual count!
+        postsCount: postsCount
       },
       
       settings: settings,
       subscription: subscription || { plan: 'free', status: 'active' }
     };
 
-    console.log('✅ Complete profile ready with postsCount:', postsCount);
+    console.log('\n✅ Complete profile built successfully');
+    console.log('📊 Final data:', {
+      userId: userData.id,
+      name: userData.name,
+      postsCount: userData.postsCount,
+      followers: userData.followers,
+      hasBanner: userData.hasBanner,
+      socialLinksCount: Object.keys(userData.socialLinks).length
+    });
 
     return res.json({
       success: true,
@@ -314,11 +396,16 @@ export const getCompleteProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error in getCompleteProfile:', error);
+    console.error('\n❌❌❌ ERROR IN getCompleteProfile ❌❌❌');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
     return res.status(500).json({ 
       success: false, 
       message: 'Server error',
-      error: error.message 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
@@ -364,8 +451,10 @@ export const uploadBanner = async (req, res) => {
     profile.bannerImage = bannerFilename;
     await profile.save();
 
+    const BASE_URL = getBaseUrl();
+
     // Generate full banner URL
-    const bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/banners/${bannerFilename}`;
+    const bannerUrl = `${BASE_URL}/uploads/banners/${bannerFilename}`;
 
     console.log('✅ Banner uploaded successfully:', {
       filename: bannerFilename,
@@ -457,7 +546,8 @@ export const testBannerUpload = async (req, res) => {
       });
     }
 
-    const bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/banners/${req.file.filename}`;
+    const BASE_URL = getBaseUrl();
+    const bannerUrl = `${BASE_URL}/uploads/banners/${req.file.filename}`;
 
     return res.json({
       success: true,
@@ -513,7 +603,8 @@ export const uploadAvatar = async (req, res) => {
     user.avatar = avatarPath;
     await user.save();
 
-    const avatarUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarPath}`;
+    const BASE_URL = getBaseUrl();
+    const avatarUrl = `${BASE_URL}${avatarPath}`;
 
     console.log('✅ Avatar uploaded successfully:', {
       filename: req.file.filename,

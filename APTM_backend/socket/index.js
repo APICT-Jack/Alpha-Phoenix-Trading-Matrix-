@@ -1,3 +1,5 @@
+// socket/index.js - COMPLETE WORKING VERSION WITH ROBUST CORS HANDLING
+
 import { Server } from 'socket.io';
 import { Conversation, Message } from '../models/Chat.js';
 import User from '../models/User.js';
@@ -9,14 +11,79 @@ const userSockets = new Map(); // userId -> Set of socketIds
 const typingUsers = new Map(); // conversationId -> Set of userIds
 const userConversations = new Map(); // userId -> Set of conversationIds
 
+// Helper function to aggressively clean environment URLs
+const cleanEnvUrl = (url) => {
+  if (!url) return null;
+  
+  // Convert to string if it's not already
+  let cleaned = String(url);
+  
+  // Remove any 'FRONTEND_URL=' prefix (case insensitive)
+  cleaned = cleaned.replace(/^FRONTEND_URL=/i, '');
+  
+  // Remove any quotes (single or double)
+  cleaned = cleaned.replace(/["']/g, '');
+  
+  // Trim whitespace
+  cleaned = cleaned.trim();
+  
+  // Remove trailing slashes
+  cleaned = cleaned.replace(/\/+$/, '');
+  
+  return cleaned;
+};
+
 export const initializeSockets = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || "http://localhost:3000",
+      origin: function(origin, callback) {
+        // Get the raw FRONTEND_URL from env
+        const rawUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        
+        // Clean it aggressively
+        const cleanedUrl = cleanEnvUrl(rawUrl);
+        
+        // Define allowed origins
+        const allowedOrigins = [
+          'http://localhost:3000',
+          'https://alpha-phoenix-trading-matrix-s78v.onrender.com',
+          cleanedUrl
+        ].filter(Boolean);
+        
+        // Also add the URL without https:// for flexibility
+        if (cleanedUrl && cleanedUrl.startsWith('https://')) {
+          allowedOrigins.push(cleanedUrl.replace('https://', 'http://'));
+        }
+        
+        console.log('🔧 Socket CORS Check:', { 
+          origin, 
+          rawUrl, 
+          cleanedUrl,
+          allowedOrigins 
+        });
+        
+        // Allow requests with no origin (like mobile apps, Postman)
+        if (!origin) {
+          console.log('✅ Allowing request with no origin');
+          callback(null, true);
+          return;
+        }
+        
+        // Check if origin is allowed
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          console.log('❌ CORS blocked for origin:', origin);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ["GET", "POST"],
       credentials: true
     },
-    transports: ['websocket', 'polling']
+    transports: ['websocket', 'polling'],
+    allowEIO3: true, // Enable compatibility
+    pingTimeout: 60000,
+    pingInterval: 25000
   });
 
   // Authentication middleware
@@ -320,10 +387,7 @@ export const initializeSockets = (server) => {
       });
     });
 
-    // Mark messages as read - FIXED VERSION
-    // In socket/index.js, find and replace the messages:read handler:
-
-    // Mark messages as read - FIXED VERSION
+    // Mark messages as read
     socket.on('messages:read', async ({ conversationId, senderId, readerId }) => {
       // Use readerId if provided, otherwise fall back to socket.userId
       const actualReaderId = readerId || userId;

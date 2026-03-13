@@ -51,6 +51,10 @@ import {
   FaRetweet
 } from 'react-icons/fa';
 
+// Constants for API URLs - FIXED
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
 // Socket connection for online status
 let socket;
 
@@ -94,94 +98,69 @@ const UserProfileView = () => {
   // Initialize socket connection for online status
   useEffect(() => {
     if (currentUser) {
-      socket = io(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}` , {
-        query: { userId: currentUser.id }
-      });
-
-      socket.on('online-users', (users) => {
-        setOnlineUsers(users);
-      });
-
-      socket.on('user-online', (userId) => {
-        setOnlineUsers(prev => ({ ...prev, [userId]: true }));
-      });
-
-      socket.on('user-offline', (userId) => {
-        setOnlineUsers(prev => ({ ...prev, [userId]: false }));
-      });
-
-      return () => {
-        if (socket) socket.disconnect();
-      };
-    }
-  }, [currentUser]);
-
-  // Update online status for current profile user
-  // Initialize socket connection for online status
-useEffect(() => {
-  if (currentUser) {
-      socket = io(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}` , {
+      socket = io(SOCKET_URL, {
         query: { userId: currentUser.id },
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: 5
       });
 
-    // Listen for all online users
-    socket.on('users:online', (users) => {
-      console.log('📊 Online users received:', users);
-      setOnlineUsers(users);
-    });
-
-    // Listen for user coming online
-    socket.on('user:online', (data) => {
-      console.log('🟢 User online:', data);
-      setOnlineUsers(prev => ({ 
-        ...prev, 
-        [data.userId]: { online: true, userData: data.userData } 
-      }));
-    });
-
-    // Listen for user going offline
-    socket.on('user:offline', (data) => {
-      console.log('🔴 User offline:', data);
-      setOnlineUsers(prev => {
-        const newState = { ...prev };
-        delete newState[data.userId];
-        return newState;
+      // Listen for all online users
+      socket.on('users:online', (users) => {
+        console.log('📊 Online users received:', users);
+        setOnlineUsers(users);
       });
-    });
 
-    // Request specific user status when profile loads
-    socket.on('connect', () => {
-      console.log('✅ Socket connected');
-      if (profileUser?.id) {
-        socket.emit('user:status', { targetUserId: profileUser.id });
-      }
-    });
+      // Listen for user coming online
+      socket.on('user:online', (data) => {
+        console.log('🟢 User online:', data);
+        setOnlineUsers(prev => ({ 
+          ...prev, 
+          [data.userId]: { online: true, userData: data.userData } 
+        }));
+      });
 
-    return () => {
-      if (socket) {
-        socket.off('users:online');
-        socket.off('user:online');
-        socket.off('user:offline');
-        socket.disconnect();
-      }
-    };
-  }
-}, [currentUser]);
+      // Listen for user going offline
+      socket.on('user:offline', (data) => {
+        console.log('🔴 User offline:', data);
+        setOnlineUsers(prev => {
+          const newState = { ...prev };
+          delete newState[data.userId];
+          return newState;
+        });
+      });
 
-// Update online status for current profile user
-useEffect(() => {
-  if (profileUser?.id && socket?.connected) {
-    // Request status for this specific user
-    socket.emit('user:status', { targetUserId: profileUser.id });
-    
-    // Check if user is in onlineUsers object
-    const isOnline = onlineUsers[profileUser.id]?.online || false;
-    setIsUserOnline(isOnline);
-  }
-}, [profileUser, onlineUsers]);
+      // Request specific user status when profile loads
+      socket.on('connect', () => {
+        console.log('✅ Socket connected');
+        if (profileUser?.id) {
+          socket.emit('user:status', { targetUserId: profileUser.id });
+        }
+      });
+
+      return () => {
+        if (socket) {
+          socket.off('users:online');
+          socket.off('user:online');
+          socket.off('user:offline');
+          socket.disconnect();
+        }
+      };
+    }
+  }, [currentUser, profileUser?.id]);
+
+  // Update online status for current profile user
+  useEffect(() => {
+    if (profileUser?.id && socket?.connected) {
+      // Request status for this specific user
+      socket.emit('user:status', { targetUserId: profileUser.id });
+      
+      // Check if user is in onlineUsers object
+      const isOnline = onlineUsers[profileUser.id]?.online || false;
+      setIsUserOnline(isOnline);
+    }
+  }, [profileUser, onlineUsers]);
+
   // Format user data consistently
   const formatUserData = useCallback((userData, isPublic = false) => {
     if (!userData) return null;
@@ -386,7 +365,7 @@ useEffect(() => {
       if (isOwnProfile) {
         // For own profile, fetch complete profile data
         console.log('📡 Fetching own complete profile...');
-        const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/profile/complete`, {
+        const response = await fetch(`${API_URL}/profile/complete`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
@@ -404,7 +383,7 @@ useEffect(() => {
         console.log('📡 Fetching public profile for user:', targetUserId);
         
         try {
-          const publicResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/profile/public/${targetUserId}`);
+          const publicResponse = await fetch(`${API_URL}/profile/public/${targetUserId}`);
           
           if (publicResponse.ok) {
             const publicData = await publicResponse.json();
@@ -426,7 +405,7 @@ useEffect(() => {
         // Fallback to auth endpoint if public fails
         if (!userData) {
           try {
-            const authResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/users/${targetUserId}`, {
+            const authResponse = await fetch(`${API_URL}/users/${targetUserId}`, {
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
               },
@@ -458,7 +437,7 @@ useEffect(() => {
         // Check follow status for other users
         if (!isOwnProfile && targetUserId && currentUser) {
           try {
-            const followResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/friends/status/${targetUserId}`, {
+            const followResponse = await fetch(`${API_URL}/friends/status/${targetUserId}`, {
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
               },
@@ -485,54 +464,52 @@ useEffect(() => {
   }, [isOwnProfile, currentUser, formatUserData]);
 
   // Fetch user posts
-  // In UserProfileView.jsx, update the fetchUserPosts function:
-
-// In UserProfileView.jsx - Fixed fetchUserPosts
-const fetchUserPosts = useCallback(async (targetUserId) => {
-  try {
-    console.log('📊 Fetching posts for user:', targetUserId);
-    
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/user/${targetUserId}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log('📊 Posts response:', result);
+  const fetchUserPosts = useCallback(async (targetUserId) => {
+    try {
+      console.log('📊 Fetching posts for user:', targetUserId);
       
-      if (result.success) {
-        // Handle different response structures
-        let postsArray = [];
-        if (result.posts) {
-          postsArray = result.posts;
-        } else if (result.data && result.data.posts) {
-          postsArray = result.data.posts;
-        } else if (Array.isArray(result)) {
-          postsArray = result;
-        }
+      const response = await fetch(`${API_URL}/posts/user/${targetUserId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('📊 Posts response:', result);
         
-        console.log('✅ Setting posts:', postsArray.length);
-        setPosts(postsArray);
+        if (result.success) {
+          // Handle different response structures
+          let postsArray = [];
+          if (result.posts) {
+            postsArray = result.posts;
+          } else if (result.data && result.data.posts) {
+            postsArray = result.data.posts;
+          } else if (Array.isArray(result)) {
+            postsArray = result;
+          }
+          
+          console.log('✅ Setting posts:', postsArray.length);
+          setPosts(postsArray);
+        } else {
+          console.warn('⚠️ Posts fetch unsuccessful:', result);
+          setPosts([]);
+        }
       } else {
-        console.warn('⚠️ Posts fetch unsuccessful:', result);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Posts fetch failed:', response.status, errorData);
         setPosts([]);
       }
-    } else {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('❌ Posts fetch failed:', response.status, errorData);
+    } catch (error) {
+      console.error('❌ Error fetching posts:', error);
       setPosts([]);
     }
-  } catch (error) {
-    console.error('❌ Error fetching posts:', error);
-    setPosts([]);
-  }
-}, []);
+  }, []);
+
   // Fetch user gallery
   const fetchUserGallery = useCallback(async (targetUserId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/${targetUserId}`, {
+      const response = await fetch(`${API_URL}/gallery/${targetUserId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -551,56 +528,54 @@ const fetchUserPosts = useCallback(async (targetUserId) => {
   }, []);
 
   // Create post
-  // Update the createPost function to handle the new post data structure:
-
-const createPost = useCallback(async (postData) => {
-  try {
-    console.log('📝 Creating post with data:', postData);
-    
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(postData),
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log('✅ Post created:', result);
+  const createPost = useCallback(async (postData) => {
+    try {
+      console.log('📝 Creating post with data:', postData);
       
-      if (result.success) {
-        // Add the new post to the beginning of the posts array
-        setPosts(prev => [result.post, ...prev]);
+      const response = await fetch(`${API_URL}/posts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Post created:', result);
         
-        // Update post count
-        setProfileUser(prev => ({
-          ...prev,
-          profile: {
-            ...prev.profile,
-            postsCount: (prev.profile.postsCount || 0) + 1
-          },
-          postsCount: (prev.postsCount || 0) + 1
-        }));
-        
-        return result;
+        if (result.success) {
+          // Add the new post to the beginning of the posts array
+          setPosts(prev => [result.post, ...prev]);
+          
+          // Update post count
+          setProfileUser(prev => ({
+            ...prev,
+            profile: {
+              ...prev.profile,
+              postsCount: (prev.profile.postsCount || 0) + 1
+            },
+            postsCount: (prev.postsCount || 0) + 1
+          }));
+          
+          return result;
+        }
+      } else {
+        const error = await response.json();
+        console.error('❌ Post creation failed:', error);
+        throw new Error(error.message || 'Failed to create post');
       }
-    } else {
-      const error = await response.json();
-      console.error('❌ Post creation failed:', error);
-      throw new Error(error.message || 'Failed to create post');
+    } catch (error) {
+      console.error('❌ Error creating post:', error);
+      throw error;
     }
-  } catch (error) {
-    console.error('❌ Error creating post:', error);
-    throw error;
-  }
-}, []);
+  }, []);
 
   // Like post
   const likePost = useCallback(async (postId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/like`, {
+      const response = await fetch(`${API_URL}/posts/${postId}/like`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -628,42 +603,41 @@ const createPost = useCallback(async (postData) => {
   }, [likePost]);
 
   // Comment on post
-  // Comment on post - FIXED API ENDPOINT
-const commentOnPost = useCallback(async (postId, comment) => {
-  try {
-    console.log('💬 Adding comment:', { postId, comment });
-    
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ content: comment }),
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log('✅ Comment added:', result);
+  const commentOnPost = useCallback(async (postId, comment) => {
+    try {
+      console.log('💬 Adding comment:', { postId, comment });
       
-      if (result.success) {
-        setPosts(prev => prev.map(post => 
-          post._id === postId 
-            ? { ...post, comments: [...(post.comments || []), result.comment] } 
-            : post
-        ));
-        return result.comment;
+      const response = await fetch(`${API_URL}/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: comment }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Comment added:', result);
+        
+        if (result.success) {
+          setPosts(prev => prev.map(post => 
+            post._id === postId 
+              ? { ...post, comments: [...(post.comments || []), result.comment] } 
+              : post
+          ));
+          return result.comment;
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Comment failed:', errorData);
+        throw new Error(errorData.message || 'Failed to add comment');
       }
-    } else {
-      const errorData = await response.json();
-      console.error('❌ Comment failed:', errorData);
-      throw new Error(errorData.message || 'Failed to add comment');
+    } catch (error) {
+      console.error('Error commenting on post:', error);
+      throw error;
     }
-  } catch (error) {
-    console.error('Error commenting on post:', error);
-    throw error;
-  }
-}, []);
+  }, []);
 
   // Handle comment on post (wrapper for PostComponent)
   const handleCommentOnPost = useCallback(async (postId, comment) => {
@@ -671,151 +645,152 @@ const commentOnPost = useCallback(async (postId, comment) => {
   }, [commentOnPost]);
 
   // Reply to comment
-  // Reply to comment - FIXED API ENDPOINT
-const handleReplyToComment = useCallback(async (postId, commentId, replyText, parentReplyId = null) => {
-  try {
-    console.log('💬 Adding reply:', { postId, commentId, replyText, parentReplyId });
-    
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}/replies`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        content: replyText,
-        parentReplyId: parentReplyId 
-      }),
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log('✅ Reply added:', result);
+  const handleReplyToComment = useCallback(async (postId, commentId, replyText, parentReplyId = null) => {
+    try {
+      console.log('💬 Adding reply:', { postId, commentId, replyText, parentReplyId });
       
-      if (result.success) {
-        // Update the posts state with the new reply
-        setPosts(prevPosts => prevPosts.map(post => {
-          if (post._id === postId) {
-            return {
-              ...post,
-              comments: post.comments?.map(comment => {
-                if (comment._id === commentId) {
-                  return {
-                    ...comment,
-                    replies: [...(comment.replies || []), result.reply]
-                  };
-                }
-                return comment;
-              })
-            };
-          }
-          return post;
-        }));
-        
-        return result.reply;
-      }
-    } else {
-      const errorData = await response.json();
-      console.error('❌ Reply failed:', errorData);
-      throw new Error(errorData.message || 'Failed to add reply');
-    }
-  } catch (error) {
-    console.error('Error replying to comment:', error);
-    throw error;
-  }
-}, []);
-// Like comment - FIXED API ENDPOINT
-const handleCommentLike = useCallback(async (postId, commentId) => {
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}/like`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
+      const response = await fetch(`${API_URL}/posts/${postId}/comments/${commentId}/replies`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          content: replyText,
+          parentReplyId: parentReplyId 
+        }),
+      });
 
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) {
-        // Update local state
-        setPosts(prev => prev.map(post => {
-          if (post._id === postId) {
-            return {
-              ...post,
-              comments: post.comments?.map(comment => {
-                if (comment._id === commentId) {
-                  return {
-                    ...comment,
-                    likes: result.likes,
-                    _doc: { ...comment._doc, isLiked: result.isLiked }
-                  };
-                }
-                return comment;
-              })
-            };
-          }
-          return post;
-        }));
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Reply added:', result);
+        
+        if (result.success) {
+          // Update the posts state with the new reply
+          setPosts(prevPosts => prevPosts.map(post => {
+            if (post._id === postId) {
+              return {
+                ...post,
+                comments: post.comments?.map(comment => {
+                  if (comment._id === commentId) {
+                    return {
+                      ...comment,
+                      replies: [...(comment.replies || []), result.reply]
+                    };
+                  }
+                  return comment;
+                })
+              };
+            }
+            return post;
+          }));
+          
+          return result.reply;
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Reply failed:', errorData);
+        throw new Error(errorData.message || 'Failed to add reply');
       }
+    } catch (error) {
+      console.error('Error replying to comment:', error);
+      throw error;
     }
-  } catch (error) {
-    console.error('Error liking comment:', error);
-  }
-}, []);
-// Like reply - FIXED API ENDPOINT
-// Like reply
-const handleReplyLike = useCallback(async (postId, commentId, replyId) => {
-  try {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}/replies/${replyId}/like`,
-      {
+  }, []);
+
+  // Like comment
+  const handleCommentLike = useCallback(async (postId, commentId) => {
+    try {
+      const response = await fetch(`${API_URL}/posts/${postId}/comments/${commentId}/like`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-      }
-    );
+      });
 
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) {
-        // Update local state
-        setPosts(prev => prev.map(post => {
-          if (post._id === postId) {
-            return {
-              ...post,
-              comments: post.comments?.map(comment => {
-                if (comment._id === commentId) {
-                  return {
-                    ...comment,
-                    replies: comment.replies?.map(reply => {
-                      if (reply._id === replyId) {
-                        return {
-                          ...reply,
-                          likes: result.likes,
-                          isLiked: result.isLiked
-                        };
-                      }
-                      return reply;
-                    })
-                  };
-                }
-                return comment;
-              })
-            };
-          }
-          return post;
-        }));
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Update local state
+          setPosts(prev => prev.map(post => {
+            if (post._id === postId) {
+              return {
+                ...post,
+                comments: post.comments?.map(comment => {
+                  if (comment._id === commentId) {
+                    return {
+                      ...comment,
+                      likes: result.likes,
+                      _doc: { ...comment._doc, isLiked: result.isLiked }
+                    };
+                  }
+                  return comment;
+                })
+              };
+            }
+            return post;
+          }));
+        }
       }
+    } catch (error) {
+      console.error('Error liking comment:', error);
     }
-  } catch (error) {
-    console.error('Error liking reply:', error);
-  }
-}, []);
+  }, []);
+
+  // Like reply
+  const handleReplyLike = useCallback(async (postId, commentId, replyId) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/posts/${postId}/comments/${commentId}/replies/${replyId}/like`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Update local state
+          setPosts(prev => prev.map(post => {
+            if (post._id === postId) {
+              return {
+                ...post,
+                comments: post.comments?.map(comment => {
+                  if (comment._id === commentId) {
+                    return {
+                      ...comment,
+                      replies: comment.replies?.map(reply => {
+                        if (reply._id === replyId) {
+                          return {
+                            ...reply,
+                            likes: result.likes,
+                            isLiked: result.isLiked
+                          };
+                        }
+                        return reply;
+                      })
+                    };
+                  }
+                  return comment;
+                })
+              };
+            }
+            return post;
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error liking reply:', error);
+    }
+  }, []);
+
   // Share post
   const handleSharePost = useCallback(async (postId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/share`, {
+      const response = await fetch(`${API_URL}/posts/${postId}/share`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -833,46 +808,46 @@ const handleReplyLike = useCallback(async (postId, commentId, replyId) => {
     }
   }, []);
 
-  // Update handleRepost function:
-const handleRepost = useCallback(async (repostData) => {
-  try {
-    console.log('🔄 Reposting:', repostData);
-    
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${repostData.originalPostId}/repost`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        content: repostData.content,
-        visibility: repostData.visibility
-      }),
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log('✅ Repost created:', result);
+  // Update handleRepost function
+  const handleRepost = useCallback(async (repostData) => {
+    try {
+      console.log('🔄 Reposting:', repostData);
       
-      if (result.success) {
-        // Add the new repost to the timeline if we're on the current user's profile
-        if (isOwnProfile) {
-          setPosts(prev => [result.repost, ...prev]);
+      const response = await fetch(`${API_URL}/posts/${repostData.originalPostId}/repost`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: repostData.content,
+          visibility: repostData.visibility
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Repost created:', result);
+        
+        if (result.success) {
+          // Add the new repost to the timeline if we're on the current user's profile
+          if (isOwnProfile) {
+            setPosts(prev => [result.repost, ...prev]);
+          }
+          return result.repost;
         }
-        return result.repost;
       }
+      throw new Error('Failed to repost');
+    } catch (error) {
+      console.error('❌ Error reposting:', error);
+      throw error;
     }
-    throw new Error('Failed to repost');
-  } catch (error) {
-    console.error('❌ Error reposting:', error);
-    throw error;
-  }
-}, [isOwnProfile]);
+  }, [isOwnProfile]);
 
   // Save post
   const handleSavePost = useCallback(async (postId, shouldSave) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/save`, {
+      const response = await fetch(`${API_URL}/posts/${postId}/save`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -900,7 +875,7 @@ const handleRepost = useCallback(async (repostData) => {
   // Delete post
   const deletePost = useCallback(async (postId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}`, {
+      const response = await fetch(`${API_URL}/posts/${postId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -957,7 +932,7 @@ const handleRepost = useCallback(async (repostData) => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/upload`, {
+      const response = await fetch(`${API_URL}/gallery/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -983,7 +958,7 @@ const handleRepost = useCallback(async (repostData) => {
   // Create gallery folder
   const createGalleryFolder = useCallback(async (name) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/folders`, {
+      const response = await fetch(`${API_URL}/gallery/folders`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1006,7 +981,7 @@ const handleRepost = useCallback(async (repostData) => {
   // Delete gallery folder
   const deleteGalleryFolder = useCallback(async (folderId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/folders/${folderId}`, {
+      const response = await fetch(`${API_URL}/gallery/folders/${folderId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1027,7 +1002,7 @@ const handleRepost = useCallback(async (repostData) => {
   // Delete gallery item
   const deleteGalleryItem = useCallback(async (itemId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/items/${itemId}`, {
+      const response = await fetch(`${API_URL}/gallery/items/${itemId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1050,7 +1025,7 @@ const handleRepost = useCallback(async (repostData) => {
     if (!targetUserId || !profileUser) return;
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/friends/${isFollowing ? 'unfollow' : 'follow'}/${targetUserId}`, {
+      const response = await fetch(`${API_URL}/friends/${isFollowing ? 'unfollow' : 'follow'}/${targetUserId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1128,99 +1103,99 @@ const handleRepost = useCallback(async (repostData) => {
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
   }, []);
-  // Add these missing functions to your UserProfileView component
 
-// Delete comment
-const handleDeleteComment = useCallback(async (postId, commentId) => {
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) {
-        // Update local state
-        setPosts(prev => prev.map(post => {
-          if (post._id === postId) {
-            return {
-              ...post,
-              comments: post.comments?.filter(c => c._id !== commentId)
-            };
-          }
-          return post;
-        }));
-      }
-    }
-  } catch (error) {
-    console.error('Error deleting comment:', error);
-  }
-}, []);
-
-// Delete reply
-const handleReplyDelete = useCallback(async (postId, commentId, replyId) => {
-  try {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}/replies/${replyId}`,
-      {
+  // Delete comment
+  const handleDeleteComment = useCallback(async (postId, commentId) => {
+    try {
+      const response = await fetch(`${API_URL}/posts/${postId}/comments/${commentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Update local state
+          setPosts(prev => prev.map(post => {
+            if (post._id === postId) {
+              return {
+                ...post,
+                comments: post.comments?.filter(c => c._id !== commentId)
+              };
+            }
+            return post;
+          }));
+        }
       }
-    );
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+    }
+  }, []);
 
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) {
-        // Update local state
-        setPosts(prev => prev.map(post => {
-          if (post._id === postId) {
-            return {
-              ...post,
-              comments: post.comments?.map(comment => {
-                if (comment._id === commentId) {
-                  return {
-                    ...comment,
-                    replies: comment.replies?.filter(r => r._id !== replyId)
-                  };
-                }
-                return comment;
-              })
-            };
-          }
-          return post;
-        }));
+  // Delete reply
+  const handleReplyDelete = useCallback(async (postId, commentId, replyId) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/posts/${postId}/comments/${commentId}/replies/${replyId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Update local state
+          setPosts(prev => prev.map(post => {
+            if (post._id === postId) {
+              return {
+                ...post,
+                comments: post.comments?.map(comment => {
+                  if (comment._id === commentId) {
+                    return {
+                      ...comment,
+                      replies: comment.replies?.filter(r => r._id !== replyId)
+                    };
+                  }
+                  return comment;
+                })
+              };
+            }
+            return post;
+          }));
+        }
       }
+    } catch (error) {
+      console.error('Error deleting reply:', error);
     }
-  } catch (error) {
-    console.error('Error deleting reply:', error);
-  }
-}, []);
+  }, []);
 
-// Report post
-const handleReportPost = useCallback(async (postId, reportData) => {
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/report`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(reportData),
-    });
+  // Report post
+  const handleReportPost = useCallback(async (postId, reportData) => {
+    try {
+      const response = await fetch(`${API_URL}/posts/${postId}/report`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reportData),
+      });
 
-    if (response.ok) {
-      const result = await response.json();
-      console.log('Post reported:', result);
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Post reported:', result);
+      }
+    } catch (error) {
+      console.error('Error reporting post:', error);
     }
-  } catch (error) {
-    console.error('Error reporting post:', error);
-  }
-}, []);
+  }, []);
+
   // Handle social link click
   const handleSocialLinkClick = useCallback((url) => {
     if (url) {
@@ -1279,47 +1254,47 @@ const handleReportPost = useCallback(async (postId, reportData) => {
 
   // Tab content rendering
   const renderTimelineTab = () => (
-  <div className={styles.timelineTab}>
-    {isOwnProfile && (
-      <CreatePost
-        profileUser={profileUser}
-        onCreatePost={createPost}
-      />
-    )}
-    
-    <div className={styles.timelinePosts}>
-      {posts && posts.length > 0 ? (
-        posts.map((singlePost) => (
-          <PostComponent
-            key={singlePost._id}
-            post={singlePost}
-            currentUserId={currentUser?._id || currentUser?.id}
-            onLike={handleLikePost}
-            onComment={commentOnPost}
-            onReply={handleReplyToComment}
-            onDelete={handleDeletePost}
-            onShare={handleSharePost}
-            onRepost={handleRepost}
-            onSave={handleSavePost}
-            onReplyLike={handleReplyLike}
-            onReplyDelete={handleReplyDelete}
-            onReport={handleReportPost}
-            isSaved={savedPosts?.includes(singlePost._id)}
-            showActions={true}
-            realtimeEnabled={true}
-          />
-        ))
-      ) : (
-        <div className={styles.noComments}>
-          <p>No posts yet</p>
-          {isOwnProfile && (
-            <p>Share your first post above!</p>
-          )}
-        </div>
+    <div className={styles.timelineTab}>
+      {isOwnProfile && (
+        <CreatePost
+          profileUser={profileUser}
+          onCreatePost={createPost}
+        />
       )}
+      
+      <div className={styles.timelinePosts}>
+        {posts && posts.length > 0 ? (
+          posts.map((singlePost) => (
+            <PostComponent
+              key={singlePost._id}
+              post={singlePost}
+              currentUserId={currentUser?._id || currentUser?.id}
+              onLike={handleLikePost}
+              onComment={commentOnPost}
+              onReply={handleReplyToComment}
+              onDelete={handleDeletePost}
+              onShare={handleSharePost}
+              onRepost={handleRepost}
+              onSave={handleSavePost}
+              onReplyLike={handleReplyLike}
+              onReplyDelete={handleReplyDelete}
+              onReport={handleReportPost}
+              isSaved={savedPosts?.includes(singlePost._id)}
+              showActions={true}
+              realtimeEnabled={true}
+            />
+          ))
+        ) : (
+          <div className={styles.noComments}>
+            <p>No posts yet</p>
+            {isOwnProfile && (
+              <p>Share your first post above!</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
 
   const renderGalleryTab = () => (
     <GalleryComponent

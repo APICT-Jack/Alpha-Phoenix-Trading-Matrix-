@@ -59,19 +59,50 @@ connectDB();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// CORS configuration
-// CORS configuration - FIX THIS
+// Helper function to clean environment variables
+const cleanEnvUrl = (url) => {
+  if (!url) return null;
+  // Remove any 'FRONTEND_URL=' prefix if present
+  let cleaned = url.replace(/^(FRONTEND_URL=)/i, '');
+  // Remove any quotes
+  cleaned = cleaned.replace(/["']/g, '');
+  // Trim whitespace
+  cleaned = cleaned.trim();
+  // Remove trailing slashes
+  cleaned = cleaned.replace(/\/+$/, '');
+  return cleaned;
+};
+
+// CORS configuration - SINGLE CLEAN VERSION
 app.use(cors({
   origin: function(origin, callback) {
+    const rawFrontendUrl = process.env.FRONTEND_URL;
+    const cleanedFrontendUrl = cleanEnvUrl(rawFrontendUrl);
+    
     const allowedOrigins = [
       'http://localhost:3000',
       'https://alpha-phoenix-trading-matrix-s78v.onrender.com',
-      // Add your frontend Render URL here
-      process.env.FRONTEND_URL
+      cleanedFrontendUrl
     ].filter(Boolean);
     
+    // Also add the URL without https:// for flexibility
+    if (cleanedFrontendUrl && cleanedFrontendUrl.startsWith('https://')) {
+      allowedOrigins.push(cleanedFrontendUrl.replace('https://', 'http://'));
+    }
+    
+    console.log('🔧 CORS Check:', { 
+      origin, 
+      rawFrontendUrl, 
+      cleanedFrontendUrl,
+      allowedOrigins 
+    });
+    
     // Allow requests with no origin (like mobile apps, Postman)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -84,6 +115,7 @@ app.use(cors({
 
 // Handle preflight
 app.options('*', cors());
+
 // ==================== STATIC FILE SERVING ====================
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -183,6 +215,31 @@ app.get("/api/test", (req, res) => {
     success: true,
     message: "Server is working!",
     timestamp: new Date().toISOString()
+  });
+});
+
+// Debug endpoint for environment variables
+app.get("/api/debug/env", (req, res) => {
+  res.json({
+    success: true,
+    environment: {
+      frontendUrl: process.env.FRONTEND_URL,
+      cleanedFrontendUrl: cleanEnvUrl(process.env.FRONTEND_URL),
+      nodeEnv: process.env.NODE_ENV,
+      port: PORT,
+      viteApiUrl: process.env.VITE_API_URL,
+      googleClientId: process.env.GOOGLE_CLIENT_ID ? "✅ Configured" : "❌ Missing",
+      emailConfigured: process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured",
+      jwtConfigured: process.env.JWT_SECRET ? "✅ Configured" : "❌ Using fallback",
+      mongoConnected: mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Disconnected"
+    },
+    cors: {
+      allowedOrigins: [
+        'http://localhost:3000',
+        'https://alpha-phoenix-trading-matrix-s78v.onrender.com',
+        cleanEnvUrl(process.env.FRONTEND_URL)
+      ].filter(Boolean)
+    }
   });
 });
 
@@ -650,6 +707,7 @@ app.get("/api/debug/routes", (req, res) => {
       nodeEnv: NODE_ENV,
       port: PORT,
       frontendUrl: FRONTEND_URL,
+      cleanedFrontendUrl: cleanEnvUrl(FRONTEND_URL),
       socketEnabled: true,
       realtimeFeatures: {
         posts: true,
@@ -701,7 +759,6 @@ app.get("/api/debug/google-test", (req, res) => {
 });
 
 // ==================== PRODUCTION SETUP ====================
-// ==================== PRODUCTION SETUP ====================
 if (NODE_ENV === "production") {
   // Try multiple possible paths for the frontend build
   const possiblePaths = [
@@ -726,7 +783,7 @@ if (NODE_ENV === "production") {
   if (staticPath) {
     app.use(express.static(staticPath));
     
-    app.get("*", (req, res) => {
+    app.get("*", (req, res, next) => {
       // Don't serve index.html for API routes
       if (req.url.startsWith('/api/')) {
         return next();
@@ -773,6 +830,7 @@ httpServer.listen(PORT, () => {
   console.log(`📍 Local URL: http://localhost:${PORT}`);
   console.log(`🌐 Environment: ${NODE_ENV}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
+  console.log(`🔗 Cleaned Frontend URL: ${cleanEnvUrl(FRONTEND_URL)}`);
   console.log(`🔌 Socket.io: Enabled`);
   console.log(`\n📡 API ENDPOINTS:`);
   console.log(`   🔐 Auth:      http://localhost:${PORT}/api/auth`);
@@ -787,12 +845,8 @@ httpServer.listen(PORT, () => {
   console.log(`   ❤️  Health:    http://localhost:${PORT}/api/health`);
   console.log(`   📊 Socket:    http://localhost:${PORT}/api/socket-status`);
   console.log(`   🔌 Test:      http://localhost:${PORT}/api/test`);
+  console.log(`   🔍 Env Debug: http://localhost:${PORT}/api/debug/env`);
   console.log(`   🐛 Debug:     http://localhost:${PORT}/api/debug/routes`);
-  console.log(`   📝 Posts:     http://localhost:${PORT}/api/debug/posts/:userId`);
-  console.log(`   🔥 Trending:  http://localhost:${PORT}/api/debug/hashtags/trending`);
-  console.log(`   📋 Feed:      http://localhost:${PORT}/api/debug/feed/:userId`);
-  console.log(`   🔔 Notify:    http://localhost:${PORT}/api/test/notification`);
-  console.log(`   ⌨️  Typing:    http://localhost:${PORT}/api/test/typing`);
   console.log(`\n⚙️  CONFIGURATION STATUS:`);
   console.log(`   📧 Email:     ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}`);
   console.log(`   🔑 JWT:       ${process.env.JWT_SECRET ? '✅ Configured' : '❌ Using fallback'}`);
