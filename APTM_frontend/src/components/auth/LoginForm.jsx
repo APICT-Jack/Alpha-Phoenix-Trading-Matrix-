@@ -69,80 +69,18 @@ const LoginForm = ({ onSuccess, switchToSignup, onClose }) => {
   try {
     console.log('🔐 Attempting Google sign in');
     
-    // Open Google OAuth popup window
-    const width = 500;
-    const height = 600;
-    const left = (window.screen.width - width) / 2;
-    const top = (window.screen.height - height) / 2;
+    // ✅ Use the signInWithGoogle function from AuthContext
+    const result = await signInWithGoogle();
     
-    const popup = window.open(
-      'http://localhost:5000/api/auth/google', // Make sure this matches your backend route
-      'Google Sign In',
-      `width=${width},height=${height},top=${top},left=${left}`
-    );
-
-    // Listen for message from popup
-    return new Promise((resolve, reject) => {
-      const handleMessage = (event) => {
-        // Check origin for security
-        if (event.origin !== 'http://localhost:5000') {
-          console.log('Origin mismatch:', event.origin);
-          return;
-        }
-
-        const { success, user, token, error: authError } = event.data;
-        
-        if (success && user && token) {
-          // Store token in localStorage
-          localStorage.setItem('token', token);
-          
-          // Update state
-          // eslint-disable-next-line no-undef
-          setUser(user);
-          // eslint-disable-next-line no-undef
-          setIsAuthenticated(true);
-          setError(null);
-          
-          console.log('🎉 Google sign in successful');
-          popup.close();
-          window.removeEventListener('message', handleMessage);
-          if (onSuccess) onSuccess();
-          resolve({ success: true, user });
-        } else if (authError) {
-          setError(authError);
-          console.log('❌ Google sign in failed:', authError);
-          popup.close();
-          window.removeEventListener('message', handleMessage);
-          resolve({ success: false, message: authError });
-        }
-      };
-
-      window.addEventListener('message', handleMessage);
-
-      // Check if popup was blocked
-      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        const errorMsg = 'Popup blocked. Please allow popups for this site.';
-        setError(errorMsg);
-        reject(new Error(errorMsg));
-        return;
-      }
-
-      // Check for popup closure (user cancelled)
-      const popupCheck = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(popupCheck);
-          window.removeEventListener('message', handleMessage);
-          const errorMsg = 'Google sign in was cancelled.';
-          setError(errorMsg);
-          resolve({ success: false, message: errorMsg });
-        }
-      }, 500);
-    });
+    if (result && result.success) {
+      console.log('🎉 Google sign in successful');
+      if (onSuccess) onSuccess();
+    } else {
+      setError(result?.message || 'Google sign in failed');
+    }
   } catch (error) {
     console.error('❌ Google sign in error:', error);
-    const errorMessage = error.message || 'Google sign in failed. Please try again.';
-    setError(errorMessage);
-    return { success: false, message: errorMessage };
+    setError(error.message || 'Google sign in failed');
   } finally {
     setGoogleLoading(false);
   }
