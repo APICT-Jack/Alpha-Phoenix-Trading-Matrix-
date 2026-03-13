@@ -1,5 +1,10 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { signIn as signInAPI, signOut as signOutAPI } from '../api/auth';
+import { signIn as signInAPI, signOut as signOutAPI, signUp as signUpAPI } from '../api/auth';
+
+// ✅ Get API URL from environment variable
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// ✅ Get base URL (without /api) for avatar and Google auth
+const BASE_URL = API_URL.replace('/api', '');
 
 const AuthContext = createContext();
 
@@ -63,20 +68,20 @@ export const AuthProvider = ({ children }) => {
 
       // If it starts with /uploads, prepend the base URL
       if (avatarPath.startsWith('/uploads')) {
-        const url = `http://localhost:5000${avatarPath}`;
+        const url = `${BASE_URL}${avatarPath}`;
         console.log('🔗 Formatted uploads URL:', url);
         return url;
       }
 
       // If it's just a filename, construct the full path
       if (avatarPath.includes('avatar-')) {
-        const url = `http://localhost:5000/uploads/avatars/${avatarPath}`;
+        const url = `${BASE_URL}/uploads/avatars/${avatarPath}`;
         console.log('🔗 Formatted filename URL:', url);
         return url;
       }
 
       // Default case - assume it's a relative path
-      const url = `http://localhost:5000${avatarPath}`;
+      const url = `${BASE_URL}${avatarPath.startsWith('/') ? '' : '/'}${avatarPath}`;
       console.log('🔗 Default formatted URL:', url);
       return url;
 
@@ -116,7 +121,8 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/profile/me', {
+      // ✅ Use dynamic API_URL
+      const response = await fetch(`${API_URL}/profile/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -197,20 +203,26 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       console.log('🔐 Attempting Google sign in...');
       
+      // ✅ Use dynamic BASE_URL for Google auth
+      const googleAuthURL = `${BASE_URL}/api/auth/google`;
+      console.log('🌐 Google auth URL:', googleAuthURL);
+      
       const width = 500;
       const height = 600;
       const left = (window.screen.width - width) / 2;
       const top = (window.screen.height - height) / 2;
       
       const popup = window.open(
-        'http://localhost:5000/api/auth/google',
+        googleAuthURL,
         'Google Sign In',
         `width=${width},height=${height},top=${top},left=${left}`
       );
 
       return new Promise((resolve, reject) => {
         const handleMessage = (event) => {
-          if (event.origin !== 'http://localhost:5000') {
+          // ✅ Check origin dynamically
+          if (!event.origin.startsWith(BASE_URL)) {
+            console.log('❌ Invalid origin:', event.origin, 'Expected:', BASE_URL);
             return;
           }
 
@@ -244,6 +256,7 @@ export const AuthProvider = ({ children }) => {
         if (!popup || popup.closed || typeof popup.closed === 'undefined') {
           const errorMsg = 'Popup blocked. Please allow popups for this site.';
           setError(errorMsg);
+          window.removeEventListener('message', handleMessage);
           reject(new Error(errorMsg));
           return;
         }
@@ -268,42 +281,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signUp = async (name, email, password, username = '') => {
-    try {
-      setLoading(true);
+ const signUp = async (name, email, password, username = '') => {
+  try {
+    setLoading(true);
+    setError(null);
+    console.log('📝 Attempting sign up for:', email);
+    
+    // ✅ Use imported signUpAPI from auth.js
+    const result = await signUpAPI(name, email, password, username);
+    console.log('✅ Sign up API response:', result);
+    
+    if (result.success) {
       setError(null);
-      console.log('📝 Attempting sign up for:', email);
-      
-      const response = await fetch('http://localhost:5000/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, email, password, username }),
-      });
-
-      const result = await response.json();
-      console.log('✅ Sign up API response:', result);
-      
-      if (result.success) {
-        setError(null);
-        console.log('🎉 Sign up successful - please check email for verification');
-        return { success: true, message: result.message };
-      } else {
-        const errorMessage = result?.message || 'Sign up failed';
-        setError(errorMessage);
-        console.log('❌ Sign up failed:', errorMessage);
-        return { success: false, message: errorMessage };
-      }
-    } catch (error) {
-      console.error('💥 Sign up error:', error);
-      const errorMessage = error.message || 'Network error during sign up';
+      console.log('🎉 Sign up successful - please check email for verification');
+      return { success: true, message: result.message };
+    } else {
+      const errorMessage = result?.message || 'Sign up failed';
       setError(errorMessage);
+      console.log('❌ Sign up failed:', errorMessage);
       return { success: false, message: errorMessage };
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error('💥 Sign up error:', error);
+    const errorMessage = error.message || 'Network error during sign up';
+    setError(errorMessage);
+    return { success: false, message: errorMessage };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const signUpWithGoogle = async () => {
     try {
@@ -386,7 +392,8 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/profile/me', {
+      // ✅ Use dynamic API_URL
+      const response = await fetch(`${API_URL}/profile/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
