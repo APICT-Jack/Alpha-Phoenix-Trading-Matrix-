@@ -701,12 +701,43 @@ app.get("/api/debug/google-test", (req, res) => {
 });
 
 // ==================== PRODUCTION SETUP ====================
+// ==================== PRODUCTION SETUP ====================
 if (NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../APTM_frontend/dist")));
+  // Try multiple possible paths for the frontend build
+  const possiblePaths = [
+    path.join(__dirname, "../APTM_frontend/dist"),
+    path.join(__dirname, "../frontend/dist"),
+    path.join(__dirname, "../client/dist"),
+    path.join(__dirname, "../dist"),
+    path.join(__dirname, "public"),
+    path.join(process.cwd(), "public"),
+    path.join(process.cwd(), "dist")
+  ];
   
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "../APTM_frontend", "dist", "index.html"));
-  });
+  let staticPath = null;
+  for (const testPath of possiblePaths) {
+    if (fs.existsSync(testPath)) {
+      staticPath = testPath;
+      console.log(`✅ Found frontend build at: ${testPath}`);
+      break;
+    }
+  }
+  
+  if (staticPath) {
+    app.use(express.static(staticPath));
+    
+    app.get("*", (req, res) => {
+      // Don't serve index.html for API routes
+      if (req.url.startsWith('/api/')) {
+        return next();
+      }
+      res.sendFile(path.join(staticPath, "index.html"));
+    });
+    
+    console.log(`📁 Serving static files from: ${staticPath}`);
+  } else {
+    console.warn("⚠️ No frontend build found. API only mode.");
+  }
 }
 
 // ==================== ERROR HANDLING ====================
