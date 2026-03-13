@@ -352,7 +352,7 @@ const CreatePost = ({
     setSearchingUsers(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/users/search?q=${encodeURIComponent(query)}&limit=5`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/users/search?q=${encodeURIComponent(query)}&limit=5`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -674,7 +674,7 @@ const CreatePost = ({
       
       // Make API call
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/posts', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

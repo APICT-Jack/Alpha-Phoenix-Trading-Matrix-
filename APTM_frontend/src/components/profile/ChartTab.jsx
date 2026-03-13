@@ -86,7 +86,7 @@ const ChartTab = ({ currentUserId, profileUserId, isOwnProfile }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/user/${profileUserId}?type=charts`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/user/${profileUserId}?type=charts`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -139,7 +139,7 @@ const ChartTab = ({ currentUserId, profileUserId, isOwnProfile }) => {
       formData.append('chart', chartJson);
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/posts', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -180,7 +180,7 @@ const ChartTab = ({ currentUserId, profileUserId, isOwnProfile }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/${postId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

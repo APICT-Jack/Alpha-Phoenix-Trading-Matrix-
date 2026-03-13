@@ -401,9 +401,9 @@ const PostComponent = ({
     if (typeof avatar === 'string') {
       const cleanPath = avatar.replace(/^\/+/, '');
       if (cleanPath.startsWith('uploads/')) {
-        return `http://localhost:5000/${cleanPath}`;
+        return `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/${cleanPath}`;
       }
-      return `http://localhost:5000/uploads/${cleanPath}`;
+      return `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/${cleanPath}`;
     }
     return null;
   }, []);
@@ -415,14 +415,14 @@ const PostComponent = ({
         return media;
       }
       const cleanPath = media.replace(/^\/+/, '');
-      return `http://localhost:5000/${cleanPath}`;
+      return `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/${cleanPath}`;
     }
     if (media.url) {
       if (media.url.startsWith('http') || media.url.startsWith('data:')) {
         return media.url;
       }
       const cleanPath = media.url.replace(/^\/+/, '');
-      return `http://localhost:5000/${cleanPath}`;
+      return `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/${cleanPath}`;
     }
     return null;
   }, []);
@@ -529,7 +529,7 @@ const PostComponent = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/polls/${pollData._id}/vote`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/polls/${pollData._id}/vote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -696,7 +696,7 @@ const PostComponent = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/${postData._id}/like`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/like`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -728,7 +728,7 @@ const PostComponent = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/${postData._id}/comments`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -772,7 +772,7 @@ const PostComponent = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/${postData._id}/comments/${commentId}/replies`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/comments/${commentId}/replies`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -832,7 +832,7 @@ const PostComponent = ({
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/posts/${postData._id}/comments/${commentId}/replies/${replyId}/like`,
+        `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/comments/${commentId}/replies/${replyId}/like`,
         {
           method: 'POST',
           headers: {
@@ -872,7 +872,7 @@ const PostComponent = ({
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/posts/${postData._id}/comments/${commentId}/like`,
+        `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/comments/${commentId}/like`,
         {
           method: 'POST',
           headers: {
@@ -902,7 +902,7 @@ const PostComponent = ({
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/posts/${postData._id}/comments/${commentId}`,
+        `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/comments/${commentId}`,
         {
           method: 'DELETE',
           headers: {
@@ -935,7 +935,7 @@ const PostComponent = ({
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/posts/${postData._id}/comments/${commentId}/replies/${replyId}`,
+        `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/comments/${commentId}/replies/${replyId}`,
         {
           method: 'DELETE',
           headers: {
@@ -1012,7 +1012,7 @@ const PostComponent = ({
       
       try {
         const token = localStorage.getItem('token');
-        await fetch(`http://localhost:5000/api/posts/${postData._id}/share`, {
+        await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/share`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1060,7 +1060,7 @@ const PostComponent = ({
       };
 
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/${postData._id}/repost`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/repost`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1098,7 +1098,7 @@ const PostComponent = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/${postData._id}/save`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/save`, {
         method: newSavedState ? 'POST' : 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1128,7 +1128,7 @@ const PostComponent = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/${postData._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1164,7 +1164,7 @@ const PostComponent = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/${postData._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1206,7 +1206,7 @@ const PostComponent = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/posts/${postData._id}/report`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postData._id}/report`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

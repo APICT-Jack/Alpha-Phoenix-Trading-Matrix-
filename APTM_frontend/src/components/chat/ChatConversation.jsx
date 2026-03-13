@@ -308,7 +308,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     if (!sent) {
       try {
         console.log('📤 Sending message via REST API fallback');
-        const response = await fetch('http://localhost:5000/api/chat/messages', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/messages`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,

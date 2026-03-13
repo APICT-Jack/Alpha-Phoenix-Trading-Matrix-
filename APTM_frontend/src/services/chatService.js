@@ -29,7 +29,7 @@ class ChatService {
   }
 
   connect(callbacks) {
-    const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+    const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}`;
     
     this.socket = io(SOCKET_URL, {
       auth: { token: localStorage.getItem('token') },
@@ -323,7 +323,7 @@ class ChatService {
 
   // API calls
   async getConversations() {
-    const response = await fetch('http://localhost:5000/api/chat/conversations', {
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/conversations`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -336,7 +336,7 @@ class ChatService {
 
   async getOrCreateConversation(userId) {
     try {
-      const response = await fetch(`http://localhost:5000/api/chat/conversation/${userId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/conversation/${userId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -371,7 +371,7 @@ class ChatService {
 
   async getMessages(conversationId, page = 1, limit = 50) {
     const response = await fetch(
-      `http://localhost:5000/api/chat/messages/${conversationId}?page=${page}&limit=${limit}`,
+      `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/messages/${conversationId}?page=${page}&limit=${limit}`,
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -386,8 +386,8 @@ class ChatService {
   async searchUsers(query) {
     try {
       const url = query 
-        ? `http://localhost:5000/api/chat/search/users?q=${encodeURIComponent(query)}`
-        : 'http://localhost:5000/api/chat/search/users?q=';
+        ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/search/users?q=${encodeURIComponent(query)}`
+        : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/search/users?q=`;
         
       const response = await fetch(url, {
         headers: {

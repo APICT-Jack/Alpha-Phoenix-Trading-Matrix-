@@ -290,7 +290,7 @@ const ConnectionPanel = () => {
       try {
         setLoading(true);
         
-        const usersResponse = await fetch('http://localhost:5000/api/users/all', {
+        const usersResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/users/all`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
@@ -360,7 +360,7 @@ const ConnectionPanel = () => {
   useEffect(() => {
     const fetchChatRooms = async () => {
       try {
-        const chatResponse = await fetch('http://localhost:5000/api/chat/rooms', {
+        const chatResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/rooms`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
@@ -373,7 +373,7 @@ const ConnectionPanel = () => {
           const roomsWithDetails = await Promise.all(
             rooms.map(async (room) => {
               try {
-                const membersResponse = await fetch(`http://localhost:5000/api/chat/rooms/${room.id}/members`, {
+                const membersResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/rooms/${room.id}/members`, {
                   headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                   },
@@ -555,7 +555,7 @@ const ConnectionPanel = () => {
       const isCurrentlyFollowing = followingStatus[userId];
       const action = isCurrentlyFollowing ? 'unfollow' : 'follow';
       
-      const response = await fetch(`http://localhost:5000/api/friends/${action}/${userId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/friends/${action}/${userId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -597,7 +597,7 @@ const ConnectionPanel = () => {
       const isMember = room?.isMember || false;
       const action = isMember ? 'leave' : 'join';
       
-      const response = await fetch(`http://localhost:5000/api/chat/rooms/${roomId}/${action}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/rooms/${roomId}/${action}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -653,7 +653,7 @@ const ConnectionPanel = () => {
   // Fetch room members
   const fetchRoomMembers = async (roomId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/chat/rooms/${roomId}/members`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/rooms/${roomId}/members`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },

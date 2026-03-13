@@ -102,11 +102,11 @@ export const getPublicProfile = async (req, res) => {
       } 
       // If it's a path starting with /uploads
       else if (profile.bannerImage.startsWith('/uploads/')) {
-        bannerUrl = `http://localhost:5000${profile.bannerImage}`;
+        bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${profile.bannerImage}`;
       }
       // If it's just a filename
       else {
-        bannerUrl = `http://localhost:5000/uploads/banners/${profile.bannerImage}`;
+        bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/banners/${profile.bannerImage}`;
       }
     }
 
@@ -248,9 +248,9 @@ export const getCompleteProfile = async (req, res) => {
       if (profile.bannerImage.startsWith('http')) {
         bannerUrl = profile.bannerImage;
       } else if (profile.bannerImage.startsWith('/uploads/')) {
-        bannerUrl = `http://localhost:5000${profile.bannerImage}`;
+        bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${profile.bannerImage}`;
       } else {
-        bannerUrl = `http://localhost:5000/uploads/banners/${profile.bannerImage}`;
+        bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/banners/${profile.bannerImage}`;
       }
     }
 
@@ -365,7 +365,7 @@ export const uploadBanner = async (req, res) => {
     await profile.save();
 
     // Generate full banner URL
-    const bannerUrl = `http://localhost:5000/uploads/banners/${bannerFilename}`;
+    const bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/banners/${bannerFilename}`;
 
     console.log('✅ Banner uploaded successfully:', {
       filename: bannerFilename,
@@ -457,7 +457,7 @@ export const testBannerUpload = async (req, res) => {
       });
     }
 
-    const bannerUrl = `http://localhost:5000/uploads/banners/${req.file.filename}`;
+    const bannerUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/banners/${req.file.filename}`;
 
     return res.json({
       success: true,
@@ -513,7 +513,7 @@ export const uploadAvatar = async (req, res) => {
     user.avatar = avatarPath;
     await user.save();
 
-    const avatarUrl = `http://localhost:5000${avatarPath}`;
+    const avatarUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${avatarPath}`;
 
     console.log('✅ Avatar uploaded successfully:', {
       filename: req.file.filename,

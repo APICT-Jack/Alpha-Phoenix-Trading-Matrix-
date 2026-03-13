@@ -13,7 +13,7 @@ import Follow from '../models/Follow.js';
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback'
+  process.env.GOOGLE_REDIRECT_URI || ((process.env.VITE_API_URL ? process.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000') + '/api/auth/google/callback')
 );
 
 // ✅ Google OAuth Initiation
@@ -23,7 +23,7 @@ export const googleAuth = async (req, res) => {
     
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${process.env.GOOGLE_CLIENT_ID}` +
-      `&redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback')}` +
+      `&redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI || ((process.env.VITE_API_URL ? process.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000') + '/api/auth/google/callback'))}` +
       `&response_type=code` +
       `&scope=profile%20email` +
       `&access_type=offline` +
@@ -63,10 +63,12 @@ export const googleCallback = async (req, res) => {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        code,
+        code: code,
         client_id: process.env.GOOGLE_CLIENT_ID,
         client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback',
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI || (
+          (process.env.VITE_API_URL ? process.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000') + '/api/auth/google/callback'
+        ),
         grant_type: 'authorization_code',
       }),
     });

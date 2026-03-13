@@ -94,7 +94,7 @@ const UserProfileView = () => {
   // Initialize socket connection for online status
   useEffect(() => {
     if (currentUser) {
-      socket = io('http://localhost:5000', {
+      socket = io(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}` , {
         query: { userId: currentUser.id }
       });
 
@@ -120,12 +120,12 @@ const UserProfileView = () => {
   // Initialize socket connection for online status
 useEffect(() => {
   if (currentUser) {
-    socket = io('http://localhost:5000', {
-      query: { userId: currentUser.id },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5
-    });
+      socket = io(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}` , {
+        query: { userId: currentUser.id },
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5
+      });
 
     // Listen for all online users
     socket.on('users:online', (users) => {
@@ -386,7 +386,7 @@ useEffect(() => {
       if (isOwnProfile) {
         // For own profile, fetch complete profile data
         console.log('📡 Fetching own complete profile...');
-        const response = await fetch('http://localhost:5000/api/profile/complete', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/profile/complete`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
@@ -404,7 +404,7 @@ useEffect(() => {
         console.log('📡 Fetching public profile for user:', targetUserId);
         
         try {
-          const publicResponse = await fetch(`http://localhost:5000/api/profile/public/${targetUserId}`);
+          const publicResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/profile/public/${targetUserId}`);
           
           if (publicResponse.ok) {
             const publicData = await publicResponse.json();
@@ -426,7 +426,7 @@ useEffect(() => {
         // Fallback to auth endpoint if public fails
         if (!userData) {
           try {
-            const authResponse = await fetch(`http://localhost:5000/api/users/${targetUserId}`, {
+            const authResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/users/${targetUserId}`, {
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
               },
@@ -458,7 +458,7 @@ useEffect(() => {
         // Check follow status for other users
         if (!isOwnProfile && targetUserId && currentUser) {
           try {
-            const followResponse = await fetch(`http://localhost:5000/api/friends/status/${targetUserId}`, {
+            const followResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/friends/status/${targetUserId}`, {
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
               },
@@ -492,7 +492,7 @@ const fetchUserPosts = useCallback(async (targetUserId) => {
   try {
     console.log('📊 Fetching posts for user:', targetUserId);
     
-    const response = await fetch(`http://localhost:5000/api/posts/user/${targetUserId}`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/user/${targetUserId}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
       },
@@ -532,7 +532,7 @@ const fetchUserPosts = useCallback(async (targetUserId) => {
   // Fetch user gallery
   const fetchUserGallery = useCallback(async (targetUserId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/gallery/${targetUserId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/${targetUserId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -557,7 +557,7 @@ const createPost = useCallback(async (postData) => {
   try {
     console.log('📝 Creating post with data:', postData);
     
-    const response = await fetch('http://localhost:5000/api/posts', {
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -600,7 +600,7 @@ const createPost = useCallback(async (postData) => {
   // Like post
   const likePost = useCallback(async (postId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/posts/${postId}/like`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/like`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -633,7 +633,7 @@ const commentOnPost = useCallback(async (postId, comment) => {
   try {
     console.log('💬 Adding comment:', { postId, comment });
     
-    const response = await fetch(`http://localhost:5000/api/posts/${postId}/comments`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -676,7 +676,7 @@ const handleReplyToComment = useCallback(async (postId, commentId, replyText, pa
   try {
     console.log('💬 Adding reply:', { postId, commentId, replyText, parentReplyId });
     
-    const response = await fetch(`http://localhost:5000/api/posts/${postId}/comments/${commentId}/replies`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}/replies`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -727,7 +727,7 @@ const handleReplyToComment = useCallback(async (postId, commentId, replyText, pa
 // Like comment - FIXED API ENDPOINT
 const handleCommentLike = useCallback(async (postId, commentId) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/posts/${postId}/comments/${commentId}/like`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}/like`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -767,7 +767,7 @@ const handleCommentLike = useCallback(async (postId, commentId) => {
 const handleReplyLike = useCallback(async (postId, commentId, replyId) => {
   try {
     const response = await fetch(
-      `http://localhost:5000/api/posts/${postId}/comments/${commentId}/replies/${replyId}/like`,
+      `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}/replies/${replyId}/like`,
       {
         method: 'POST',
         headers: {
@@ -815,7 +815,7 @@ const handleReplyLike = useCallback(async (postId, commentId, replyId) => {
   // Share post
   const handleSharePost = useCallback(async (postId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/posts/${postId}/share`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/share`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -838,7 +838,7 @@ const handleRepost = useCallback(async (repostData) => {
   try {
     console.log('🔄 Reposting:', repostData);
     
-    const response = await fetch(`http://localhost:5000/api/posts/${repostData.originalPostId}/repost`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${repostData.originalPostId}/repost`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -872,7 +872,7 @@ const handleRepost = useCallback(async (repostData) => {
   // Save post
   const handleSavePost = useCallback(async (postId, shouldSave) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/posts/${postId}/save`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/save`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -900,7 +900,7 @@ const handleRepost = useCallback(async (repostData) => {
   // Delete post
   const deletePost = useCallback(async (postId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/posts/${postId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -957,7 +957,7 @@ const handleRepost = useCallback(async (repostData) => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/gallery/upload', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -983,7 +983,7 @@ const handleRepost = useCallback(async (repostData) => {
   // Create gallery folder
   const createGalleryFolder = useCallback(async (name) => {
     try {
-      const response = await fetch('http://localhost:5000/api/gallery/folders', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/folders`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1006,7 +1006,7 @@ const handleRepost = useCallback(async (repostData) => {
   // Delete gallery folder
   const deleteGalleryFolder = useCallback(async (folderId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/gallery/folders/${folderId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/folders/${folderId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1027,7 +1027,7 @@ const handleRepost = useCallback(async (repostData) => {
   // Delete gallery item
   const deleteGalleryItem = useCallback(async (itemId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/gallery/items/${itemId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/gallery/items/${itemId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1050,7 +1050,7 @@ const handleRepost = useCallback(async (repostData) => {
     if (!targetUserId || !profileUser) return;
     
     try {
-      const response = await fetch(`http://localhost:5000/api/friends/${isFollowing ? 'unfollow' : 'follow'}/${targetUserId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/friends/${isFollowing ? 'unfollow' : 'follow'}/${targetUserId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1133,7 +1133,7 @@ const handleRepost = useCallback(async (repostData) => {
 // Delete comment
 const handleDeleteComment = useCallback(async (postId, commentId) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/posts/${postId}/comments/${commentId}`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1164,7 +1164,7 @@ const handleDeleteComment = useCallback(async (postId, commentId) => {
 const handleReplyDelete = useCallback(async (postId, commentId, replyId) => {
   try {
     const response = await fetch(
-      `http://localhost:5000/api/posts/${postId}/comments/${commentId}/replies/${replyId}`,
+      `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/comments/${commentId}/replies/${replyId}`,
       {
         method: 'DELETE',
         headers: {
@@ -1204,7 +1204,7 @@ const handleReplyDelete = useCallback(async (postId, commentId, replyId) => {
 // Report post
 const handleReportPost = useCallback(async (postId, reportData) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/posts/${postId}/report`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts/${postId}/report`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
