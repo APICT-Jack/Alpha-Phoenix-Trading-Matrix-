@@ -56,7 +56,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 const SOCKET_URL = BASE_URL;
 
-// Helper function to format image URLs (same as in avatarUtils but with BASE_URL)
+// Helper function to format image URLs (same as in UserProfileSettings)
 const formatImageUrl = (imagePath, type = 'avatar') => {
   if (!imagePath) return null;
   
@@ -106,6 +106,8 @@ const UserProfileView = () => {
   const [onlineUsers, setOnlineUsers] = useState({});
   const [isUserOnline, setIsUserOnline] = useState(false);
   const [savedPosts, setSavedPosts] = useState([]);
+  const [avatarError, setAvatarError] = useState(false);
+  const [bannerError, setBannerError] = useState(false);
 
   const isOwnProfile = !userId || userId === currentUser?.id;
   const targetUserId = userId || currentUser?.id;
@@ -191,7 +193,7 @@ const UserProfileView = () => {
     }
   }, [profileUser, onlineUsers]);
 
-  // Format user data consistently
+  // Format user data consistently (like in UserProfileSettings)
   const formatUserData = useCallback((userData, isPublic = false) => {
     if (!userData) return null;
     
@@ -226,40 +228,31 @@ const UserProfileView = () => {
     // Extract email
     let email = user.email;
     
-    // FORMAT AVATAR
-    let avatarData = user.avatar || user.avatarUrl || user.profile?.avatar;
+    // Extract avatar - just the filename/path, not the full URL
+    let avatarData = null;
+    if (user.avatar) avatarData = user.avatar;
+    else if (user.avatarUrl) avatarData = user.avatarUrl;
+    else if (user.profile?.avatar) avatarData = user.profile.avatar;
+    
     if (avatarData && typeof avatarData === 'object') {
       avatarData = avatarData.url || avatarData.avatarUrl || null;
     }
     
-    const avatarUrl = formatAvatarUrl(avatarData);
-    const avatarInitial = user.avatarInitial || name?.charAt(0).toUpperCase() || 'U';
-    
-    // FORMAT BANNER
+    // Extract banner - just the filename/path, not the full URL
     let bannerData = null;
-    
     if (user.bannerImage) bannerData = user.bannerImage;
     else if (user.banner) bannerData = user.banner;
     else if (user.bannerUrl) bannerData = user.bannerUrl;
     else if (user.profile?.bannerImage) bannerData = user.profile.bannerImage;
     else if (user.profile?.banner) bannerData = user.profile.banner;
     else if (user.profile?.bannerUrl) bannerData = user.profile.bannerUrl;
-    else if (user.data?.profile?.bannerImage) bannerData = user.data.profile.bannerImage;
     else if (userData.bannerImage) bannerData = userData.bannerImage;
     
     if (bannerData && typeof bannerData === 'object') {
       bannerData = bannerData.url || bannerData.bannerUrl || null;
     }
     
-    const bannerUrl = formatBannerUrl(bannerData);
-    const hasBanner = !!bannerUrl && bannerUrl !== null;
-    
-    console.log('🖼️ Banner detection:', { 
-      bannerData, 
-      bannerUrl, 
-      hasBanner,
-      source: isPublic ? 'public' : 'private'
-    });
+    const avatarInitial = user.avatarInitial || name?.charAt(0).toUpperCase() || 'U';
     
     // Extract bio
     let bio = user.bio || user.about || user.profile?.bio || '';
@@ -321,17 +314,20 @@ const UserProfileView = () => {
                       user.profile?.lastActive || 
                       new Date().toISOString();
     
+    // Store the raw paths for later formatting
     const formattedUser = {
       id: userId,
       _id: userId,
       name: name,
       username: username,
       email: email,
-      avatar: avatarUrl,
+      // Store the raw avatar path (not formatted)
+      avatar: avatarData,
       avatarInitial: avatarInitial,
       hasAvatar: hasValidAvatar(avatarData),
-      banner: bannerUrl,
-      hasBanner: hasBanner,
+      // Store the raw banner path (not formatted)
+      banner: bannerData,
+      hasBanner: !!bannerData,
       bio: bio,
       location: location,
       joinDate: joinDate,
@@ -374,7 +370,8 @@ const UserProfileView = () => {
       id: formattedUser.id,
       name: formattedUser.name,
       hasBanner: formattedUser.hasBanner,
-      bannerUrl: formattedUser.banner,
+      banner: formattedUser.banner,
+      avatar: formattedUser.avatar,
       socialLinks: Object.keys(formattedUser.socialLinks).filter(k => formattedUser.socialLinks[k]),
       stats: formattedUser.stats
     });
@@ -388,6 +385,8 @@ const UserProfileView = () => {
       setLoading(true);
       setError(null);
       setProfileUser(null);
+      setAvatarError(false);
+      setBannerError(false);
 
       let userData = null;
       console.log('🔍 Fetching profile for user:', targetUserId, 'isOwnProfile:', isOwnProfile);
@@ -424,6 +423,7 @@ const UserProfileView = () => {
               console.log('🎯 User data from public endpoint:', {
                 hasBanner: userData?.hasBanner,
                 banner: userData?.banner,
+                avatar: userData?.avatar,
                 socialLinks: userData?.socialLinks
               });
             }
@@ -459,7 +459,8 @@ const UserProfileView = () => {
           id: userData.id,
           name: userData.name,
           hasBanner: userData.hasBanner,
-          bannerUrl: userData.banner
+          banner: userData.banner,
+          avatar: userData.avatar
         });
         
         setProfileUser(userData);
@@ -1394,16 +1395,16 @@ const UserProfileView = () => {
       }));
   }, [profileUser?.socialLinks]);
 
-  // Get formatted avatar URL
+  // Get formatted avatar URL (like in UserProfileSettings)
   const getFormattedAvatar = useCallback(() => {
     if (!profileUser?.avatar) return null;
     return formatImageUrl(profileUser.avatar, 'avatar');
   }, [profileUser?.avatar]);
 
-  // Get formatted banner URL
+  // Get formatted banner URL (like in UserProfileSettings)
   const getFormattedBanner = useCallback(() => {
-    if (profileUser?.banner) return formatImageUrl(profileUser.banner, 'banner');
-    return null;
+    if (!profileUser?.banner) return null;
+    return formatImageUrl(profileUser.banner, 'banner');
   }, [profileUser?.banner]);
 
   // Loading state
@@ -1438,6 +1439,12 @@ const UserProfileView = () => {
   const formattedAvatar = getFormattedAvatar();
   const formattedBanner = getFormattedBanner();
 
+  console.log('🎯 Rendering with formatted images:', {
+    avatar: formattedAvatar,
+    banner: formattedBanner,
+    hasBanner: profileUser.hasBanner
+  });
+
   return (
     <div className={`${styles.profileContainer} ${darkMode ? styles.dark : styles.light}`}>
       <AvatarModal
@@ -1469,22 +1476,14 @@ const UserProfileView = () => {
           {/* Banner Section */}
           <div className={styles.bannerSection}>
             <div className={styles.bannerWrapper}>
-              {profileUser.hasBanner && formattedBanner ? (
+              {profileUser.hasBanner && formattedBanner && !bannerError ? (
                 <img 
                   src={formattedBanner} 
                   alt={`${profileUser.name}'s banner`}
                   className={styles.bannerImage}
-                  onError={(e) => {
+                  onError={() => {
                     console.log('Banner failed to load:', formattedBanner);
-                    e.target.style.display = 'none';
-                    const parent = e.target.parentNode;
-                    const existingPlaceholder = parent.querySelector('.bannerPlaceholder');
-                    if (!existingPlaceholder) {
-                      const placeholder = document.createElement('div');
-                      placeholder.className = styles.bannerPlaceholder;
-                      placeholder.textContent = `${profileUser.name}'s Banner`;
-                      parent.appendChild(placeholder);
-                    }
+                    setBannerError(true);
                   }}
                 />
               ) : (
@@ -1512,24 +1511,14 @@ const UserProfileView = () => {
           {/* Avatar */}
           <div className={styles.avatarContainer}>
             <div className={styles.avatarWrapper} onClick={openModal}>
-              {formattedAvatar ? (
+              {formattedAvatar && !avatarError ? (
                 <img 
                   src={formattedAvatar} 
                   alt={profileUser.name}
                   className={styles.avatarImage}
-                  onError={(e) => {
+                  onError={() => {
                     console.log('Avatar failed to load:', formattedAvatar);
-                    e.target.style.display = 'none';
-                    const parent = e.target.parentNode;
-                    const existingInitial = parent.querySelector('.avatarInitial');
-                    if (!existingInitial) {
-                      const initialDiv = document.createElement('div');
-                      initialDiv.className = styles.avatarInitial;
-                      initialDiv.textContent = profileUser.avatarInitial || 
-                                              profileUser.name?.charAt(0).toUpperCase() || 
-                                              'U';
-                      parent.appendChild(initialDiv);
-                    }
+                    setAvatarError(true);
                   }}
                 />
               ) : (
