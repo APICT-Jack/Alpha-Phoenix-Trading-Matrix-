@@ -54,39 +54,7 @@ import {
 // Constants for API URLs - FIXED
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-// Add this at the top of your UserProfileView.jsx, after your imports
-const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
-                 import.meta.env.VITE_BASE_URL ||
-                 'http://localhost:5000';
 
-// Helper function to format image URLs
-const formatImageUrl = (imagePath, type = 'avatar') => {
-  if (!imagePath) return null;
-  
-  // If it's already a full URL, return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  
-  // If it's a data URL, return as is
-  if (imagePath.startsWith('data:')) {
-    return imagePath;
-  }
-  
-  // Extract just the filename if it contains path
-  let cleanPath = imagePath;
-  if (imagePath.includes('/')) {
-    cleanPath = imagePath.split('/').pop();
-  }
-  
-  const folders = {
-    avatar: 'avatars',
-    banner: 'banners'
-  };
-  
-  const folder = folders[type] || type;
-  return `${BASE_URL}/uploads/${folder}/${cleanPath}`;
-};
 // Socket connection for online status
 let socket;
 
@@ -1459,14 +1427,23 @@ const UserProfileView = () => {
     <div className={styles.bannerWrapper}>
       {profileUser.hasBanner ? (
         <img 
-    src={formatImageUrl(profileUser.banner, 'banner')} 
-    alt={`${profileUser.name}'s banner`}
-    className={styles.bannerImage}
-    onError={(e) => {
-      console.log('Banner failed to load');
-      e.target.style.display = 'none';
-    }}
-  />
+          src={profileUser.banner} 
+          alt={`${profileUser.name}'s banner`}
+          className={styles.bannerImage}
+          onError={(e) => {
+            console.log('Banner failed to load:', profileUser.banner);
+            e.target.style.display = 'none';
+            // Check if placeholder already exists
+            const parent = e.target.parentNode;
+            const existingPlaceholder = parent.querySelector('.bannerPlaceholder');
+            if (!existingPlaceholder) {
+              const placeholder = document.createElement('div');
+              placeholder.className = styles.bannerPlaceholder;
+              placeholder.textContent = `${profileUser.name}'s Banner`;
+              parent.appendChild(placeholder);
+            }
+          }}
+        />
       ) : (
         <div className={styles.bannerPlaceholder}>
           {profileUser.name}'s Banner
@@ -1494,14 +1471,25 @@ const UserProfileView = () => {
     <div className={styles.avatarWrapper} onClick={openModal}>
       {profileUser.avatar ? (
         <img 
-    src={formatImageUrl(profileUser.avatar, 'avatar')} 
-    alt={profileUser.name}
-    className={styles.avatarImage}
-    onError={(e) => {
-      console.log('Avatar failed to load');
-      e.target.style.display = 'none';
-    }}
-  />
+          src={profileUser.avatar} 
+          alt={profileUser.name}
+          className={styles.avatarImage}
+          onError={(e) => {
+            console.log('Avatar failed to load:', profileUser.avatar);
+            e.target.style.display = 'none';
+            // Check if initial already exists
+            const parent = e.target.parentNode;
+            const existingInitial = parent.querySelector('.avatarInitial');
+            if (!existingInitial) {
+              const initialDiv = document.createElement('div');
+              initialDiv.className = styles.avatarInitial;
+              initialDiv.textContent = profileUser.avatarInitial || 
+                                      profileUser.name?.charAt(0).toUpperCase() || 
+                                      'U';
+              parent.appendChild(initialDiv);
+            }
+          }}
+        />
       ) : (
         <div className={styles.avatarInitial}>
           {profileUser.avatarInitial || profileUser.name?.charAt(0).toUpperCase() || 'U'}
