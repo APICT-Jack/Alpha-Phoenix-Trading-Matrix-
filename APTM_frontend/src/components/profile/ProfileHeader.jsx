@@ -40,7 +40,7 @@ const socialIcons = {
   instagram: FaInstagram
 };
 
-// Helper function to format image URLs
+// Helper function to format image URLs (same as in PostComponent)
 const formatImageUrl = (imagePath, type = 'avatar') => {
   if (!imagePath) return null;
   
@@ -91,9 +91,12 @@ const ProfileHeader = ({
 
   // Format banner URL using the helper
   const getFormattedBanner = () => {
+    // Check multiple possible banner sources
     if (bannerUrl) return formatImageUrl(bannerUrl, 'banner');
     if (profileUser?.banner) return formatImageUrl(profileUser.banner, 'banner');
     if (profileUser?.bannerImage) return formatImageUrl(profileUser.bannerImage, 'banner');
+    if (profileUser?.profile?.banner) return formatImageUrl(profileUser.profile.banner, 'banner');
+    if (profileUser?.profile?.bannerImage) return formatImageUrl(profileUser.profile.bannerImage, 'banner');
     return null;
   };
 
@@ -118,7 +121,10 @@ const ProfileHeader = ({
   const getActiveSocialLinks = () => {
     if (!profileUser?.socialLinks) return [];
     
-    return Object.entries(profileUser.socialLinks)
+    // Handle both direct socialLinks and nested profile.socialLinks
+    const socialLinks = profileUser.socialLinks || profileUser.profile?.socialLinks || {};
+    
+    return Object.entries(socialLinks)
       .filter(([key, value]) => value && value.trim() !== '' && socialIcons[key])
       .map(([key, value]) => ({
         platform: key,

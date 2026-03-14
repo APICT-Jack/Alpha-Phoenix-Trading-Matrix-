@@ -9,18 +9,22 @@ import {
   FaBell, 
   FaBars,
   FaTimes,
-  FaUser // Added missing import
+  FaUser
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import AuthModal from '../auth/AuthModal';
 import UserAvatar from './UserAvatar';
 import './Header.css';
 
-// Notification service (simplified)
+// Constants for API URLs
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+// Notification service (simplified) with dynamic URL
 const notificationService = {
   getNotificationCounts: async (token) => {
     try {
-      const response = await fetch('http://localhost:5000/api/notifications/counts', {
+      const response = await fetch(`${API_URL}/notifications/counts`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -251,9 +255,10 @@ export default function Header() {
   const handleSettingsClick = () => {
     navigate('/settings');
   };
+  
   const handleSubscriptionClick = () => {
-  navigate('/subscription');
-};
+    navigate('/subscription');
+  };
 
   const handleCasherClick = () => {
     navigate('/casher');
@@ -283,8 +288,23 @@ export default function Header() {
     if (!canShowDashboard) {
       setShowAuthModal(true);
     }
-    // If user is logged in, the UserAvatar component handles its own dropdown
   };
+
+  // Format user object for UserAvatar
+  const getFormattedUser = () => {
+    if (!user) return null;
+    
+    // Ensure user has all required fields
+    return {
+      ...user,
+      // Make sure avatar URL is properly formatted if needed
+      avatar: user.avatar || user.avatarUrl || null,
+      name: user.name || user.displayName || 'User',
+      username: user.username || user.userName || 'user'
+    };
+  };
+
+  const formattedUser = getFormattedUser();
 
   return (
     <>
@@ -396,7 +416,7 @@ export default function Header() {
               {!isMobile && (
                 <div className="user-avatar-container">
                   <UserAvatar 
-                    user={user}
+                    user={formattedUser}
                     size="medium"
                     showName={false}  
                     showDropdown={canShowDashboard}
@@ -529,7 +549,7 @@ export default function Header() {
       {showNotifications && (
         <NotificationsPanel 
           onClose={handleNotificationPanelClose}
-          user={user}
+          user={formattedUser}
         />
       )}
       

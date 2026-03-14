@@ -7,6 +7,39 @@ import MessageInput from './MessageInput';
 import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
 import styles from './ChatConversation.module.css';
 
+// Constants for API URLs
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+// Helper function to format avatar URLs
+const formatAvatarUrl = (avatar) => {
+  if (!avatar) return null;
+  
+  // If it's already a full URL, return as is
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  
+  // If it's a data URL, return as is
+  if (avatar.startsWith('data:')) {
+    return avatar;
+  }
+  
+  // Handle object type avatar
+  if (typeof avatar === 'object') {
+    avatar = avatar.url || avatar.avatarUrl || null;
+    if (!avatar) return null;
+  }
+  
+  // Extract just the filename if it contains path
+  let cleanPath = avatar;
+  if (avatar.includes('/')) {
+    cleanPath = avatar.split('/').pop();
+  }
+  
+  return `${BASE_URL}/uploads/avatars/${cleanPath}`;
+};
+
 // Import icons
 import {
   FaArrowLeft,
@@ -38,6 +71,12 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   const inputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const processedMessageIds = useRef(new Set());
+
+  // Format conversation user avatar
+  const formattedUserAvatar = formatAvatarUrl(conversation.userAvatar);
+  
+  // Format current user avatar
+  const formattedCurrentUserAvatar = formatAvatarUrl(currentUser?.avatar);
 
   // Load messages
   useEffect(() => {
@@ -102,6 +141,9 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       // Add to processed IDs
       processedMessageIds.current.add(message._id);
       
+      // Format sender avatar
+      const senderAvatar = formatAvatarUrl(message.sender?.avatar || message.senderAvatar);
+      
       // Format the message
       const formattedMessage = {
         ...message,
@@ -110,7 +152,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         sender: message.sender || {
           _id: message.senderId?._id || message.senderId,
           name: message.senderName || 'User',
-          avatar: message.senderAvatar || null
+          avatar: senderAvatar
         },
         createdAt: message.createdAt || new Date().toISOString(),
         status: message.status || 'delivered'
@@ -133,6 +175,9 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       
       if (message.conversationId !== conversation.id) return;
       
+      // Format sender avatar
+      const senderAvatar = formatAvatarUrl(message.sender?.avatar || currentUser?.avatar);
+      
       setMessages(prev => {
         // Find and update the temp message
         const updatedMessages = prev.map(m => {
@@ -145,11 +190,11 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
             return {
               ...message,
               _id: message._id || message.id,
-              senderId: message.senderId?._id || message.senderId,
+              senderId: message.senderId?._id || message.senderId || currentUser?.id,
               sender: message.sender || {
                 _id: currentUser?.id,
                 name: currentUser?.name,
-                avatar: currentUser?.avatar
+                avatar: senderAvatar
               },
               status: 'sent'
             };
@@ -273,7 +318,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       sender: {
         _id: currentUser?.id,
         name: currentUser?.name,
-        avatar: currentUser?.avatar
+        avatar: formattedCurrentUserAvatar
       },
       createdAt: new Date().toISOString(),
       status: 'sending',
@@ -308,7 +353,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     if (!sent) {
       try {
         console.log('📤 Sending message via REST API fallback');
-        const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/messages`, {
+        const response = await fetch(`${API_URL}/chat/messages`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -325,6 +370,9 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           const data = await response.json();
           const newMsg = data.message || data;
           
+          // Format avatar URL
+          const newMsgAvatar = formatAvatarUrl(newMsg.sender?.avatar);
+          
           setMessages(prev => prev.map(m => {
             if (m._id === tempId) {
               processedMessageIds.current.add(newMsg._id);
@@ -334,7 +382,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
                 sender: {
                   _id: currentUser?.id,
                   name: currentUser?.name,
-                  avatar: currentUser?.avatar
+                  avatar: newMsgAvatar
                 },
                 status: 'sent'
               };
@@ -389,7 +437,19 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
 
   // Handle attachment click
   const handleAttachmentClick = (attachment) => {
-    window.open(attachment.url, '_blank');
+    let url = attachment.url;
+    
+    // Format attachment URL if needed
+    if (url && !url.startsWith('http') && !url.startsWith('data:')) {
+      const folder = attachment.type?.startsWith('image/') ? 'gallery' : 'documents';
+      let cleanPath = url;
+      if (url.includes('/')) {
+        cleanPath = url.split('/').pop();
+      }
+      url = `${BASE_URL}/uploads/${folder}/${cleanPath}`;
+    }
+    
+    window.open(url, '_blank');
   };
 
   // Group messages by date
@@ -437,9 +497,9 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
             onClick={() => navigate(`/profile/${conversation.userId}`)}
           >
             <div className={styles.avatar}>
-              {conversation.userAvatar && !avatarError ? (
+              {formattedUserAvatar && !avatarError ? (
                 <img 
-                  src={conversation.userAvatar} 
+                  src={formattedUserAvatar} 
                   alt={conversation.userName}
                   onError={() => setAvatarError(true)}
                 />

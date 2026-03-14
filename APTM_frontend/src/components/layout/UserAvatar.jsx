@@ -4,35 +4,68 @@ import { useNavigate } from 'react-router-dom';
 import { FaUser, FaChevronDown, FaCog, FaCashRegister, FaUserCircle, FaSignOutAlt, FaCrown } from 'react-icons/fa';
 import './UserAvatar.css';
 
+// Constants for API URLs
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
 // Safe user data access utilities
 export const getUserAvatar = (user) => {
   if (!user) return null;
   
-  if (user.avatar) {
-    if (user.avatar.startsWith('http')) {
-      return user.avatar;
-    }
-    return `http://localhost:5000${user.avatar}`;
+  // Get avatar from various possible locations
+  let avatar = user.avatar || user.avatarUrl || user.profilePicture || user.profile?.avatar || null;
+  
+  if (!avatar) return null;
+  
+  // Handle object type avatar (from some APIs)
+  if (typeof avatar === 'object') {
+    avatar = avatar.url || avatar.avatarUrl || null;
   }
   
-  return null;
+  if (!avatar) return null;
+  
+  // If it's already a full URL, return as is
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  
+  // If it's a data URL, return as is
+  if (avatar.startsWith('data:')) {
+    return avatar;
+  }
+  
+  // Extract just the filename if it contains path
+  let cleanPath = avatar;
+  if (avatar.includes('/')) {
+    cleanPath = avatar.split('/').pop();
+  }
+  
+  return `${BASE_URL}/uploads/avatars/${cleanPath}`;
 };
 
 export const getUserInitial = (user) => {
   if (!user) return <FaUser />;
   
-  const initial = user.name?.charAt(0) || user.email?.charAt(0);
+  // Try to get initial from name, username, or email
+  const name = user.name || user.displayName || '';
+  const username = user.username || user.userName || '';
+  const email = user.email || '';
+  
+  const initial = name.charAt(0) || username.charAt(0) || email.charAt(0);
   return initial ? initial.toUpperCase() : <FaUser />;
 };
 
 export const getDisplayName = (user) => {
   if (!user) return '';
-  return user.name?.split(' ')[0] || user.email?.split('@')[0] || 'User';
+  return user.name?.split(' ')[0] || 
+         user.username || 
+         user.displayName?.split(' ')[0] || 
+         user.email?.split('@')[0] || 
+         'User';
 };
 
 export const getFullName = (user) => {
   if (!user) return 'User';
-  return user.name || 'User';
+  return user.name || user.displayName || user.username || 'User';
 };
 
 export const getEmail = (user) => {
@@ -93,6 +126,7 @@ const UserAvatar = ({
   };
 
   const handleImageError = () => {
+    console.log('Avatar failed to load:', avatarUrl);
     setImageLoaded(false);
     setImageError(true);
   };
@@ -118,7 +152,6 @@ const UserAvatar = ({
     if (onProfileClick) {
       onProfileClick();
     } else {
-      // Navigate to the user's profile view
       navigate('/profile');
     }
   };
@@ -127,7 +160,6 @@ const UserAvatar = ({
     if (onSettingsClick) {
       onSettingsClick();
     } else {
-      // Navigate to profile settings
       navigate('/profile/settings');
     }
   };
@@ -136,7 +168,6 @@ const UserAvatar = ({
     if (onCasherClick) {
       onCasherClick();
     } else {
-      // Navigate to casher/dashboard
       navigate('/dashboard');
     }
   };
@@ -145,7 +176,6 @@ const UserAvatar = ({
     if (onSubscriptionClick) {
       onSubscriptionClick();
     } else {
-      // Navigate to subscription page
       navigate('/subscription');
     }
   };
@@ -154,9 +184,7 @@ const UserAvatar = ({
     if (onLogoutClick) {
       onLogoutClick();
     } else {
-      // Default logout behavior
       console.log('Logging out...');
-      // Add your logout logic here
     }
   };
 
@@ -179,18 +207,19 @@ const UserAvatar = ({
               onLoad={handleImageLoad}
               onError={handleImageError}
               style={{ display: imageLoaded ? 'block' : 'none' }}
+              loading="lazy"
             />
           )}
           
           {shouldShowFallback && (
             <div className="avatar-fallback">
-              {initials}
+              {typeof initials === 'string' ? initials : initials}
             </div>
           )}
         </div>
         
         {showName && (
-          <span className="avatar-name">
+          <span className="avatar-name" title={fullName}>
             {displayName}
           </span>
         )}
@@ -203,6 +232,7 @@ const UserAvatar = ({
                 e.stopPropagation();
                 setIsDropdownOpen(!isDropdownOpen);
               }}
+              aria-label="User menu"
             >
               <FaChevronDown className="dropdown-chevron" />
             </button>
@@ -218,10 +248,15 @@ const UserAvatar = ({
                   <div className="dropdown-header">
                     <div className="dropdown-user-avatar">
                       {shouldShowImage ? (
-                        <img src={avatarUrl} alt="Profile" className="header-avatar-image" />
+                        <img 
+                          src={avatarUrl} 
+                          alt="Profile" 
+                          className="header-avatar-image"
+                          onError={handleImageError}
+                        />
                       ) : (
                         <div className="header-avatar-fallback">
-                          {initials}
+                          {typeof initials === 'string' ? initials : initials}
                         </div>
                       )}
                     </div>

@@ -1,9 +1,66 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styles from './UserProfileView.module.css';
-import { FaPlus, FaFolderPlus, FaTrash, FaImages, FaTimes, FaChevronLeft, FaChevronRight, FaHeart, FaRegHeart, FaComment } from 'react-icons/fa';
+import { 
+  FaPlus, 
+  FaFolderPlus, 
+  FaTrash, 
+  FaImages, 
+  FaTimes, 
+  FaChevronLeft, 
+  FaChevronRight, 
+  FaHeart, 
+  FaRegHeart, 
+  FaComment 
+} from 'react-icons/fa';
+
 const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
-const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onDeleteItem, onDeleteFolder, onReactToItem }) => {
+// Helper function to format image/video URLs
+const formatMediaUrl = (url) => {
+  if (!url) return null;
+  
+  // If it's already a full URL, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // If it's a data URL, return as is
+  if (url.startsWith('data:')) {
+    return url;
+  }
+  
+  // If it's a path starting with /uploads, clean it up
+  if (url.startsWith('/uploads/')) {
+    // Remove duplicate /uploads if present
+    if (url.startsWith('/uploads//uploads/')) {
+      url = url.replace('/uploads//uploads/', '/uploads/');
+    }
+    return `${API_URL}${url}`;
+  }
+  
+  // If it's a path starting with uploads (no leading slash)
+  if (url.startsWith('uploads/')) {
+    return `${API_URL}/${url}`;
+  }
+  
+  // If it's just a filename, assume it's in the gallery folder
+  if (url.includes('gallery-') || url.includes('.jpg') || url.includes('.png') || url.includes('.jpeg') || url.includes('.gif') || url.includes('.webp') || url.includes('.mp4')) {
+    return `${API_URL}/uploads/gallery/${url}`;
+  }
+  
+  // Default case - just append to API_URL
+  return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
+const GalleryComponent = ({ 
+  gallery, 
+  isOwnProfile, 
+  onUpload, 
+  onCreateFolder, 
+  onDeleteItem, 
+  onDeleteFolder, 
+  onReactToItem 
+}) => {
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
@@ -21,6 +78,9 @@ const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onD
   const [currentFolderItems, setCurrentFolderItems] = useState([]);
   const [reactionLoading, setReactionLoading] = useState(false);
   const [reactionError, setReactionError] = useState(null);
+  
+  // Track image load errors
+  const [imageErrors, setImageErrors] = useState({});
 
   // Reset file input when modal closes
   useEffect(() => {
@@ -35,9 +95,9 @@ const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onD
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);
     
-    // Filter files by type (optional)
+    // Filter files by type
     const validFiles = files.filter(file => {
-      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'application/pdf'];
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'application/pdf'];
       return validTypes.includes(file.type);
     });
 
@@ -164,7 +224,7 @@ const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onD
     try {
       await onReactToItem(itemId, reactionType);
       
-      // Update local state to reflect reaction (optional - depends on your data structure)
+      // Update local state to reflect reaction
       const updatedItems = currentFolderItems.map(item => {
         if (item._id === itemId) {
           const userReaction = item.userReaction === reactionType ? null : reactionType;
@@ -196,6 +256,12 @@ const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onD
     } finally {
       setReactionLoading(false);
     }
+  };
+
+  // Handle image error
+  const handleImageError = (itemId) => {
+    console.log('Image failed to load for item:', itemId);
+    setImageErrors(prev => ({ ...prev, [itemId]: true }));
   };
 
   const currentFolder = selectedFolder 
@@ -254,59 +320,70 @@ const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onD
       </div>
       
       <div className={styles.galleryGrid}>
-        {currentFolder?.items.map((item, index) => (
-          <div 
-            key={item._id || index} 
-            className={styles.galleryItem}
-            onClick={() => openViewer(currentFolder._id, index)}
-          >
-            {item.type?.startsWith('video/') ? (
-              <video 
-                src={`http://localhost:5000${item.url}`} 
-                className={styles.galleryImage}
-                muted
-                onMouseOver={e => e.currentTarget.play()}
-                onMouseOut={e => e.currentTarget.pause()}
-              />
-            ) : (
-              <img 
-  src={`${API_URL}${item.url}`} 
-  alt={item.description || 'Gallery item'}
-  className={styles.galleryImage}
-  loading="lazy"
-  onError={(e) => {
-    e.target.onerror = null;
-    e.target.src = '/placeholder-image.jpg'; // Add a placeholder
-  }}
-/>
-            )}
-            
-            {/* Reaction preview */}
-            {item.reactions && item.reactions.length > 0 && (
-              <div className={styles.reactionPreview}>
-                <FaHeart className={styles.reactionPreviewIcon} />
-                <span>{item.reactions.length}</span>
-              </div>
-            )}
-            
-            <div className={styles.galleryItemOverlay}>
-              <p>{item.description || 'No description'}</p>
-              {isOwnProfile && (
-                <button 
-                  className={styles.deleteGalleryItem}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm('Are you sure you want to delete this item?')) {
-                      onDeleteItem(item._id);
-                    }
-                  }}
-                >
-                  <FaTrash />
-                </button>
+        {currentFolder?.items.map((item, index) => {
+          const mediaUrl = formatMediaUrl(item.url);
+          const hasError = imageErrors[item._id];
+          
+          return (
+            <div 
+              key={item._id || index} 
+              className={styles.galleryItem}
+              onClick={() => openViewer(currentFolder._id, index)}
+            >
+              {item.type?.startsWith('video/') ? (
+                <video 
+                  src={mediaUrl} 
+                  className={styles.galleryImage}
+                  muted
+                  onMouseOver={e => e.currentTarget.play()}
+                  onMouseOut={e => e.currentTarget.pause()}
+                  onError={() => handleImageError(item._id)}
+                />
+              ) : (
+                <img 
+                  src={mediaUrl} 
+                  alt={item.description || 'Gallery item'}
+                  className={styles.galleryImage}
+                  loading="lazy"
+                  onError={() => handleImageError(item._id)}
+                  style={{ display: hasError ? 'none' : 'block' }}
+                />
               )}
+              
+              {hasError && (
+                <div className={styles.imageErrorPlaceholder}>
+                  <FaImages size={24} />
+                  <span>Failed to load</span>
+                </div>
+              )}
+              
+              {/* Reaction preview */}
+              {item.reactions && item.reactions.length > 0 && (
+                <div className={styles.reactionPreview}>
+                  <FaHeart className={styles.reactionPreviewIcon} />
+                  <span>{item.reactions.length}</span>
+                </div>
+              )}
+              
+              <div className={styles.galleryItemOverlay}>
+                <p>{item.description || 'No description'}</p>
+                {isOwnProfile && (
+                  <button 
+                    className={styles.deleteGalleryItem}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm('Are you sure you want to delete this item?')) {
+                        onDeleteItem(item._id);
+                      }
+                    }}
+                  >
+                    <FaTrash />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {(!currentFolder || currentFolder.items.length === 0) && (
           <div className={styles.emptyGallery}>
             <FaImages size={48} />
@@ -356,18 +433,18 @@ const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onD
             <div className={styles.viewerImageContainer}>
               {currentItem.type?.startsWith('video/') ? (
                 <video 
-  src={`${API_URL}${item.url}`} 
-  className={styles.galleryImage}
-  muted
-  onError={(e) => {
-    console.error('Video failed to load:', item.url);
-  }}
-/>
+                  src={formatMediaUrl(currentItem.url)} 
+                  controls
+                  autoPlay
+                  className={styles.viewerImage}
+                  onError={() => handleImageError(currentItem._id)}
+                />
               ) : (
                 <img 
-                  src={`http://localhost:5000${currentItem.url}`} 
+                  src={formatMediaUrl(currentItem.url)} 
                   alt={currentItem.description || 'Gallery item'}
                   className={styles.viewerImage}
+                  onError={() => handleImageError(currentItem._id)}
                 />
               )}
               
@@ -423,13 +500,13 @@ const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onD
                   >
                     {item.type?.startsWith('video/') ? (
                       <video 
-                        src={`http://localhost:5000${item.url}`} 
+                        src={formatMediaUrl(item.url)} 
                         className={styles.thumbnailImage}
                         muted
                       />
                     ) : (
                       <img 
-                        src={`http://localhost:5000${item.url}`} 
+                        src={formatMediaUrl(item.url)} 
                         alt={item.description || 'Thumbnail'}
                         className={styles.thumbnailImage}
                       />

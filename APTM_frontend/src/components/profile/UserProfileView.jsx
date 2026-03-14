@@ -53,7 +53,37 @@ import {
 
 // Constants for API URLs - FIXED
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const SOCKET_URL = BASE_URL;
+
+// Helper function to format image URLs (same as in avatarUtils but with BASE_URL)
+const formatImageUrl = (imagePath, type = 'avatar') => {
+  if (!imagePath) return null;
+  
+  // If it's already a full URL, return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // If it's a data URL, return as is
+  if (imagePath.startsWith('data:')) {
+    return imagePath;
+  }
+  
+  // Extract just the filename if it contains path
+  let cleanPath = imagePath;
+  if (imagePath.includes('/')) {
+    cleanPath = imagePath.split('/').pop();
+  }
+  
+  const folders = {
+    avatar: 'avatars',
+    banner: 'banners'
+  };
+  
+  const folder = folders[type] || type;
+  return `${BASE_URL}/uploads/${folder}/${cleanPath}`;
+};
 
 // Socket connection for online status
 let socket;
@@ -1364,6 +1394,18 @@ const UserProfileView = () => {
       }));
   }, [profileUser?.socialLinks]);
 
+  // Get formatted avatar URL
+  const getFormattedAvatar = useCallback(() => {
+    if (!profileUser?.avatar) return null;
+    return formatImageUrl(profileUser.avatar, 'avatar');
+  }, [profileUser?.avatar]);
+
+  // Get formatted banner URL
+  const getFormattedBanner = useCallback(() => {
+    if (profileUser?.banner) return formatImageUrl(profileUser.banner, 'banner');
+    return null;
+  }, [profileUser?.banner]);
+
   // Loading state
   if (loading) {
     return (
@@ -1393,13 +1435,15 @@ const UserProfileView = () => {
   }
 
   const activeSocialLinks = getActiveSocialLinks();
+  const formattedAvatar = getFormattedAvatar();
+  const formattedBanner = getFormattedBanner();
 
   return (
     <div className={`${styles.profileContainer} ${darkMode ? styles.dark : styles.light}`}>
       <AvatarModal
         isOpen={isModalOpen}
         onClose={closeModal}
-        avatarUrl={profileUser.avatar}
+        avatarUrl={formattedAvatar}
         avatarInitial={profileUser.avatarInitial}
       />
 
@@ -1421,222 +1465,220 @@ const UserProfileView = () => {
         </div>
 
         {/* Profile Header */}
-<div className={styles.profileHeader}>
-  {/* Banner Section */}
-  <div className={styles.bannerSection}>
-    <div className={styles.bannerWrapper}>
-      {profileUser.hasBanner ? (
-        <img 
-          src={profileUser.banner} 
-          alt={`${profileUser.name}'s banner`}
-          className={styles.bannerImage}
-          onError={(e) => {
-            console.log('Banner failed to load:', profileUser.banner);
-            e.target.style.display = 'none';
-            // Check if placeholder already exists
-            const parent = e.target.parentNode;
-            const existingPlaceholder = parent.querySelector('.bannerPlaceholder');
-            if (!existingPlaceholder) {
-              const placeholder = document.createElement('div');
-              placeholder.className = styles.bannerPlaceholder;
-              placeholder.textContent = `${profileUser.name}'s Banner`;
-              parent.appendChild(placeholder);
-            }
-          }}
-        />
-      ) : (
-        <div className={styles.bannerPlaceholder}>
-          {profileUser.name}'s Banner
-        </div>
-      )}
-    </div>
-    
-    {/* Edit Banner Button */}
-    {isOwnProfile && (
-      <div className={styles.bannerEditOverlay}>
-        <button 
-          className={styles.editBannerBtn} 
-          onClick={handleEditBanner}
-          title="Change banner"
-        >
-          <FaCamera size={14} />
-          <span>Edit Banner</span>
-        </button>
-      </div>
-    )}
-  </div>
-
-  {/* Avatar */}
-  <div className={styles.avatarContainer}>
-    <div className={styles.avatarWrapper} onClick={openModal}>
-      {profileUser.avatar ? (
-        <img 
-          src={profileUser.avatar} 
-          alt={profileUser.name}
-          className={styles.avatarImage}
-          onError={(e) => {
-            console.log('Avatar failed to load:', profileUser.avatar);
-            e.target.style.display = 'none';
-            // Check if initial already exists
-            const parent = e.target.parentNode;
-            const existingInitial = parent.querySelector('.avatarInitial');
-            if (!existingInitial) {
-              const initialDiv = document.createElement('div');
-              initialDiv.className = styles.avatarInitial;
-              initialDiv.textContent = profileUser.avatarInitial || 
-                                      profileUser.name?.charAt(0).toUpperCase() || 
-                                      'U';
-              parent.appendChild(initialDiv);
-            }
-          }}
-        />
-      ) : (
-        <div className={styles.avatarInitial}>
-          {profileUser.avatarInitial || profileUser.name?.charAt(0).toUpperCase() || 'U'}
-        </div>
-      )}
-    </div>
-    <div className={`${styles.avatarOnline} ${isUserOnline ? styles.online : styles.offline}`}></div>
-  </div>
-
-  {/* Header Content */}
-  <div className={styles.headerContent}>
-    <div className={styles.userInfoSection}>
-      <div className={styles.userNameRow}>
-        <h1 className={styles.userName}>{profileUser.name}</h1>
-        <p className={styles.userUsername}>@{profileUser.username}</p>
-      </div>
-      
-      {profileUser.bio && (
-        <p className={styles.userBio}>{profileUser.bio}</p>
-      )}
-
-      {/* User Details */}
-      <div className={styles.userDetails}>
-        {profileUser.location && profileUser.location !== 'Not specified' && (
-          <div className={styles.detailItem}>
-            <FaMapMarkerAlt className={styles.detailIcon} />
-            <span>{profileUser.location}</span>
-          </div>
-        )}
-        
-        {profileUser.joinDate && (
-          <div className={styles.detailItem}>
-            <FaCalendarAlt className={styles.detailIcon} />
-            <span>Joined {new Date(profileUser.joinDate).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}</span>
-          </div>
-        )}
-        
-        {profileUser.tradingExperience && (
-          <div className={styles.detailItem}>
-            <FaBriefcase className={styles.detailIcon} />
-            <span>{profileUser.tradingExperience.charAt(0).toUpperCase() + profileUser.tradingExperience.slice(1)} Trader</span>
-          </div>
-        )}
-      </div>
-
-      {/* SOCIAL LINKS */}
-      {activeSocialLinks.length > 0 && (
-        <div className={styles.socialLinksContainer}>
-          <h4 className={styles.socialLinksTitle}>Connect with {profileUser.name}</h4>
-          <div className={styles.socialLinks}>
-            {activeSocialLinks.map(({ platform, url, icon: Icon }) => (
-              <button
-                key={platform}
-                className={`${styles.socialLink} ${styles[platform]}`}
-                onClick={() => handleSocialLinkClick(url)}
-                title={`${platform}: ${url}`}
-              >
-                <Icon size={18} />
-                <span className={styles.socialPlatformName}>{platform}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className={styles.userStats}>
-        <div 
-          className={styles.statItem} 
-          onClick={() => handleStatClick('followers')}
-        >
-          <span className={styles.statValue}>
-            {profileUser.followers?.toLocaleString() || '0'}
-          </span>
-          <span className={styles.statLabel}>Followers</span>
-        </div>
-        
-        <div 
-          className={styles.statItem} 
-          onClick={() => handleStatClick('following')}
-        >
-          <span className={styles.statValue}>
-            {profileUser.following?.toLocaleString() || '0'}
-          </span>
-          <span className={styles.statLabel}>Following</span>
-        </div>
-        
-        <div 
-          className={styles.statItem} 
-          onClick={() => handleStatClick('trades')}
-        >
-          <span className={styles.statValue}>
-            {profileUser.profile?.totalTrades?.toLocaleString() || '0'}
-          </span>
-          <span className={styles.statLabel}>Trades</span>
-        </div>
-        
-        <div className={styles.statItem}>
-          <span className={styles.statValue}>
-            {profileUser.profile?.winRate || '0'}%
-          </span>
-          <span className={styles.statLabel}>Win Rate</span>
-        </div>
-        
-        <div className={styles.statItem}>
-          <span className={styles.statValue}>
-            {profileUser.postsCount?.toLocaleString() || '0'}
-          </span>
-          <span className={styles.statLabel}>Posts</span>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className={styles.actionButtons}>
-        {!isOwnProfile ? (
-          <>
-            <button 
-              className={`${styles.actionBtn} ${styles.primary}`}
-              onClick={handleFollow}
-            >
-              {isFollowing ? 'Following' : 'Follow'}
-            </button>
+        <div className={styles.profileHeader}>
+          {/* Banner Section */}
+          <div className={styles.bannerSection}>
+            <div className={styles.bannerWrapper}>
+              {profileUser.hasBanner && formattedBanner ? (
+                <img 
+                  src={formattedBanner} 
+                  alt={`${profileUser.name}'s banner`}
+                  className={styles.bannerImage}
+                  onError={(e) => {
+                    console.log('Banner failed to load:', formattedBanner);
+                    e.target.style.display = 'none';
+                    const parent = e.target.parentNode;
+                    const existingPlaceholder = parent.querySelector('.bannerPlaceholder');
+                    if (!existingPlaceholder) {
+                      const placeholder = document.createElement('div');
+                      placeholder.className = styles.bannerPlaceholder;
+                      placeholder.textContent = `${profileUser.name}'s Banner`;
+                      parent.appendChild(placeholder);
+                    }
+                  }}
+                />
+              ) : (
+                <div className={styles.bannerPlaceholder}>
+                  {profileUser.name}'s Banner
+                </div>
+              )}
+            </div>
             
-            <button 
-              className={`${styles.actionBtn} ${styles.secondary}`}
-              onClick={handleMessage}
-            >
-              Message
-            </button>
-          </>
-        ) : (
-          <button 
-            className={`${styles.actionBtn} ${styles.primary}`}
-            onClick={handleEditProfile}
-          >
-            <FaEdit />
-            Edit Profile
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-</div>
+            {/* Edit Banner Button */}
+            {isOwnProfile && (
+              <div className={styles.bannerEditOverlay}>
+                <button 
+                  className={styles.editBannerBtn} 
+                  onClick={handleEditBanner}
+                  title="Change banner"
+                >
+                  <FaCamera size={14} />
+                  <span>Edit Banner</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Avatar */}
+          <div className={styles.avatarContainer}>
+            <div className={styles.avatarWrapper} onClick={openModal}>
+              {formattedAvatar ? (
+                <img 
+                  src={formattedAvatar} 
+                  alt={profileUser.name}
+                  className={styles.avatarImage}
+                  onError={(e) => {
+                    console.log('Avatar failed to load:', formattedAvatar);
+                    e.target.style.display = 'none';
+                    const parent = e.target.parentNode;
+                    const existingInitial = parent.querySelector('.avatarInitial');
+                    if (!existingInitial) {
+                      const initialDiv = document.createElement('div');
+                      initialDiv.className = styles.avatarInitial;
+                      initialDiv.textContent = profileUser.avatarInitial || 
+                                              profileUser.name?.charAt(0).toUpperCase() || 
+                                              'U';
+                      parent.appendChild(initialDiv);
+                    }
+                  }}
+                />
+              ) : (
+                <div className={styles.avatarInitial}>
+                  {profileUser.avatarInitial || profileUser.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+              )}
+            </div>
+            <div className={`${styles.avatarOnline} ${isUserOnline ? styles.online : styles.offline}`}></div>
+          </div>
+
+          {/* Header Content */}
+          <div className={styles.headerContent}>
+            <div className={styles.userInfoSection}>
+              <div className={styles.userNameRow}>
+                <h1 className={styles.userName}>{profileUser.name}</h1>
+                <p className={styles.userUsername}>@{profileUser.username}</p>
+              </div>
+              
+              {profileUser.bio && (
+                <p className={styles.userBio}>{profileUser.bio}</p>
+              )}
+
+              {/* User Details */}
+              <div className={styles.userDetails}>
+                {profileUser.location && profileUser.location !== 'Not specified' && (
+                  <div className={styles.detailItem}>
+                    <FaMapMarkerAlt className={styles.detailIcon} />
+                    <span>{profileUser.location}</span>
+                  </div>
+                )}
+                
+                {profileUser.joinDate && (
+                  <div className={styles.detailItem}>
+                    <FaCalendarAlt className={styles.detailIcon} />
+                    <span>Joined {new Date(profileUser.joinDate).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}</span>
+                  </div>
+                )}
+                
+                {profileUser.tradingExperience && (
+                  <div className={styles.detailItem}>
+                    <FaBriefcase className={styles.detailIcon} />
+                    <span>{profileUser.tradingExperience.charAt(0).toUpperCase() + profileUser.tradingExperience.slice(1)} Trader</span>
+                  </div>
+                )}
+              </div>
+
+              {/* SOCIAL LINKS */}
+              {activeSocialLinks.length > 0 && (
+                <div className={styles.socialLinksContainer}>
+                  <h4 className={styles.socialLinksTitle}>Connect with {profileUser.name}</h4>
+                  <div className={styles.socialLinks}>
+                    {activeSocialLinks.map(({ platform, url, icon: Icon }) => (
+                      <button
+                        key={platform}
+                        className={`${styles.socialLink} ${styles[platform]}`}
+                        onClick={() => handleSocialLinkClick(url)}
+                        title={`${platform}: ${url}`}
+                      >
+                        <Icon size={18} />
+                        <span className={styles.socialPlatformName}>{platform}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Stats */}
+              <div className={styles.userStats}>
+                <div 
+                  className={styles.statItem} 
+                  onClick={() => handleStatClick('followers')}
+                >
+                  <span className={styles.statValue}>
+                    {profileUser.followers?.toLocaleString() || '0'}
+                  </span>
+                  <span className={styles.statLabel}>Followers</span>
+                </div>
+                
+                <div 
+                  className={styles.statItem} 
+                  onClick={() => handleStatClick('following')}
+                >
+                  <span className={styles.statValue}>
+                    {profileUser.following?.toLocaleString() || '0'}
+                  </span>
+                  <span className={styles.statLabel}>Following</span>
+                </div>
+                
+                <div 
+                  className={styles.statItem} 
+                  onClick={() => handleStatClick('trades')}
+                >
+                  <span className={styles.statValue}>
+                    {profileUser.profile?.totalTrades?.toLocaleString() || '0'}
+                  </span>
+                  <span className={styles.statLabel}>Trades</span>
+                </div>
+                
+                <div className={styles.statItem}>
+                  <span className={styles.statValue}>
+                    {profileUser.profile?.winRate || '0'}%
+                  </span>
+                  <span className={styles.statLabel}>Win Rate</span>
+                </div>
+                
+                <div className={styles.statItem}>
+                  <span className={styles.statValue}>
+                    {profileUser.postsCount?.toLocaleString() || '0'}
+                  </span>
+                  <span className={styles.statLabel}>Posts</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className={styles.actionButtons}>
+                {!isOwnProfile ? (
+                  <>
+                    <button 
+                      className={`${styles.actionBtn} ${styles.primary}`}
+                      onClick={handleFollow}
+                    >
+                      {isFollowing ? 'Following' : 'Follow'}
+                    </button>
+                    
+                    <button 
+                      className={`${styles.actionBtn} ${styles.secondary}`}
+                      onClick={handleMessage}
+                    >
+                      Message
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    className={`${styles.actionBtn} ${styles.primary}`}
+                    onClick={handleEditProfile}
+                  >
+                    <FaEdit />
+                    Edit Profile
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
         <main className={styles.mainContent}>
           <TabsNavigation
