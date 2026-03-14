@@ -20,5 +20,20 @@ router.post('/folders', createGalleryFolder);
 router.delete('/folders/:folderId', deleteGalleryFolder);
 router.delete('/items/:itemId', deleteGalleryItem);
 router.put('/items/:itemId', updateGalleryItem);
-
+router.get('/test-upload/:type/:filename', (req, res) => {
+  const { type, filename } = req.params;
+  const filePath = path.join(process.cwd(), 'uploads', type, filename);
+  
+  console.log('🔍 Testing file access:', filePath);
+  
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ 
+      success: false, 
+      message: 'File not found',
+      path: filePath 
+    });
+  }
+});
 export default router;

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styles from './UserProfileView.module.css';
 import { FaPlus, FaFolderPlus, FaTrash, FaImages, FaTimes, FaChevronLeft, FaChevronRight, FaHeart, FaRegHeart, FaComment } from 'react-icons/fa';
+const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onDeleteItem, onDeleteFolder, onReactToItem }) => {
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -269,11 +270,15 @@ const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onD
               />
             ) : (
               <img 
-                src={`http://localhost:5000${item.url}`} 
-                alt={item.description || 'Gallery item'}
-                className={styles.galleryImage}
-                loading="lazy"
-              />
+  src={`${API_URL}${item.url}`} 
+  alt={item.description || 'Gallery item'}
+  className={styles.galleryImage}
+  loading="lazy"
+  onError={(e) => {
+    e.target.onerror = null;
+    e.target.src = '/placeholder-image.jpg'; // Add a placeholder
+  }}
+/>
             )}
             
             {/* Reaction preview */}
@@ -351,11 +356,13 @@ const GalleryComponent = ({ gallery, isOwnProfile, onUpload, onCreateFolder, onD
             <div className={styles.viewerImageContainer}>
               {currentItem.type?.startsWith('video/') ? (
                 <video 
-                  src={`http://localhost:5000${currentItem.url}`} 
-                  controls
-                  autoPlay
-                  className={styles.viewerImage}
-                />
+  src={`${API_URL}${item.url}`} 
+  className={styles.galleryImage}
+  muted
+  onError={(e) => {
+    console.error('Video failed to load:', item.url);
+  }}
+/>
               ) : (
                 <img 
                   src={`http://localhost:5000${currentItem.url}`} 

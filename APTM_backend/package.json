@@ -6,7 +6,8 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "cleanup-chat": "node scripts/cleanupChat.js",
-    "fix-chat": "node scripts/fixChatIndexes.js"
+    "fix-chat": "node scripts/fixChatIndexes.js",
+    "postinstall": "mkdir -p uploads/avatars uploads/banners uploads/gallery uploads/posts"
     
   },
   
