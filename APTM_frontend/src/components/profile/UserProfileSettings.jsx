@@ -1,9 +1,43 @@
-// UserProfileSettings.jsx - UPDATED VERSION
+// UserProfileSettings.jsx - COMPLETE FIXED VERSION
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileSettings.module.css';
+
+// Constants for API URLs
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+// Helper function to format image URLs
+const formatImageUrl = (imagePath, type = 'avatar') => {
+  if (!imagePath) return null;
+  
+  // If it's already a full URL, return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // If it's a data URL, return as is
+  if (imagePath.startsWith('data:')) {
+    return imagePath;
+  }
+  
+  // Extract just the filename if it contains path
+  let cleanPath = imagePath;
+  if (imagePath.includes('/')) {
+    cleanPath = imagePath.split('/').pop();
+  }
+  
+  const folders = {
+    avatar: 'avatars',
+    banner: 'banners',
+    addressProof: 'address-proofs'
+  };
+  
+  const folder = folders[type] || type;
+  return `${BASE_URL}/uploads/${folder}/${cleanPath}`;
+};
 
 const UserProfileSettings = () => {
   const { user, updateUser, refreshUserData } = useAuth();
@@ -35,7 +69,7 @@ const UserProfileSettings = () => {
     dateOfBirth: '',
     gender: '',
     
-    // NEW: Banner Image
+    // Banner Image
     bannerImage: '',
     
     // Trading Profile
@@ -43,21 +77,21 @@ const UserProfileSettings = () => {
     preferredMarkets: [],
     riskAppetite: 'medium',
     
-    // NEW: Trading Platform Connections
+    // Trading Platform Connections
     tradingPlatforms: {
       mt4: { connected: false, accountId: '', broker: '', server: '' },
       mt5: { connected: false, accountId: '', broker: '', server: '' },
       tradingview: { connected: false, username: '', accountType: '' }
     },
     
-    // NEW: Synthetic Indices
+    // Synthetic Indices
     syntheticIndices: [],
     
     // Interests & Skills
     interests: [],
     skills: [],
     
-    // NEW: Skills with levels
+    // New skill form
     newSkill: { name: '', level: 'beginner', category: 'technical' },
     
     // Identification
@@ -85,7 +119,7 @@ const UserProfileSettings = () => {
       postCode: ''
     },
     
-    // NEW: Address Proof
+    // Address Proof
     addressProof: {
       documentUrl: '',
       documentType: '',
@@ -93,7 +127,7 @@ const UserProfileSettings = () => {
       uploadedAt: null
     },
     
-    // Social Links - UPDATED with WhatsApp and Facebook
+    // Social Links
     socialLinks: {
       twitter: '',
       linkedin: '',
@@ -135,7 +169,7 @@ const UserProfileSettings = () => {
       riskPerTrade: 1
     },
 
-    // Security Settings - UPDATED for password change
+    // Security Settings
     security: {
       twoFactorEnabled: false,
       loginAlerts: true,
@@ -155,7 +189,7 @@ const UserProfileSettings = () => {
     }
   });
 
-  // Validation rules - UPDATED
+  // Validation rules
   const validationRules = {
     firstName: { required: true, minLength: 2, maxLength: 50 },
     lastName: { required: true, minLength: 2, maxLength: 50 },
@@ -187,11 +221,11 @@ const UserProfileSettings = () => {
     }
   }, [user]);
 
-  // NEW: Load connected trading accounts
+  // Load connected trading accounts
   const loadTradingAccounts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/trading/accounts', {
+      const response = await fetch(`${API_URL}/trading/accounts`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -215,7 +249,7 @@ const UserProfileSettings = () => {
       setError('');
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/profile/complete', {
+      const response = await fetch(`${API_URL}/profile/complete`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -229,14 +263,14 @@ const UserProfileSettings = () => {
       const result = await response.json();
       
       if (result.success && result.user) {
-        const { user } = result;
-        const profile = user.profile || {};
-        const settings = user.settings || {};
+        const { user: userData } = result;
+        const profile = userData.profile || {};
+        const settings = userData.settings || {};
 
         const loadedData = {
-          firstName: profile.firstName || user.name?.split(' ')[0] || '',
-          lastName: profile.lastName || user.name?.split(' ').slice(1).join(' ') || '',
-          username: user.username || '',
+          firstName: profile.firstName || userData.name?.split(' ')[0] || '',
+          lastName: profile.lastName || userData.name?.split(' ').slice(1).join(' ') || '',
+          username: userData.username || '',
           bio: profile.bio || '',
           phone: profile.phone || '',
           country: profile.country || '',
@@ -244,17 +278,15 @@ const UserProfileSettings = () => {
           dateOfBirth: profile.dateOfBirth ? profile.dateOfBirth.split('T')[0] : '',
           gender: profile.gender || '',
           
-          // NEW: Banner image
+          // Banner image - store only filename
           bannerImage: profile.bannerImage || '',
           
           tradingExperience: profile.tradingExperience || 'beginner',
           preferredMarkets: profile.preferredMarkets || [],
           riskAppetite: profile.riskAppetite || 'medium',
           
-          // NEW: Trading platforms
           tradingPlatforms: profile.tradingPlatforms || formData.tradingPlatforms,
           
-          // NEW: Synthetic indices
           syntheticIndices: profile.syntheticIndices || [],
           
           interests: profile.interests || [],
@@ -279,10 +311,8 @@ const UserProfileSettings = () => {
             streetAddress: '', town: '', city: '', province: '', postCode: ''
           },
           
-          // NEW: Address proof
           addressProof: profile.addressProof || formData.addressProof,
           
-          // UPDATED: Social links with WhatsApp and Facebook
           socialLinks: {
             twitter: profile.socialLinks?.twitter || '',
             linkedin: profile.socialLinks?.linkedin || '',
@@ -292,7 +322,6 @@ const UserProfileSettings = () => {
             facebook: profile.socialLinks?.facebook || ''
           },
 
-          // Settings from UserSettings model
           notifications: settings.notifications || formData.notifications,
           trading: settings.trading || formData.trading,
           security: settings.security || formData.security,
@@ -460,7 +489,6 @@ const UserProfileSettings = () => {
     }
   };
 
-  // NEW: Handle skill input change
   const handleSkillInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -472,7 +500,6 @@ const UserProfileSettings = () => {
     }));
   };
 
-  // NEW: Add skill
   const handleAddSkill = () => {
     if (!formData.newSkill.name.trim()) {
       setError('Please enter a skill name');
@@ -488,7 +515,6 @@ const UserProfileSettings = () => {
     setTimeout(() => setMessage(''), 3000);
   };
 
-  // NEW: Remove skill
   const handleRemoveSkill = (index) => {
     setFormData(prev => ({
       ...prev,
@@ -496,32 +522,14 @@ const UserProfileSettings = () => {
     }));
   };
 
-  // NEW: Handle trading platform connection
   const handlePlatformConnect = async (platform) => {
     try {
       setUploading({ type: 'platform', status: true });
       setError('');
       
-      // This would trigger OAuth flow or API connection
-      // For now, just simulate connection
       const token = localStorage.getItem('token');
       
-      let endpoint = '';
-      switch(platform) {
-        case 'mt4':
-          endpoint = '/api/trading/connect/mt4';
-          break;
-        case 'mt5':
-          endpoint = '/api/trading/connect/mt5';
-          break;
-        case 'tradingview':
-          endpoint = '/api/trading/connect/tradingview';
-          break;
-        default:
-          throw new Error('Invalid platform');
-      }
-      
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
+      const response = await fetch(`${API_URL}/profile/connect/platform`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -540,7 +548,6 @@ const UserProfileSettings = () => {
       if (result.success) {
         setMessage(`${platform.toUpperCase()} account connected successfully!`);
         
-        // Update platform connection status
         setFormData(prev => ({
           ...prev,
           tradingPlatforms: {
@@ -552,9 +559,7 @@ const UserProfileSettings = () => {
           }
         }));
         
-        // Reload connected accounts
         await loadTradingAccounts();
-        
         setTimeout(() => setMessage(''), 5000);
       } else {
         throw new Error(result.message || `Failed to connect ${platform} account`);
@@ -567,7 +572,6 @@ const UserProfileSettings = () => {
     }
   };
 
-  // NEW: Handle trading platform disconnect
   const handlePlatformDisconnect = async (platform, accountId) => {
     if (!window.confirm(`Are you sure you want to disconnect this ${platform.toUpperCase()} account?`)) {
       return;
@@ -578,7 +582,7 @@ const UserProfileSettings = () => {
       setError('');
       
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/trading/disconnect/${accountId}`, {
+      const response = await fetch(`${API_URL}/profile/disconnect/${accountId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -591,7 +595,6 @@ const UserProfileSettings = () => {
       if (result.success) {
         setMessage(`${platform.toUpperCase()} account disconnected successfully!`);
         
-        // Update platform connection status
         setFormData(prev => ({
           ...prev,
           tradingPlatforms: {
@@ -606,9 +609,7 @@ const UserProfileSettings = () => {
           }
         }));
         
-        // Reload connected accounts
         await loadTradingAccounts();
-        
         setTimeout(() => setMessage(''), 5000);
       } else {
         throw new Error(result.message || `Failed to disconnect ${platform} account`);
@@ -621,7 +622,6 @@ const UserProfileSettings = () => {
     }
   };
 
-  // NEW: Handle banner upload
   const handleBannerUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -644,7 +644,7 @@ const UserProfileSettings = () => {
       const uploadFormData = new FormData();
       uploadFormData.append('banner', file);
 
-      const response = await fetch('http://localhost:5000/api/profile/banner', {
+      const response = await fetch(`${API_URL}/profile/banner`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -661,17 +661,16 @@ const UserProfileSettings = () => {
       if (result.success) {
         setMessage('Banner updated successfully!');
         
-        // Update banner preview
         const reader = new FileReader();
         reader.onloadend = () => {
           setBannerPreview(reader.result);
         };
         reader.readAsDataURL(file);
         
-        // Update form data
+        // Store only the filename
         setFormData(prev => ({
           ...prev,
-          bannerImage: result.bannerUrl || ''
+          bannerImage: result.bannerImage || ''
         }));
 
         setTimeout(() => setMessage(''), 5000);
@@ -687,7 +686,6 @@ const UserProfileSettings = () => {
     }
   };
 
-  // NEW: Handle address proof upload
   const handleAddressProofUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -712,7 +710,7 @@ const UserProfileSettings = () => {
       uploadFormData.append('addressProof', file);
       uploadFormData.append('documentType', 'proof_of_residence');
 
-      const response = await fetch('http://localhost:5000/api/profile/address-proof', {
+      const response = await fetch(`${API_URL}/profile/address-proof`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -729,14 +727,12 @@ const UserProfileSettings = () => {
       if (result.success) {
         setMessage('Address proof uploaded successfully! It will be verified shortly.');
         
-        // Update preview
         const reader = new FileReader();
         reader.onloadend = () => {
           setAddressProofPreview(reader.result);
         };
         reader.readAsDataURL(file);
         
-        // Update form data
         setFormData(prev => ({
           ...prev,
           addressProof: {
@@ -760,7 +756,6 @@ const UserProfileSettings = () => {
     }
   };
 
-  // NEW: Handle password update
   const handlePasswordUpdate = async () => {
     if (!formData.security.currentPassword) {
       setError('Please enter your current password');
@@ -787,7 +782,7 @@ const UserProfileSettings = () => {
       setError('');
       
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+      const response = await fetch(`${API_URL}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -804,7 +799,6 @@ const UserProfileSettings = () => {
       if (result.success) {
         setMessage('Password updated successfully!');
         
-        // Clear password fields
         setFormData(prev => ({
           ...prev,
           security: {
@@ -841,7 +835,6 @@ const UserProfileSettings = () => {
 
       const token = localStorage.getItem('token');
       const updateData = {
-        // Profile data
         firstName: formData.firstName,
         lastName: formData.lastName,
         username: formData.username,
@@ -864,15 +857,13 @@ const UserProfileSettings = () => {
         addressProof: formData.addressProof,
         socialLinks: formData.socialLinks,
         tradingPlatforms: formData.tradingPlatforms,
-        
-        // Settings data
         notifications: formData.notifications,
         trading: formData.trading,
         security: formData.security,
         data: formData.data
       };
 
-      const response = await fetch('http://localhost:5000/api/profile/complete', {
+      const response = await fetch(`${API_URL}/profile/complete`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -928,7 +919,7 @@ const UserProfileSettings = () => {
       const uploadFormData = new FormData();
       uploadFormData.append('avatar', file);
 
-      const response = await fetch('http://localhost:5000/api/profile/avatar', {
+      const response = await fetch(`${API_URL}/profile/avatar`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -949,7 +940,11 @@ const UserProfileSettings = () => {
           updateUser(result.user);
         }
 
-        setAvatarPreview(null);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAvatarPreview(reader.result);
+        };
+        reader.readAsDataURL(file);
         
         if (refreshUserData) {
           await refreshUserData();
@@ -974,7 +969,7 @@ const UserProfileSettings = () => {
       setError('');
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/profile/avatar', {
+      const response = await fetch(`${API_URL}/profile/avatar`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1009,14 +1004,13 @@ const UserProfileSettings = () => {
     }
   };
 
-  // NEW: Handle remove banner
   const handleRemoveBanner = async () => {
     try {
       setUploading({ type: 'banner', status: true });
       setError('');
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/profile/banner', {
+      const response = await fetch(`${API_URL}/profile/banner`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1061,7 +1055,7 @@ const UserProfileSettings = () => {
     navigate(-1);
   };
 
-  // Options data - UPDATED
+  // Options data
   const tradingExperienceOptions = [
     { value: 'beginner', label: 'Beginner (0-1 years)' },
     { value: 'intermediate', label: 'Intermediate (1-3 years)' },
@@ -1077,7 +1071,6 @@ const UserProfileSettings = () => {
     { value: 'indices', label: 'Indices' }
   ];
 
-  // NEW: Synthetic indices options
   const syntheticIndicesOptions = [
     { value: 'synthetic_boom_1000', label: 'Boom 1000 Index' },
     { value: 'synthetic_crash_1000', label: 'Crash 1000 Index' },
@@ -1109,7 +1102,6 @@ const UserProfileSettings = () => {
     { value: 'mentoring', label: 'Mentoring' }
   ];
 
-  // NEW: Skill level options
   const skillLevelOptions = [
     { value: 'beginner', label: 'Beginner' },
     { value: 'intermediate', label: 'Intermediate' },
@@ -1117,7 +1109,6 @@ const UserProfileSettings = () => {
     { value: 'expert', label: 'Expert' }
   ];
 
-  // NEW: Skill category options
   const skillCategoryOptions = [
     { value: 'technical', label: 'Technical Skills' },
     { value: 'trading', label: 'Trading Skills' },
@@ -1203,7 +1194,6 @@ const UserProfileSettings = () => {
     { value: 'excel', label: 'Excel' }
   ];
 
-  // NEW: Address proof document types
   const addressProofOptions = [
     { value: 'utility_bill', label: 'Utility Bill (Electricity, Water, Gas)' },
     { value: 'bank_statement', label: 'Bank Statement' },
@@ -1214,7 +1204,6 @@ const UserProfileSettings = () => {
     { value: 'id_card', label: 'National ID Card' }
   ];
 
-  // NEW: Get level badge color
   const getLevelBadgeColor = (level) => {
     switch(level) {
       case 'beginner': return '#10b981';
@@ -1225,7 +1214,6 @@ const UserProfileSettings = () => {
     }
   };
 
-  // NEW: Get level label
   const getLevelLabel = (level) => {
     switch(level) {
       case 'beginner': return 'Beginner';
@@ -1236,7 +1224,6 @@ const UserProfileSettings = () => {
     }
   };
 
-  // NEW: Get category label
   const getCategoryLabel = (category) => {
     return skillCategoryOptions.find(opt => opt.value === category)?.label || category;
   };
@@ -1315,7 +1302,7 @@ const UserProfileSettings = () => {
       )}
 
       <div className={styles.settingsLayout}>
-        {/* Sidebar Navigation - UPDATED with new tabs */}
+        {/* Sidebar Navigation */}
         <div className={styles.settingsSidebar}>
           <div className={styles.sidebarSection}>
             <h3>Profile</h3>
@@ -1436,7 +1423,7 @@ const UserProfileSettings = () => {
         {/* Main Content */}
         <div className={styles.settingsContent}>
           <form onSubmit={handleSubmit} className={styles.settingsForm}>
-            {/* Avatar & Banner Section - UPDATED */}
+            {/* Avatar & Banner Section */}
             <div className={styles.profileMediaSection}>
               {/* Banner Section */}
               <div className={styles.bannerSection}>
@@ -1445,11 +1432,12 @@ const UserProfileSettings = () => {
                     <img src={bannerPreview} alt="Banner Preview" className={styles.bannerImage} />
                   ) : formData.bannerImage ? (
                     <img 
-                      src={formData.bannerImage.startsWith('http') ? formData.bannerImage : `http://localhost:5000${formData.bannerImage}`}
+                      src={formatImageUrl(formData.bannerImage, 'banner')}
                       alt="Profile Banner"
                       className={styles.bannerImage}
                       onError={(e) => {
                         e.target.style.display = 'none';
+                        e.target.parentNode.querySelector('.bannerFallback')?.classList.remove('hidden');
                       }}
                     />
                   ) : (
@@ -1508,11 +1496,12 @@ const UserProfileSettings = () => {
                       <img src={avatarPreview} alt="Preview" className={styles.avatar} />
                     ) : user?.avatar ? (
                       <img 
-                        src={user.avatar} 
+                        src={formatImageUrl(user.avatar, 'avatar')} 
                         alt="Profile" 
                         className={styles.avatar}
                         onError={(e) => {
                           e.target.style.display = 'none';
+                          e.target.parentNode.querySelector('.avatarFallback')?.classList.remove('hidden');
                         }}
                       />
                     ) : (
@@ -1754,7 +1743,7 @@ const UserProfileSettings = () => {
               </div>
             )}
 
-            {/* Trading Profile Tab - UPDATED with platform connections and synthetic indices */}
+            {/* Trading Profile Tab */}
             {activeTab === 'trading' && (
               <div className={styles.tabContent}>
                 <h2>Trading Profile</h2>
@@ -2136,7 +2125,7 @@ const UserProfileSettings = () => {
               </div>
             )}
 
-            {/* Skills & Interests Tab - UPDATED with skills management */}
+            {/* Skills & Interests Tab */}
             {activeTab === 'interests' && (
               <div className={styles.tabContent}>
                 <h2>Skills & Interests</h2>
@@ -2269,7 +2258,7 @@ const UserProfileSettings = () => {
               </div>
             )}
 
-            {/* Address & Verification Tab - UPDATED with address proof */}
+            {/* Address & Verification Tab */}
             {activeTab === 'address' && (
               <div className={styles.tabContent}>
                 <h2>Address & Verification</h2>
@@ -2434,7 +2423,7 @@ const UserProfileSettings = () => {
               </div>
             )}
 
-            {/* Social Links Tab - UPDATED with WhatsApp and Facebook */}
+            {/* Social Links Tab */}
             {activeTab === 'social' && (
               <div className={styles.tabContent}>
                 <h2>Social Links</h2>
@@ -2513,7 +2502,7 @@ const UserProfileSettings = () => {
                     />
                   </div>
 
-                  {/* NEW: WhatsApp Field */}
+                  {/* WhatsApp Field */}
                   <div className={styles.formGroup}>
                     <label htmlFor="socialLinks.whatsapp">
                       WhatsApp
@@ -2533,7 +2522,7 @@ const UserProfileSettings = () => {
                     <small className={styles.helpText}>Your WhatsApp number for community chats</small>
                   </div>
 
-                  {/* NEW: Facebook Field */}
+                  {/* Facebook Field */}
                   <div className={styles.formGroup}>
                     <label htmlFor="socialLinks.facebook">
                       Facebook
@@ -2841,7 +2830,7 @@ const UserProfileSettings = () => {
               </div>
             )}
 
-            {/* Security Tab - UPDATED with password change */}
+            {/* Security Tab */}
             {activeTab === 'security' && (
               <div className={styles.tabContent}>
                 <h2>Security Settings</h2>
