@@ -1,5 +1,4 @@
-// ProfileHeader.jsx - FIXED VERSION
-
+// ProfileHeader.jsx - COMPLETE FIXED VERSION
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -22,6 +21,11 @@ import {
   FaInstagram
 } from 'react-icons/fa';
 
+// Constants for API URLs
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
+                 import.meta.env.VITE_BASE_URL ||
+                 'http://localhost:5000';
+
 const socialIcons = {
   twitter: FaTwitter,
   linkedin: FaLinkedin,
@@ -34,6 +38,35 @@ const socialIcons = {
   reddit: FaReddit,
   youtube: FaYoutube,
   instagram: FaInstagram
+};
+
+// Helper function to format image URLs
+const formatImageUrl = (imagePath, type = 'avatar') => {
+  if (!imagePath) return null;
+  
+  // If it's already a full URL, return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // If it's a data URL, return as is
+  if (imagePath.startsWith('data:')) {
+    return imagePath;
+  }
+  
+  // Extract just the filename if it contains path
+  let cleanPath = imagePath;
+  if (imagePath.includes('/')) {
+    cleanPath = imagePath.split('/').pop();
+  }
+  
+  const folders = {
+    avatar: 'avatars',
+    banner: 'banners'
+  };
+  
+  const folder = folders[type] || type;
+  return `${BASE_URL}/uploads/${folder}/${cleanPath}`;
 };
 
 const ProfileHeader = ({
@@ -49,6 +82,20 @@ const ProfileHeader = ({
   hasBanner
 }) => {
   const navigate = useNavigate();
+
+  // Format avatar URL using the helper
+  const getFormattedAvatar = () => {
+    if (!profileUser?.avatar) return null;
+    return formatImageUrl(profileUser.avatar, 'avatar');
+  };
+
+  // Format banner URL using the helper
+  const getFormattedBanner = () => {
+    if (bannerUrl) return formatImageUrl(bannerUrl, 'banner');
+    if (profileUser?.banner) return formatImageUrl(profileUser.banner, 'banner');
+    if (profileUser?.bannerImage) return formatImageUrl(profileUser.bannerImage, 'banner');
+    return null;
+  };
 
   const handleSocialLinkClick = (url) => {
     if (url) {
@@ -70,6 +117,7 @@ const ProfileHeader = ({
 
   const getActiveSocialLinks = () => {
     if (!profileUser?.socialLinks) return [];
+    
     return Object.entries(profileUser.socialLinks)
       .filter(([key, value]) => value && value.trim() !== '' && socialIcons[key])
       .map(([key, value]) => ({
@@ -115,28 +163,36 @@ const ProfileHeader = ({
            '0';
   };
 
+  const formattedAvatar = getFormattedAvatar();
+  const formattedBanner = getFormattedBanner();
+
   return (
     <div className={styles.profileHeader}>
       {/* Banner Section */}
       <div className={styles.bannerSection}>
         <div className={styles.bannerWrapper}>
-          {hasBanner ? (
+          {(hasBanner || formattedBanner) ? (
             <img 
-              src={bannerUrl} 
-              alt={`${profileUser.name}'s banner`}
+              src={formattedBanner} 
+              alt={`${profileUser?.name || 'User'}'s banner`}
               className={styles.bannerImage}
               onError={(e) => {
+                console.log('Banner failed to load:', formattedBanner);
                 e.target.style.display = 'none';
                 const parent = e.target.parentNode;
+                // Remove any existing placeholder
+                const oldPlaceholder = parent.querySelector('.bannerPlaceholder');
+                if (oldPlaceholder) oldPlaceholder.remove();
+                // Create new placeholder
                 const placeholder = document.createElement('div');
                 placeholder.className = styles.bannerPlaceholder;
-                placeholder.textContent = `${profileUser.name}'s Banner`;
+                placeholder.textContent = `${profileUser?.name || 'User'}'s Banner`;
                 parent.appendChild(placeholder);
               }}
             />
           ) : (
             <div className={styles.bannerPlaceholder}>
-              {profileUser.name}'s Banner
+              {profileUser?.name || 'User'}'s Banner
             </div>
           )}
         </div>
@@ -159,47 +215,58 @@ const ProfileHeader = ({
       {/* Avatar */}
       <div className={styles.avatarContainer}>
         <div className={styles.avatarWrapper} onClick={onAvatarClick}>
-          {profileUser.avatar ? (
+          {formattedAvatar ? (
             <img 
-              src={profileUser.avatar} 
-              alt={profileUser.name}
+              src={formattedAvatar} 
+              alt={profileUser?.name || 'User'}
               className={styles.avatarImage}
               onError={(e) => {
+                console.log('Avatar failed to load:', formattedAvatar);
                 e.target.style.display = 'none';
-                e.target.parentNode.innerHTML = `<div class="${styles.avatarInitial}">${profileUser.avatarInitial || 'U'}</div>`;
+                const parent = e.target.parentNode;
+                // Remove any existing initial div
+                const oldInitial = parent.querySelector('.avatarInitial');
+                if (oldInitial) oldInitial.remove();
+                // Create new initial div
+                const initialDiv = document.createElement('div');
+                initialDiv.className = styles.avatarInitial;
+                initialDiv.textContent = profileUser?.avatarInitial || 
+                                        profileUser?.name?.charAt(0).toUpperCase() || 
+                                        'U';
+                parent.appendChild(initialDiv);
               }}
             />
           ) : (
             <div className={styles.avatarInitial}>
-              {profileUser.avatarInitial || profileUser.name?.charAt(0).toUpperCase() || 'U'}
+              {profileUser?.avatarInitial || profileUser?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
           )}
         </div>
-        <div className={styles.avatarOnline}></div>
+        <div className={`${styles.avatarOnline} ${profileUser?.online ? styles.online : styles.offline}`}></div>
       </div>
 
       {/* Header Content */}
       <div className={styles.headerContent}>
         <div className={styles.userInfoSection}>
           <div className={styles.userNameRow}>
-            <h1 className={styles.userName}>{profileUser.name}</h1>
-            <p className={styles.userUsername}>@{profileUser.username}</p>
+            <h1 className={styles.userName}>{profileUser?.name || 'Unknown User'}</h1>
+            <p className={styles.userUsername}>@{profileUser?.username || 'username'}</p>
           </div>
           
-          {profileUser.bio && (
+          {profileUser?.bio && (
             <p className={styles.userBio}>{profileUser.bio}</p>
           )}
 
           {/* User Details */}
           <div className={styles.userDetails}>
-            {profileUser.location && profileUser.location !== 'Not specified' && (
+            {profileUser?.location && profileUser.location !== 'Not specified' && (
               <div className={styles.detailItem}>
                 <FaMapMarkerAlt className={styles.detailIcon} />
                 <span>{profileUser.location}</span>
               </div>
             )}
             
-            {profileUser.joinDate && (
+            {profileUser?.joinDate && (
               <div className={styles.detailItem}>
                 <FaCalendarAlt className={styles.detailIcon} />
                 <span>Joined {new Date(profileUser.joinDate).toLocaleDateString('en-US', { 
@@ -210,7 +277,7 @@ const ProfileHeader = ({
               </div>
             )}
             
-            {profileUser.tradingExperience && (
+            {profileUser?.tradingExperience && (
               <div className={styles.detailItem}>
                 <FaBriefcase className={styles.detailIcon} />
                 <span>{profileUser.tradingExperience.charAt(0).toUpperCase() + profileUser.tradingExperience.slice(1)} Trader</span>
@@ -221,7 +288,7 @@ const ProfileHeader = ({
           {/* SOCIAL LINKS */}
           {activeSocialLinks.length > 0 && (
             <div className={styles.socialLinksContainer}>
-              <h4 className={styles.socialLinksTitle}>Connect with {profileUser.name}</h4>
+              <h4 className={styles.socialLinksTitle}>Connect with {profileUser?.name}</h4>
               <div className={styles.socialLinks}>
                 {activeSocialLinks.map(({ platform, url, icon: Icon }) => (
                   <button
@@ -242,7 +309,7 @@ const ProfileHeader = ({
           <div className={styles.userStats}>
             <div 
               className={styles.statItem} 
-              onClick={() => onStatClick('followers')}
+              onClick={() => onStatClick?.('followers')}
             >
               <span className={styles.statValue}>
                 {getFollowersCount().toLocaleString()}
@@ -252,7 +319,7 @@ const ProfileHeader = ({
             
             <div 
               className={styles.statItem} 
-              onClick={() => onStatClick('following')}
+              onClick={() => onStatClick?.('following')}
             >
               <span className={styles.statValue}>
                 {getFollowingCount().toLocaleString()}
@@ -262,7 +329,7 @@ const ProfileHeader = ({
             
             <div 
               className={styles.statItem} 
-              onClick={() => onStatClick('trades')}
+              onClick={() => onStatClick?.('trades')}
             >
               <span className={styles.statValue}>
                 {getTradesCount().toLocaleString()}
