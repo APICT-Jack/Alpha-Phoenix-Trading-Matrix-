@@ -53,7 +53,7 @@ const ProfileHeader = ({
   const navigate = useNavigate();
   const [avatarError, setAvatarError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
-
+<div className={`${styles.avatarOnline} ${isOnline ? styles.online : styles.offline}`}></div>
   const handleSocialLinkClick = (url) => {
     if (url) {
       let fullUrl = url;
