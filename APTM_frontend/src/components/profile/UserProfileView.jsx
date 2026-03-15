@@ -14,8 +14,8 @@ import PostComponent from './PostComponent';
 import OverviewTab from './OverviewTab';
 import GalleryComponent from './GalleryComponent';
 
-// Import utilities
-import { formatAvatarUrl, hasValidAvatar, formatBannerUrl } from '../../utils/avatarUtils';
+// Import utilities - THESE ARE THE ONES THAT WORK!
+import { formatAvatarUrl, hasValidAvatar, formatBannerUrl, getAvatarInitial } from '../../utils/avatarUtils';
 import { experienceLevels } from './profileConstants';
 
 // Import styles
@@ -57,50 +57,6 @@ const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') ||
                  import.meta.env.VITE_BASE_URL || 
                  (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 const SOCKET_URL = BASE_URL;
-
-// Helper function to format image URLs (same as in UserProfileSettings)
-// Helper function to format image URLs (same as in UserProfileSettings)
-const formatImageUrl = (imagePath, type = 'avatar') => {
-  if (!imagePath) return null;
-  
-  console.log(`🎨 Formatting ${type} URL:`, { imagePath });
-  
-  // If it's already a full URL, return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    console.log(`✅ ${type} is already a full URL:`, imagePath);
-    return imagePath;
-  }
-  
-  // If it's a data URL, return as is
-  if (imagePath.startsWith('data:')) {
-    console.log(`✅ ${type} is a data URL`);
-    return imagePath;
-  }
-  
-  // Extract just the filename if it contains path
-  let cleanPath = imagePath;
-  if (imagePath.includes('/')) {
-    cleanPath = imagePath.split('/').pop();
-    console.log(`📁 Extracted filename from path:`, { original: imagePath, clean: cleanPath });
-  }
-  
-  const folders = {
-    avatar: 'avatars',
-    banner: 'banners'
-  };
-  
-  const folder = folders[type] || type;
-  
-  // Use window.location.origin in production to get the correct domain
-  const baseUrl = import.meta.env.PROD 
-    ? window.location.origin 
-    : BASE_URL;
-  
-  const formattedUrl = `${baseUrl}/uploads/${folder}/${cleanPath}`;
-  console.log(`✅ Formatted ${type} URL:`, formattedUrl);
-  
-  return formattedUrl;
-};
 
 // Socket connection for online status
 let socket;
@@ -1407,24 +1363,26 @@ const UserProfileView = () => {
       }));
   }, [profileUser?.socialLinks]);
 
-  // Get formatted avatar URL
+  // FIXED: Use the imported formatAvatarUrl utility
   const getFormattedAvatar = useCallback(() => {
     if (!profileUser?.avatar) {
       console.log('❌ No avatar data in profileUser');
       return null;
     }
     console.log('🎯 Formatting avatar from:', profileUser.avatar);
-    return formatImageUrl(profileUser.avatar, 'avatar');
+    // USE THE IMPORTED UTILITY THAT WORKS!
+    return formatAvatarUrl(profileUser.avatar);
   }, [profileUser?.avatar]);
 
-  // Get formatted banner URL
+  // FIXED: Use the imported formatBannerUrl utility
   const getFormattedBanner = useCallback(() => {
     if (!profileUser?.banner) {
       console.log('❌ No banner data in profileUser');
       return null;
     }
     console.log('🎯 Formatting banner from:', profileUser.banner);
-    return formatImageUrl(profileUser.banner, 'banner');
+    // USE THE IMPORTED UTILITY THAT WORKS!
+    return formatBannerUrl(profileUser.banner);
   }, [profileUser?.banner]);
 
   // Loading state
