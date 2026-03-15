@@ -1,4 +1,4 @@
-// ProfileHeader.jsx - SIMPLIFIED VERSION
+// ProfileHeader.jsx - UPDATED WITH SOCKET INTEGRATION
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -18,7 +18,10 @@ import {
   FaTelegram,
   FaReddit,
   FaYoutube,
-  FaInstagram
+  FaInstagram,
+  FaCircle,
+  FaRegCircle,
+  FaClock
 } from 'react-icons/fa';
 
 import { getAvatarInitial } from '../../utils/avatarUtils';
@@ -48,12 +51,15 @@ const ProfileHeader = ({
   onStatClick,
   bannerUrl,
   hasBanner,
-   isOnline
+  isOnline,
+  lastSeen,
+  formatLastSeen
 }) => {
   const navigate = useNavigate();
   const [avatarError, setAvatarError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
-<div className={`${styles.avatarOnline} ${isOnline ? styles.online : styles.offline}`}></div>
+  const [showOnlineTooltip, setShowOnlineTooltip] = useState(false);
+
   const handleSocialLinkClick = (url) => {
     if (url) {
       let fullUrl = url;
@@ -126,6 +132,13 @@ const ProfileHeader = ({
   const formattedAvatar = profileUser?.avatar;
   const formattedBanner = bannerUrl || profileUser?.banner;
 
+  // Format last seen for display
+  const getLastSeenText = () => {
+    if (isOnline) return 'Online now';
+    if (lastSeen) return `Last seen ${formatLastSeen ? formatLastSeen(lastSeen) : 'recently'}`;
+    return 'Offline';
+  };
+
   return (
     <div className={styles.profileHeader}>
       {/* Banner Section */}
@@ -184,7 +197,32 @@ const ProfileHeader = ({
             </div>
           )}
         </div>
-        <div className={`${styles.avatarOnline} ${profileUser?.online ? styles.online : styles.offline}`}></div>
+        
+        {/* Online Status Indicator with Tooltip */}
+        <div 
+          className={`${styles.avatarOnline} ${isOnline ? styles.online : styles.offline}`}
+          onMouseEnter={() => setShowOnlineTooltip(true)}
+          onMouseLeave={() => setShowOnlineTooltip(false)}
+        >
+          {isOnline ? <FaCircle /> : <FaRegCircle />}
+        </div>
+        
+        {/* Online Status Tooltip */}
+        {showOnlineTooltip && (
+          <div className={styles.onlineTooltip}>
+            {isOnline ? (
+              <>
+                <FaCircle className={styles.tooltipOnlineIcon} />
+                <span>Online now</span>
+              </>
+            ) : (
+              <>
+                <FaClock className={styles.tooltipOfflineIcon} />
+                <span>{getLastSeenText()}</span>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Header Content */}
@@ -225,6 +263,21 @@ const ProfileHeader = ({
                 <span>{profileUser.tradingExperience.charAt(0).toUpperCase() + profileUser.tradingExperience.slice(1)} Trader</span>
               </div>
             )}
+
+            {/* Online Status in Details (for mobile/compact view) */}
+            <div className={`${styles.detailItem} ${styles.mobileOnlineStatus}`}>
+              {isOnline ? (
+                <>
+                  <FaCircle className={styles.onlineIcon} />
+                  <span>Online now</span>
+                </>
+              ) : (
+                <>
+                  <FaRegCircle className={styles.offlineIcon} />
+                  <span>{getLastSeenText()}</span>
+                </>
+              )}
+            </div>
           </div>
 
           {/* SOCIAL LINKS */}
@@ -322,6 +375,21 @@ const ProfileHeader = ({
               </button>
             )}
           </div>
+
+          {/* Online Status Footer (for mobile) */}
+          {!isOwnProfile && (
+            <div className={styles.onlineStatusFooter}>
+              {isOnline ? (
+                <span className={styles.onlineText}>
+                  <FaCircle className={styles.onlineDot} /> Online now
+                </span>
+              ) : (
+                <span className={styles.offlineText}>
+                  <FaRegCircle className={styles.offlineDot} /> {getLastSeenText()}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

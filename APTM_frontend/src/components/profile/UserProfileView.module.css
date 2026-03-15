@@ -932,3 +932,118 @@ button {
     max-height: 95vh;
   }
 }
+/* Add to UserProfileView.module.css */
+
+.socketStatusContainer {
+  display: flex;
+  align-items: center;
+  margin-left: 10px;
+}
+
+.socketStatus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 14px;
+  position: relative;
+}
+
+.socketStatus.connected {
+  color: #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.socketStatus.disconnected {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.qualityWarning {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  background-color: #f59e0b;
+  color: white;
+  border-radius: 50%;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.onlineTooltip {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.onlineTooltip .tooltipOnlineIcon {
+  color: #10b981;
+  font-size: 8px;
+}
+
+.onlineTooltip .tooltipOfflineIcon {
+  color: #9ca3af;
+  font-size: 8px;
+}
+
+.mobileOnlineStatus {
+  display: none;
+}
+
+.onlineStatusFooter {
+  display: none;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-color);
+  font-size: 14px;
+}
+
+.onlineStatusFooter .onlineText,
+.onlineStatusFooter .offlineText {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onlineStatusFooter .onlineDot {
+  color: #10b981;
+  font-size: 10px;
+}
+
+.onlineStatusFooter .offlineDot {
+  color: #9ca3af;
+  font-size: 10px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .mobileOnlineStatus {
+    display: flex;
+  }
+  
+  .onlineStatusFooter {
+    display: block;
+  }
+  
+  .onlineTooltip {
+    display: none; /* Hide tooltip on mobile */
+  }
+}

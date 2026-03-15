@@ -4,7 +4,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import ConnectionPanel from './ConnectionPanel';
-import { io } from 'socket.io-client';
 import ChartTab from './ChartTab';
 // Import components
 import AvatarModal from './AvatarModal';
@@ -18,6 +17,9 @@ import ProfileHeader from './ProfileHeader';
 // Import utilities
 import { formatAvatarUrl, formatBannerUrl, getAvatarInitial, hasValidAvatar, hasValidBanner } from '../../utils/avatarUtils';
 import { experienceLevels } from './profileConstants';
+
+// Import socket service
+import { socketService } from '../../services/socketService';
 
 // Import styles
 import styles from './UserProfileView.module.css';
@@ -49,7 +51,9 @@ import {
   FaBookmark,
   FaRegBookmark,
   FaHome,
-  FaRetweet
+  FaRetweet,
+  FaWifi,
+  FaWifiSlash
 } from 'react-icons/fa';
 
 // Constants for API URLs
@@ -57,15 +61,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
                  import.meta.env.VITE_BASE_URL || 
                  (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
-const SOCKET_URL = BASE_URL;
-
-// Socket connection - declare outside component to persist
-let socket = null;
 
 const UserProfileView = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { user: currentUser, isAuthenticated } = useAuth();
+  const { user: currentUser } = useAuth();
   const { darkMode } = useTheme();
 
   const [profileUser, setProfileUser] = useState(null);
@@ -83,6 +83,8 @@ const UserProfileView = () => {
   const [avatarError, setAvatarError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [lastSeen, setLastSeen] = useState(null);
+  const [connectionQuality, setConnectionQuality] = useState('good'); // 'good', 'poor', 'offline'
 
   const isOwnProfile = !userId || userId === currentUser?.id;
   const targetUserId = userId || currentUser?.id;
@@ -102,160 +104,159 @@ const UserProfileView = () => {
     instagram: FaInstagram
   };
 
-  // Initialize socket connection
+  // ============ SOCKET CONNECTION ============
   useEffect(() => {
     if (!currentUser || !currentUser.id) {
       console.log('❌ No current user, skipping socket connection');
       return;
     }
 
-    // Clean up existing socket
-    if (socket) {
-      console.log('🔄 Cleaning up existing socket connection');
-      socket.disconnect();
-      socket = null;
-    }
+    console.log('🔌 Initializing socket service for user:', currentUser.id);
 
-    console.log('🔌 Initializing socket connection for user:', currentUser.id);
-    console.log('📡 Socket URL:', SOCKET_URL);
+    // Connect to socket
+    socketService.connect(currentUser.id, localStorage.getItem('token'));
 
-    try {
-      // Create new socket connection
-      socket = io(SOCKET_URL, {
-        query: { userId: currentUser.id },
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 10000,
-        forceNew: true
-      });
+    // Check connection status
+    const checkConnection = async () => {
+      const isConnected = await socketService.checkConnection();
+      setSocketConnected(isConnected);
+      setConnectionQuality(isConnected ? 'good' : 'offline');
+    };
+    
+    checkConnection();
 
-      // Connection event handlers
-      socket.on('connect', () => {
-        console.log('✅ Socket connected successfully');
-        setSocketConnected(true);
-        
-        // Request online users
-        socket.emit('get-online-users');
-        
-        // Request status for current profile user if exists
-        if (profileUser?.id) {
-          socket.emit('user:status', { targetUserId: profileUser.id });
+    // Set up connection change listener
+    const handleConnectionChange = (isConnected) => {
+      console.log('📡 Socket connection changed:', isConnected);
+      setSocketConnected(isConnected);
+      setConnectionQuality(isConnected ? 'good' : 'offline');
+      
+      if (isConnected && profileUser?.id) {
+        socketService.getUserStatus(profileUser.id);
+      }
+    };
+
+    socketService.onConnectionChange(handleConnectionChange);
+
+    // ============ SOCKET EVENT HANDLERS ============
+
+    const handleOnlineUsers = (users) => {
+      console.log('📊 Online users received:', users);
+      setOnlineUsers(users);
+      
+      // Update current profile user online status
+      if (profileUser?.id) {
+        const isOnline = users[profileUser.id]?.online || false;
+        setIsUserOnline(isOnline);
+        if (!isOnline && users[profileUser.id]?.lastSeen) {
+          setLastSeen(users[profileUser.id].lastSeen);
         }
-      });
+      }
+    };
 
-      socket.on('connect_error', (error) => {
-        console.error('❌ Socket connection error:', error);
-        setSocketConnected(false);
-      });
+    const handleUserOnline = (data) => {
+      console.log('🟢 User online:', data);
+      setOnlineUsers(prev => ({ 
+        ...prev, 
+        [data.userId]: { online: true, userData: data.userData, lastSeen: new Date() } 
+      }));
+      
+      // Update if this is the current profile user
+      if (profileUser?.id === data.userId) {
+        setIsUserOnline(true);
+        setLastSeen(null);
+      }
+    };
 
-      socket.on('disconnect', (reason) => {
-        console.log('🔴 Socket disconnected:', reason);
-        setSocketConnected(false);
-      });
-
-      socket.on('reconnect', (attemptNumber) => {
-        console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
-        setSocketConnected(true);
-        
-        // Re-request data after reconnection
-        socket.emit('get-online-users');
-        if (profileUser?.id) {
-          socket.emit('user:status', { targetUserId: profileUser.id });
+    const handleUserOffline = (data) => {
+      console.log('🔴 User offline:', data);
+      setOnlineUsers(prev => {
+        const newState = { ...prev };
+        if (newState[data.userId]) {
+          newState[data.userId] = { 
+            ...newState[data.userId], 
+            online: false,
+            lastSeen: data.timestamp || new Date()
+          };
         }
+        return newState;
       });
+      
+      // Update if this is the current profile user
+      if (profileUser?.id === data.userId) {
+        setIsUserOnline(false);
+        setLastSeen(data.timestamp || new Date());
+      }
+    };
 
-      // Listen for all online users
-      socket.on('users:online', (users) => {
-        console.log('📊 Online users received:', users);
-        setOnlineUsers(users);
-        
-        // Update current profile user online status
-        if (profileUser?.id) {
-          const isOnline = users[profileUser.id]?.online || false;
-          setIsUserOnline(isOnline);
-        }
-      });
-
-      // Listen for user coming online
-      socket.on('user:online', (data) => {
-        console.log('🟢 User online:', data);
-        setOnlineUsers(prev => ({ 
-          ...prev, 
-          [data.userId]: { online: true, userData: data.userData } 
+    const handleUserStatusResponse = (data) => {
+      console.log('📊 User status response:', data);
+      if (data.userId) {
+        setOnlineUsers(prev => ({
+          ...prev,
+          [data.userId]: { 
+            online: data.isOnline, 
+            userData: data.userData,
+            lastSeen: data.lastSeen || new Date()
+          }
         }));
         
         // Update if this is the current profile user
         if (profileUser?.id === data.userId) {
-          setIsUserOnline(true);
-        }
-      });
-
-      // Listen for user going offline
-      socket.on('user:offline', (data) => {
-        console.log('🔴 User offline:', data);
-        setOnlineUsers(prev => {
-          const newState = { ...prev };
-          delete newState[data.userId];
-          return newState;
-        });
-        
-        // Update if this is the current profile user
-        if (profileUser?.id === data.userId) {
-          setIsUserOnline(false);
-        }
-      });
-
-      // Listen for user status response
-      socket.on('user:status:response', (data) => {
-        console.log('📊 User status response:', data);
-        if (data.userId) {
-          setOnlineUsers(prev => ({
-            ...prev,
-            [data.userId]: { online: data.isOnline, userData: data.userData }
-          }));
-          
-          // Update if this is the current profile user
-          if (profileUser?.id === data.userId) {
-            setIsUserOnline(data.isOnline);
+          setIsUserOnline(data.isOnline);
+          if (!data.isOnline && data.lastSeen) {
+            setLastSeen(data.lastSeen);
           }
         }
-      });
-
-    } catch (error) {
-      console.error('❌ Error setting up socket:', error);
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (socket) {
-        console.log('🔌 Cleaning up socket connection');
-        socket.off('connect');
-        socket.off('connect_error');
-        socket.off('disconnect');
-        socket.off('reconnect');
-        socket.off('users:online');
-        socket.off('user:online');
-        socket.off('user:offline');
-        socket.off('user:status:response');
-        socket.disconnect();
-        socket = null;
       }
     };
-  }, [currentUser?.id]); // Only re-run when user ID changes
+
+    // Register event listeners
+    socketService.on('users:online', handleOnlineUsers);
+    socketService.on('user:online', handleUserOnline);
+    socketService.on('user:offline', handleUserOffline);
+    socketService.on('user:status:response', handleUserStatusResponse);
+
+    // Request initial data
+    socketService.getOnlineUsers();
+    if (profileUser?.id) {
+      socketService.getUserStatus(profileUser.id);
+    }
+
+    // Monitor connection quality
+    const qualityInterval = setInterval(() => {
+      if (socketService.isConnected()) {
+        // Check if connection is stable
+        const stats = socketService.getConnectionStats();
+        if (stats.connectionAttempts > 3) {
+          setConnectionQuality('poor');
+        } else {
+          setConnectionQuality('good');
+        }
+      }
+    }, 10000);
+
+    // Cleanup
+    return () => {
+      console.log('🧹 Cleaning up socket listeners');
+      socketService.off('users:online', handleOnlineUsers);
+      socketService.off('user:online', handleUserOnline);
+      socketService.off('user:offline', handleUserOffline);
+      socketService.off('user:status:response', handleUserStatusResponse);
+      socketService.removeConnectionChange(handleConnectionChange);
+      clearInterval(qualityInterval);
+      
+      // Don't disconnect here - let the service handle it
+    };
+  }, [currentUser?.id, profileUser?.id]); // Re-run when profileUser changes
 
   // Request user status when profile loads
   useEffect(() => {
-    if (profileUser?.id && socket && socketConnected) {
+    if (profileUser?.id && socketService.isConnected()) {
       console.log('📡 Requesting status for user:', profileUser.id);
-      socket.emit('user:status', { targetUserId: profileUser.id });
-      
-      // Also check online status from existing onlineUsers
-      const isOnline = onlineUsers[profileUser.id]?.online || false;
-      setIsUserOnline(isOnline);
+      socketService.getUserStatus(profileUser.id);
     }
-  }, [profileUser?.id, socketConnected, onlineUsers]);
+  }, [profileUser?.id]);
 
   // Format user data consistently
   const formatUserData = useCallback((userData, isPublic = false) => {
@@ -380,6 +381,9 @@ const UserProfileView = () => {
     const formattedAvatar = formatAvatarUrl(avatarData);
     const formattedBanner = formatBannerUrl(bannerData);
     
+    // Get online status from socket if available
+    const isOnline = onlineUsers[userId]?.online || false;
+    
     // Return fully formatted user object
     const formattedUser = {
       id: userId,
@@ -400,6 +404,8 @@ const UserProfileView = () => {
       followers: followers,
       following: following,
       postsCount: postsCount,
+      online: isOnline, // Add online status
+      lastSeen: lastActive,
       profile: {
         experience: tradingExperience,
         followers: followers,
@@ -429,11 +435,12 @@ const UserProfileView = () => {
       name: formattedUser.name,
       avatar: formattedUser.avatar,
       banner: formattedUser.banner,
-      hasBanner: formattedUser.hasBanner
+      hasBanner: formattedUser.hasBanner,
+      online: formattedUser.online
     });
     
     return formattedUser;
-  }, []);
+  }, [onlineUsers]); // Add onlineUsers as dependency
 
   // Fetch user profile
   const fetchUserProfile = useCallback(async (targetUserId) => {
@@ -508,10 +515,16 @@ const UserProfileView = () => {
           name: userData.name,
           avatar: userData.avatar,
           banner: userData.banner,
-          hasBanner: userData.hasBanner
+          hasBanner: userData.hasBanner,
+          online: userData.online
         });
         
         setProfileUser(userData);
+        
+        // Request online status from socket
+        if (socketService.isConnected() && userData.id) {
+          socketService.getUserStatus(userData.id);
+        }
         
         // Check follow status for other users
         if (!isOwnProfile && targetUserId && currentUser) {
@@ -1431,6 +1444,25 @@ const UserProfileView = () => {
       }));
   }, [profileUser?.socialLinks]);
 
+  // Format last seen time
+  const formatLastSeen = (timestamp) => {
+    if (!timestamp) return 'Unknown';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+    
+    return date.toLocaleDateString();
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -1467,10 +1499,12 @@ const UserProfileView = () => {
       name: profileUser.name,
       avatar: profileUser.avatar,
       banner: profileUser.banner,
-      hasBanner: profileUser.hasBanner
+      hasBanner: profileUser.hasBanner,
+      online: profileUser.online
     },
     socketConnected,
-    isUserOnline
+    isUserOnline,
+    connectionQuality
   });
 
   return (
@@ -1497,11 +1531,18 @@ const UserProfileView = () => {
             <span className={styles.navProfileName}>{profileUser.name}</span>
             <span className={styles.navProfileUsername}>@{profileUser.username}</span>
           </div>
-          {socketConnected && (
-            <span className={styles.socketStatus} title="Real-time connected">
-              <span className={styles.onlineDot}></span>
-            </span>
-          )}
+          <div className={styles.socketStatusContainer}>
+            {socketConnected ? (
+              <span className={`${styles.socketStatus} ${styles.connected}`} title="Real-time connected">
+                <FaWifi />
+                {connectionQuality === 'poor' && <span className={styles.qualityWarning}>!</span>}
+              </span>
+            ) : (
+              <span className={`${styles.socketStatus} ${styles.disconnected}`} title="Real-time disconnected">
+                <FaWifiSlash />
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Profile Header */}
@@ -1517,6 +1558,8 @@ const UserProfileView = () => {
           bannerUrl={profileUser.banner}
           hasBanner={profileUser.hasBanner}
           isOnline={isUserOnline}
+          lastSeen={lastSeen}
+          formatLastSeen={formatLastSeen}
         />
 
         <main className={styles.mainContent}>
