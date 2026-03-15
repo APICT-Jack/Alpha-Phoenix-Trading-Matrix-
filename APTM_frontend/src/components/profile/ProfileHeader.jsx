@@ -1,4 +1,4 @@
-// ProfileHeader.jsx - COMPLETE FIXED VERSION WITH AGGRESSIVE URL FIXING
+// ProfileHeader.jsx - FIXED VERSION USING UTILITIES
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -21,23 +21,8 @@ import {
   FaInstagram
 } from 'react-icons/fa';
 
-// FIXED: Get the correct base URL based on environment
-const getBaseUrl = () => {
-  // For production (Render), use the current origin
-  if (import.meta.env.PROD) {
-    return window.location.origin;
-  }
-  
-  // For development, try environment variables
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace('/api', '');
-  }
-  if (import.meta.env.VITE_BASE_URL) {
-    return import.meta.env.VITE_BASE_URL;
-  }
-  
-  return 'http://localhost:5000';
-};
+// Import the utility functions
+import { formatAvatarUrl, formatBannerUrl, getAvatarInitial, hasValidBanner } from '../../utils/avatarUtils';
 
 const socialIcons = {
   twitter: FaTwitter,
@@ -51,55 +36,6 @@ const socialIcons = {
   reddit: FaReddit,
   youtube: FaYoutube,
   instagram: FaInstagram
-};
-
-// FIXED: Aggressive URL formatter that ALWAYS fixes localhost URLs in production
-const formatImageUrl = (imagePath, type = 'avatar') => {
-  if (!imagePath) return null;
-  
-  console.log(`🎨 Formatting ${type} URL:`, imagePath);
-  console.log(`🌍 Environment:`, import.meta.env.PROD ? 'production' : 'development');
-  console.log(`📍 Current origin:`, window.location.origin);
-  
-  // If it's a data URL, return as is
-  if (imagePath.startsWith('data:')) {
-    return imagePath;
-  }
-  
-  // CRITICAL FIX: ALWAYS check for localhost in production regardless of URL format
-  if (import.meta.env.PROD && imagePath.includes('localhost')) {
-    console.log(`⚠️ ${type} URL contains localhost in production, FORCE FIXING...`);
-    // Extract just the filename
-    const filename = imagePath.split('/').pop();
-    const fixedUrl = `${window.location.origin}/uploads/${type === 'avatar' ? 'avatars' : 'banners'}/${filename}`;
-    console.log(`✅ Fixed ${type} URL:`, fixedUrl);
-    return fixedUrl;
-  }
-  
-  // Handle paths starting with /uploads
-  if (imagePath.startsWith('/uploads/')) {
-    const baseUrl = getBaseUrl();
-    return `${baseUrl}${imagePath}`;
-  }
-  
-  // Handle just filenames
-  const baseUrl = getBaseUrl();
-  const folders = {
-    avatar: 'avatars',
-    banner: 'banners'
-  };
-  const folder = folders[type] || type;
-  
-  // Extract just the filename if it contains path
-  let filename = imagePath;
-  if (imagePath.includes('/')) {
-    filename = imagePath.split('/').pop();
-  }
-  
-  const formattedUrl = `${baseUrl}/uploads/${folder}/${filename}`;
-  console.log(`✅ Formatted ${type} URL:`, formattedUrl);
-  
-  return formattedUrl;
 };
 
 const ProfileHeader = ({
@@ -118,7 +54,7 @@ const ProfileHeader = ({
   const [avatarError, setAvatarError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
 
-  // Format avatar URL using the helper
+  // Format avatar URL using the utility
   const getFormattedAvatar = () => {
     if (!profileUser?.avatar) return null;
     
@@ -127,10 +63,11 @@ const ProfileHeader = ({
     if (profileUser.avatarUrl) avatarPath = profileUser.avatarUrl;
     if (profileUser.profile?.avatar) avatarPath = profileUser.profile.avatar;
     
-    return formatImageUrl(avatarPath, 'avatar');
+    // Use the utility function
+    return formatAvatarUrl(avatarPath);
   };
 
-  // Format banner URL using the helper
+  // Format banner URL using the utility
   const getFormattedBanner = () => {
     // Check multiple possible banner sources
     let bannerPath = null;
@@ -143,7 +80,8 @@ const ProfileHeader = ({
     
     if (!bannerPath) return null;
     
-    return formatImageUrl(bannerPath, 'banner');
+    // Use the utility function
+    return formatBannerUrl(bannerPath);
   };
 
   const handleSocialLinkClick = (url) => {
@@ -216,6 +154,7 @@ const ProfileHeader = ({
 
   const formattedAvatar = getFormattedAvatar();
   const formattedBanner = getFormattedBanner();
+  const bannerExists = hasBanner || profileUser?.hasBanner || hasValidBanner(profileUser?.banner) || !!formattedBanner;
 
   console.log('🎯 ProfileHeader render:', {
     profileUser: {
@@ -227,10 +166,9 @@ const ProfileHeader = ({
     },
     formattedAvatar,
     formattedBanner,
+    bannerExists,
     avatarError,
-    bannerError,
-    environment: import.meta.env.PROD ? 'production' : 'development',
-    origin: window.location.origin
+    bannerError
   });
 
   return (
@@ -238,7 +176,7 @@ const ProfileHeader = ({
       {/* Banner Section */}
       <div className={styles.bannerSection}>
         <div className={styles.bannerWrapper}>
-          {(hasBanner || formattedBanner) && !bannerError ? (
+          {bannerExists && formattedBanner && !bannerError ? (
             <img 
               src={formattedBanner} 
               alt={`${profileUser?.name || 'User'}'s banner`}
@@ -289,7 +227,7 @@ const ProfileHeader = ({
             />
           ) : (
             <div className={styles.avatarInitial}>
-              {profileUser?.avatarInitial || profileUser?.name?.charAt(0).toUpperCase() || 'U'}
+              {profileUser?.avatarInitial || getAvatarInitial(profileUser) || 'U'}
             </div>
           )}
         </div>
