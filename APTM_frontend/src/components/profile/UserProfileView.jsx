@@ -58,6 +58,12 @@ const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') ||
                  (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 const SOCKET_URL = BASE_URL;
 
+// ============================================
+// CRITICAL FIX: REMOVE THE LOCAL formatImageUrl FUNCTION
+// IT WAS CONFLICTING WITH THE IMPORTED UTILITIES
+// ============================================
+// DO NOT DEFINE formatImageUrl HERE - USE THE IMPORTED ONES INSTEAD
+
 // Socket connection for online status
 let socket;
 
