@@ -26,6 +26,8 @@ import { profileService } from '../../services/profileService';
 import styles from './UserProfileView.module.css';
 
 // Import icons
+// Replace the problematic import line with this:
+
 import { 
   FaComments, 
   FaChartLine, 
@@ -54,7 +56,9 @@ import {
   FaHome,
   FaRetweet,
   FaWifi,
-  FaWifiSlash
+  FaExclamationCircle,
+  FaPlug,
+  FaSignal
 } from 'react-icons/fa';
 
 // Constants for API URLs
@@ -1477,14 +1481,19 @@ const UserProfileView = () => {
           </div>
           <div className={styles.socketStatus}>
             {socketConnected ? (
-              <span className={styles.connected} title="Real-time connected">
-                <FaWifi />
-              </span>
-            ) : (
-              <span className={styles.disconnected} title="Real-time disconnected">
-                <FaWifiSlash />
-              </span>
-            )}
+    <span className={`${styles.socketStatus} ${styles.connected}`} title="Real-time connected">
+      <FaWifi />
+      {connectionQuality === 'poor' && (
+        <span className={styles.qualityWarning}>
+          <FaExclamationCircle />
+        </span>
+      )}
+    </span>
+  ) : (
+    <span className={`${styles.socketStatus} ${styles.disconnected}`} title="Real-time disconnected">
+      <FaPlug />
+    </span>
+  )}
           </div>
         </div>
 
