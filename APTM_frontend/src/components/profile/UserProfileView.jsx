@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -14,8 +14,8 @@ import PostComponent from './PostComponent';
 import OverviewTab from './OverviewTab';
 import GalleryComponent from './GalleryComponent';
 
-// Import utilities - THESE ARE THE ONES THAT WORK!
-import { formatAvatarUrl, hasValidAvatar, formatBannerUrl, getAvatarInitial } from '../../utils/avatarUtils';
+// Import utilities - SAME as ConnectionPanel
+import { formatAvatarUrl, formatBannerUrl, getAvatarInitial, hasValidAvatar, hasValidBanner } from '../../utils/avatarUtils';
 import { experienceLevels } from './profileConstants';
 
 // Import styles
@@ -51,18 +51,12 @@ import {
   FaRetweet
 } from 'react-icons/fa';
 
-// Constants for API URLs - FIXED
+// Constants for API URLs
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
                  import.meta.env.VITE_BASE_URL || 
                  (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 const SOCKET_URL = BASE_URL;
-
-// ============================================
-// CRITICAL FIX: REMOVE THE LOCAL formatImageUrl FUNCTION
-// IT WAS CONFLICTING WITH THE IMPORTED UTILITIES
-// ============================================
-// DO NOT DEFINE formatImageUrl HERE - USE THE IMPORTED ONES INSTEAD
 
 // Socket connection for online status
 let socket;
@@ -169,7 +163,7 @@ const UserProfileView = () => {
     }
   }, [profileUser, onlineUsers]);
 
-  // Format user data consistently
+  // Format user data consistently - LIKE ConnectionPanel's formatUserForDisplay
   const formatUserData = useCallback((userData, isPublic = false) => {
     if (!userData) return null;
     
@@ -204,13 +198,7 @@ const UserProfileView = () => {
     // Extract email
     let email = user.email;
     
-    // Extract avatar - log all possible avatar sources
-    console.log('🖼️ Checking avatar sources:', {
-      avatar: user.avatar,
-      avatarUrl: user.avatarUrl,
-      profileAvatar: user.profile?.avatar
-    });
-    
+    // Extract avatar - like ConnectionPanel
     let avatarData = null;
     if (user.avatar) avatarData = user.avatar;
     else if (user.avatarUrl) avatarData = user.avatarUrl;
@@ -220,17 +208,7 @@ const UserProfileView = () => {
       avatarData = avatarData.url || avatarData.avatarUrl || null;
     }
     
-    console.log('🎯 Selected avatar data:', avatarData);
-    
-    // Extract banner - log all possible banner sources
-    console.log('🖼️ Checking banner sources:', {
-      bannerImage: user.bannerImage,
-      banner: user.banner,
-      bannerUrl: user.bannerUrl,
-      profileBannerImage: user.profile?.bannerImage,
-      profileBanner: user.profile?.banner
-    });
-    
+    // Extract banner
     let bannerData = null;
     if (user.bannerImage) bannerData = user.bannerImage;
     else if (user.banner) bannerData = user.banner;
@@ -243,8 +221,6 @@ const UserProfileView = () => {
     if (bannerData && typeof bannerData === 'object') {
       bannerData = bannerData.url || bannerData.bannerUrl || null;
     }
-    
-    console.log('🎯 Selected banner data:', bannerData);
     
     const avatarInitial = user.avatarInitial || name?.charAt(0).toUpperCase() || 'U';
     
@@ -278,8 +254,6 @@ const UserProfileView = () => {
       }
     });
     
-    console.log('🔗 Extracted social links:', socialLinks);
-    
     // Extract stats
     const followers = user.followers || 
                      user.stats?.followers || 
@@ -308,20 +282,23 @@ const UserProfileView = () => {
                       user.profile?.lastActive || 
                       new Date().toISOString();
     
-    // Store the raw paths for later formatting
+    // Format URLs ONCE - like ConnectionPanel does
+    const formattedAvatar = formatAvatarUrl(avatarData);
+    const formattedBanner = formatBannerUrl(bannerData);
+    
+    // Return fully formatted user object
     const formattedUser = {
       id: userId,
       _id: userId,
       name: name,
       username: username,
       email: email,
-      // Store the raw avatar path (not formatted)
-      avatar: avatarData,
+      // Store formatted URLs directly
+      avatar: formattedAvatar,
       avatarInitial: avatarInitial,
       hasAvatar: hasValidAvatar(avatarData),
-      // Store the raw banner path (not formatted)
-      banner: bannerData,
-      hasBanner: !!bannerData,
+      banner: formattedBanner,
+      hasBanner: hasValidBanner(bannerData),
       bio: bio,
       location: location,
       joinDate: joinDate,
@@ -1369,28 +1346,6 @@ const UserProfileView = () => {
       }));
   }, [profileUser?.socialLinks]);
 
-  // FIXED: Use the imported formatAvatarUrl utility
-  const getFormattedAvatar = useCallback(() => {
-    if (!profileUser?.avatar) {
-      console.log('❌ No avatar data in profileUser');
-      return null;
-    }
-    console.log('🎯 Formatting avatar from:', profileUser.avatar);
-    // USE THE IMPORTED UTILITY THAT WORKS!
-    return formatAvatarUrl(profileUser.avatar);
-  }, [profileUser?.avatar]);
-
-  // FIXED: Use the imported formatBannerUrl utility
-  const getFormattedBanner = useCallback(() => {
-    if (!profileUser?.banner) {
-      console.log('❌ No banner data in profileUser');
-      return null;
-    }
-    console.log('🎯 Formatting banner from:', profileUser.banner);
-    // USE THE IMPORTED UTILITY THAT WORKS!
-    return formatBannerUrl(profileUser.banner);
-  }, [profileUser?.banner]);
-
   // Loading state
   if (loading) {
     return (
@@ -1420,8 +1375,6 @@ const UserProfileView = () => {
   }
 
   const activeSocialLinks = getActiveSocialLinks();
-  const formattedAvatar = getFormattedAvatar();
-  const formattedBanner = getFormattedBanner();
 
   console.log('🎯 FINAL RENDER VALUES:', {
     profileUser: {
@@ -1431,8 +1384,6 @@ const UserProfileView = () => {
       banner: profileUser.banner,
       hasBanner: profileUser.hasBanner
     },
-    formattedAvatar,
-    formattedBanner,
     avatarError,
     bannerError
   });
@@ -1442,7 +1393,7 @@ const UserProfileView = () => {
       <AvatarModal
         isOpen={isModalOpen}
         onClose={closeModal}
-        avatarUrl={formattedAvatar}
+        avatarUrl={profileUser.avatar}
         avatarInitial={profileUser.avatarInitial}
       />
 
@@ -1463,205 +1414,19 @@ const UserProfileView = () => {
           </div>
         </div>
 
-        {/* Profile Header */}
-        <div className={styles.profileHeader}>
-          {/* Banner Section */}
-          <div className={styles.bannerSection}>
-            <div className={styles.bannerWrapper}>
-              {profileUser.hasBanner && formattedBanner && !bannerError ? (
-                <img 
-                  src={formattedBanner} 
-                  alt={`${profileUser.name}'s banner`}
-                  className={styles.bannerImage}
-                  onError={() => {
-                    console.log('❌ Banner failed to load:', formattedBanner);
-                    setBannerError(true);
-                  }}
-                  onLoad={() => console.log('✅ Banner loaded successfully:', formattedBanner)}
-                />
-              ) : (
-                <div className={styles.bannerPlaceholder}>
-                  {profileUser.name}'s Banner
-                </div>
-              )}
-            </div>
-            
-            {/* Edit Banner Button */}
-            {isOwnProfile && (
-              <div className={styles.bannerEditOverlay}>
-                <button 
-                  className={styles.editBannerBtn} 
-                  onClick={handleEditBanner}
-                  title="Change banner"
-                >
-                  <FaCamera size={14} />
-                  <span>Edit Banner</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Avatar */}
-          <div className={styles.avatarContainer}>
-            <div className={styles.avatarWrapper} onClick={openModal}>
-              {formattedAvatar && !avatarError ? (
-                <img 
-                  src={formattedAvatar} 
-                  alt={profileUser.name}
-                  className={styles.avatarImage}
-                  onError={() => {
-                    console.log('❌ Avatar failed to load:', formattedAvatar);
-                    setAvatarError(true);
-                  }}
-                  onLoad={() => console.log('✅ Avatar loaded successfully:', formattedAvatar)}
-                />
-              ) : (
-                <div className={styles.avatarInitial}>
-                  {profileUser.avatarInitial || profileUser.name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-              )}
-            </div>
-            <div className={`${styles.avatarOnline} ${isUserOnline ? styles.online : styles.offline}`}></div>
-          </div>
-
-          {/* Header Content */}
-          <div className={styles.headerContent}>
-            <div className={styles.userInfoSection}>
-              <div className={styles.userNameRow}>
-                <h1 className={styles.userName}>{profileUser.name}</h1>
-                <p className={styles.userUsername}>@{profileUser.username}</p>
-              </div>
-              
-              {profileUser.bio && (
-                <p className={styles.userBio}>{profileUser.bio}</p>
-              )}
-
-              {/* User Details */}
-              <div className={styles.userDetails}>
-                {profileUser.location && profileUser.location !== 'Not specified' && (
-                  <div className={styles.detailItem}>
-                    <FaMapMarkerAlt className={styles.detailIcon} />
-                    <span>{profileUser.location}</span>
-                  </div>
-                )}
-                
-                {profileUser.joinDate && (
-                  <div className={styles.detailItem}>
-                    <FaCalendarAlt className={styles.detailIcon} />
-                    <span>Joined {new Date(profileUser.joinDate).toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}</span>
-                  </div>
-                )}
-                
-                {profileUser.tradingExperience && (
-                  <div className={styles.detailItem}>
-                    <FaBriefcase className={styles.detailIcon} />
-                    <span>{profileUser.tradingExperience.charAt(0).toUpperCase() + profileUser.tradingExperience.slice(1)} Trader</span>
-                  </div>
-                )}
-              </div>
-
-              {/* SOCIAL LINKS */}
-              {activeSocialLinks.length > 0 && (
-                <div className={styles.socialLinksContainer}>
-                  <h4 className={styles.socialLinksTitle}>Connect with {profileUser.name}</h4>
-                  <div className={styles.socialLinks}>
-                    {activeSocialLinks.map(({ platform, url, icon: Icon }) => (
-                      <button
-                        key={platform}
-                        className={`${styles.socialLink} ${styles[platform]}`}
-                        onClick={() => handleSocialLinkClick(url)}
-                        title={`${platform}: ${url}`}
-                      >
-                        <Icon size={18} />
-                        <span className={styles.socialPlatformName}>{platform}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Stats */}
-              <div className={styles.userStats}>
-                <div 
-                  className={styles.statItem} 
-                  onClick={() => handleStatClick('followers')}
-                >
-                  <span className={styles.statValue}>
-                    {profileUser.followers?.toLocaleString() || '0'}
-                  </span>
-                  <span className={styles.statLabel}>Followers</span>
-                </div>
-                
-                <div 
-                  className={styles.statItem} 
-                  onClick={() => handleStatClick('following')}
-                >
-                  <span className={styles.statValue}>
-                    {profileUser.following?.toLocaleString() || '0'}
-                  </span>
-                  <span className={styles.statLabel}>Following</span>
-                </div>
-                
-                <div 
-                  className={styles.statItem} 
-                  onClick={() => handleStatClick('trades')}
-                >
-                  <span className={styles.statValue}>
-                    {profileUser.profile?.totalTrades?.toLocaleString() || '0'}
-                  </span>
-                  <span className={styles.statLabel}>Trades</span>
-                </div>
-                
-                <div className={styles.statItem}>
-                  <span className={styles.statValue}>
-                    {profileUser.profile?.winRate || '0'}%
-                  </span>
-                  <span className={styles.statLabel}>Win Rate</span>
-                </div>
-                
-                <div className={styles.statItem}>
-                  <span className={styles.statValue}>
-                    {profileUser.postsCount?.toLocaleString() || '0'}
-                  </span>
-                  <span className={styles.statLabel}>Posts</span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className={styles.actionButtons}>
-                {!isOwnProfile ? (
-                  <>
-                    <button 
-                      className={`${styles.actionBtn} ${styles.primary}`}
-                      onClick={handleFollow}
-                    >
-                      {isFollowing ? 'Following' : 'Follow'}
-                    </button>
-                    
-                    <button 
-                      className={`${styles.actionBtn} ${styles.secondary}`}
-                      onClick={handleMessage}
-                    >
-                      Message
-                    </button>
-                  </>
-                ) : (
-                  <button 
-                    className={`${styles.actionBtn} ${styles.primary}`}
-                    onClick={handleEditProfile}
-                  >
-                    <FaEdit />
-                    Edit Profile
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Profile Header - Pass the already formatted URLs */}
+        <ProfileHeader
+          profileUser={profileUser}
+          isOwnProfile={isOwnProfile}
+          isFollowing={isFollowing}
+          onFollow={handleFollow}
+          onMessage={handleMessage}
+          onEditProfile={handleEditProfile}
+          onAvatarClick={openModal}
+          onStatClick={handleStatClick}
+          bannerUrl={profileUser.banner}
+          hasBanner={profileUser.hasBanner}
+        />
 
         <main className={styles.mainContent}>
           <TabsNavigation

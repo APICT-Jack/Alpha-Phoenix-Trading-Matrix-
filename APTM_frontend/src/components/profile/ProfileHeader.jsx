@@ -1,4 +1,4 @@
-// ProfileHeader.jsx - FIXED VERSION (Following UserProfileSettings pattern)
+// ProfileHeader.jsx - SIMPLIFIED VERSION
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -21,11 +21,7 @@ import {
   FaInstagram
 } from 'react-icons/fa';
 
-// Constants for API URLs - same as UserProfileSettings
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
-                 import.meta.env.VITE_BASE_URL || 
-                 (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
+import { getAvatarInitial } from '../../utils/avatarUtils';
 
 const socialIcons = {
   twitter: FaTwitter,
@@ -39,36 +35,6 @@ const socialIcons = {
   reddit: FaReddit,
   youtube: FaYoutube,
   instagram: FaInstagram
-};
-
-// Helper function to format image URLs - EXACT same as UserProfileSettings
-const formatImageUrl = (imagePath, type = 'avatar') => {
-  if (!imagePath) return null;
-  
-  // If it's already a full URL, return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  
-  // If it's a data URL, return as is
-  if (imagePath.startsWith('data:')) {
-    return imagePath;
-  }
-  
-  // Extract just the filename if it contains path
-  let cleanPath = imagePath;
-  if (imagePath.includes('/')) {
-    cleanPath = imagePath.split('/').pop();
-  }
-  
-  const folders = {
-    avatar: 'avatars',
-    banner: 'banners',
-    addressProof: 'address-proofs'
-  };
-  
-  const folder = folders[type] || type;
-  return `${BASE_URL}/uploads/${folder}/${cleanPath}`;
 };
 
 const ProfileHeader = ({
@@ -86,34 +52,6 @@ const ProfileHeader = ({
   const navigate = useNavigate();
   const [avatarError, setAvatarError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
-
-  // Format avatar URL using the helper - exactly like UserProfileSettings
-  const getFormattedAvatar = () => {
-    if (!profileUser?.avatar) return null;
-    
-    // Handle different avatar sources
-    let avatarPath = profileUser.avatar;
-    if (profileUser.avatarUrl) avatarPath = profileUser.avatarUrl;
-    if (profileUser.profile?.avatar) avatarPath = profileUser.profile.avatar;
-    
-    return formatImageUrl(avatarPath, 'avatar');
-  };
-
-  // Format banner URL using the helper - exactly like UserProfileSettings
-  const getFormattedBanner = () => {
-    // Check multiple possible banner sources
-    let bannerPath = null;
-    
-    if (bannerUrl) bannerPath = bannerUrl;
-    else if (profileUser?.banner) bannerPath = profileUser.banner;
-    else if (profileUser?.bannerImage) bannerPath = profileUser.bannerImage;
-    else if (profileUser?.profile?.banner) bannerPath = profileUser.profile.banner;
-    else if (profileUser?.profile?.bannerImage) bannerPath = profileUser.profile.bannerImage;
-    
-    if (!bannerPath) return null;
-    
-    return formatImageUrl(bannerPath, 'banner');
-  };
 
   const handleSocialLinkClick = (url) => {
     if (url) {
@@ -183,24 +121,9 @@ const ProfileHeader = ({
            '0';
   };
 
-  const formattedAvatar = getFormattedAvatar();
-  const formattedBanner = getFormattedBanner();
-
-  console.log('🎯 ProfileHeader render:', {
-    profileUser: {
-      id: profileUser?.id,
-      name: profileUser?.name,
-      avatar: profileUser?.avatar,
-      banner: profileUser?.banner,
-      hasBanner: profileUser?.hasBanner
-    },
-    formattedAvatar,
-    formattedBanner,
-    avatarError,
-    bannerError,
-    BASE_URL,
-    environment: import.meta.env.PROD ? 'production' : 'development'
-  });
+  // Use the already formatted URLs from profileUser
+  const formattedAvatar = profileUser?.avatar;
+  const formattedBanner = bannerUrl || profileUser?.banner;
 
   return (
     <div className={styles.profileHeader}>
@@ -212,10 +135,9 @@ const ProfileHeader = ({
               src={formattedBanner} 
               alt={`${profileUser?.name || 'User'}'s banner`}
               className={styles.bannerImage}
-              onError={(e) => {
+              onError={() => {
                 console.log('❌ Banner failed to load:', formattedBanner);
                 setBannerError(true);
-                e.target.style.display = 'none';
               }}
               onLoad={() => console.log('✅ Banner loaded successfully:', formattedBanner)}
             />
@@ -249,16 +171,15 @@ const ProfileHeader = ({
               src={formattedAvatar} 
               alt={profileUser?.name || 'User'}
               className={styles.avatarImage}
-              onError={(e) => {
+              onError={() => {
                 console.log('❌ Avatar failed to load:', formattedAvatar);
                 setAvatarError(true);
-                e.target.style.display = 'none';
               }}
               onLoad={() => console.log('✅ Avatar loaded successfully:', formattedAvatar)}
             />
           ) : (
             <div className={styles.avatarInitial}>
-              {profileUser?.avatarInitial || profileUser?.name?.charAt(0).toUpperCase() || 'U'}
+              {profileUser?.avatarInitial || getAvatarInitial(profileUser) || 'U'}
             </div>
           )}
         </div>
