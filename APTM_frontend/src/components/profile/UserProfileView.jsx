@@ -25,6 +25,8 @@ import { socketService } from '../../services/socketService';
 import styles from './UserProfileView.module.css';
 
 // Import icons
+// Replace the problematic import line with this:
+
 import { 
   FaComments, 
   FaChartLine, 
@@ -53,7 +55,9 @@ import {
   FaHome,
   FaRetweet,
   FaWifi,
-  FaWifiSlash
+  FaExclamationCircle,
+  FaPlug,
+  FaSignal
 } from 'react-icons/fa';
 
 // Constants for API URLs
@@ -1531,18 +1535,23 @@ const UserProfileView = () => {
             <span className={styles.navProfileName}>{profileUser.name}</span>
             <span className={styles.navProfileUsername}>@{profileUser.username}</span>
           </div>
-          <div className={styles.socketStatusContainer}>
-            {socketConnected ? (
-              <span className={`${styles.socketStatus} ${styles.connected}`} title="Real-time connected">
-                <FaWifi />
-                {connectionQuality === 'poor' && <span className={styles.qualityWarning}>!</span>}
-              </span>
-            ) : (
-              <span className={`${styles.socketStatus} ${styles.disconnected}`} title="Real-time disconnected">
-                <FaWifiSlash />
-              </span>
-            )}
-          </div>
+          {/* Navigation Bar - update the socket status section */}
+<div className={styles.socketStatusContainer}>
+  {socketConnected ? (
+    <span className={`${styles.socketStatus} ${styles.connected}`} title="Real-time connected">
+      <FaWifi />
+      {connectionQuality === 'poor' && (
+        <span className={styles.qualityWarning}>
+          <FaExclamationCircle />
+        </span>
+      )}
+    </span>
+  ) : (
+    <span className={`${styles.socketStatus} ${styles.disconnected}`} title="Real-time disconnected">
+      <FaPlug />
+    </span>
+  )}
+</div>
         </div>
 
         {/* Profile Header */}
