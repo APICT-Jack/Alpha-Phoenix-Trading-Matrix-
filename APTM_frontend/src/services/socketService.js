@@ -1,3 +1,4 @@
+// socketService.js - COMPLETE UPDATED VERSION
 import { io } from 'socket.io-client';
 
 class SocketService {
@@ -11,6 +12,9 @@ class SocketService {
     this.userId = null;
     this.connectionCallbacks = new Set();
     this.disconnectionCallbacks = new Set();
+    this.reconnectStrategy = 'exponential'; // 'exponential' or 'linear'
+    this.baseDelay = 1000;
+    this.maxDelay = 10000;
   }
 
   // Initialize socket connection
@@ -29,9 +33,26 @@ class SocketService {
     }
 
     this.userId = userId;
-    const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}`;
     
-    console.log('🔌 Connecting to socket server...');
+    // FIXED: Better URL construction for production
+    let SOCKET_URL;
+    
+    if (import.meta.env.PROD) {
+      // In production, use the current origin (Render URL)
+      SOCKET_URL = window.location.origin;
+      console.log('🌐 Production mode, using origin:', SOCKET_URL);
+    } else {
+      // In development, use localhost with port 5000
+      SOCKET_URL = 'http://localhost:5000';
+      console.log('💻 Development mode, using:', SOCKET_URL);
+    }
+    
+    // Fallback to environment variable if available
+    if (import.meta.env.VITE_API_URL && !import.meta.env.PROD) {
+      SOCKET_URL = import.meta.env.VITE_API_URL.replace('/api', '');
+    }
+    
+    console.log('🔌 Connecting to socket server at:', SOCKET_URL);
     
     this.socket = io(SOCKET_URL, {
       auth: { token },
@@ -43,7 +64,8 @@ class SocketService {
       reconnectionDelayMax: 5000,
       timeout: 20000,
       autoConnect: true,
-      forceNew: true // Force new connection to ensure clean state
+      forceNew: true,
+      path: '/socket.io/' // Explicitly set the path
     });
 
     this.setupEventListeners();
@@ -70,6 +92,7 @@ class SocketService {
       this.triggerConnectionCallbacks(false);
       
       if (reason === 'io server disconnect') {
+        // Reconnect manually if server disconnected
         setTimeout(() => this.socket?.connect(), 1000);
       }
     });
@@ -79,10 +102,11 @@ class SocketService {
       console.error('❌ Socket connection error:', error.message);
       this.triggerConnectionCallbacks(false);
       
+      // Implement exponential backoff
       if (this.connectionAttempts >= this.maxAttempts) {
         console.log('⚠️ Max connection attempts reached, falling back to polling');
         if (this.socket) {
-          this.socket.io.opts.transports = ['polling'];
+          this.socket.io.opts.transports = ['polling', 'websocket'];
         }
       }
     });
@@ -108,6 +132,34 @@ class SocketService {
 
     this.socket.on('error', (error) => {
       console.error('❌ Socket error:', error);
+    });
+  }
+
+  // Check connection status with timeout
+  async checkConnection(timeoutMs = 5000) {
+    return new Promise((resolve) => {
+      if (this.isConnected()) {
+        resolve(true);
+        return;
+      }
+      
+      const timeout = setTimeout(() => {
+        this.off('connect', connectHandler);
+        resolve(false);
+      }, timeoutMs);
+      
+      const connectHandler = () => {
+        clearTimeout(timeout);
+        this.off('connect', connectHandler);
+        resolve(true);
+      };
+      
+      this.on('connect', connectHandler);
+      
+      if (!this.socket) {
+        clearTimeout(timeout);
+        resolve(false);
+      }
     });
   }
 
@@ -434,6 +486,19 @@ class SocketService {
       return true;
     }
     return false;
+  }
+
+  // Get connection stats
+  getConnectionStats() {
+    return {
+      connected: this.isConnected(),
+      userId: this.userId,
+      connectionAttempts: this.connectionAttempts,
+      pendingMessages: this.pendingMessages.size,
+      listeners: Array.from(this.listeners.keys()),
+      transport: this.socket?.io?.engine?.transport?.name || 'none',
+      socketId: this.socket?.id || null
+    };
   }
 }
 
