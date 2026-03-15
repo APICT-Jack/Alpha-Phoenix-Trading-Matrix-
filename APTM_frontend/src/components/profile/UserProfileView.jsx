@@ -53,9 +53,12 @@ import {
 
 // Constants for API URLs - FIXED
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
+                 import.meta.env.VITE_BASE_URL || 
+                 (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 const SOCKET_URL = BASE_URL;
 
+// Helper function to format image URLs (same as in UserProfileSettings)
 // Helper function to format image URLs (same as in UserProfileSettings)
 const formatImageUrl = (imagePath, type = 'avatar') => {
   if (!imagePath) return null;
@@ -87,7 +90,13 @@ const formatImageUrl = (imagePath, type = 'avatar') => {
   };
   
   const folder = folders[type] || type;
-  const formattedUrl = `${BASE_URL}/uploads/${folder}/${cleanPath}`;
+  
+  // Use window.location.origin in production to get the correct domain
+  const baseUrl = import.meta.env.PROD 
+    ? window.location.origin 
+    : BASE_URL;
+  
+  const formattedUrl = `${baseUrl}/uploads/${folder}/${cleanPath}`;
   console.log(`✅ Formatted ${type} URL:`, formattedUrl);
   
   return formattedUrl;

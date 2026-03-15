@@ -17,8 +17,12 @@ import UserAvatar from './UserAvatar';
 import './Header.css';
 
 // Constants for API URLs
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+// Constants for API URLs
+const API_URL = import.meta.env.VITE_API_URL || 
+                (import.meta.env.PROD ? `${window.location.origin}/api` : 'http://localhost:5000/api');
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
+                 import.meta.env.VITE_BASE_URL || 
+                 (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 
 // Notification service (simplified) with dynamic URL
 const notificationService = {

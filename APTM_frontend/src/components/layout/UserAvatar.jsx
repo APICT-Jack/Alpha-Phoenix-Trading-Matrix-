@@ -5,7 +5,10 @@ import { FaUser, FaChevronDown, FaCog, FaCashRegister, FaUserCircle, FaSignOutAl
 import './UserAvatar.css';
 
 // Constants for API URLs
-const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+// Constants for API URLs
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
+                 import.meta.env.VITE_BASE_URL ||
+                 (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 
 // Safe user data access utilities
 export const getUserAvatar = (user) => {
