@@ -60,13 +60,17 @@ const SOCKET_URL = BASE_URL;
 const formatImageUrl = (imagePath, type = 'avatar') => {
   if (!imagePath) return null;
   
+  console.log(`🎨 Formatting ${type} URL:`, { imagePath });
+  
   // If it's already a full URL, return as is
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    console.log(`✅ ${type} is already a full URL:`, imagePath);
     return imagePath;
   }
   
   // If it's a data URL, return as is
   if (imagePath.startsWith('data:')) {
+    console.log(`✅ ${type} is a data URL`);
     return imagePath;
   }
   
@@ -74,6 +78,7 @@ const formatImageUrl = (imagePath, type = 'avatar') => {
   let cleanPath = imagePath;
   if (imagePath.includes('/')) {
     cleanPath = imagePath.split('/').pop();
+    console.log(`📁 Extracted filename from path:`, { original: imagePath, clean: cleanPath });
   }
   
   const folders = {
@@ -82,7 +87,10 @@ const formatImageUrl = (imagePath, type = 'avatar') => {
   };
   
   const folder = folders[type] || type;
-  return `${BASE_URL}/uploads/${folder}/${cleanPath}`;
+  const formattedUrl = `${BASE_URL}/uploads/${folder}/${cleanPath}`;
+  console.log(`✅ Formatted ${type} URL:`, formattedUrl);
+  
+  return formattedUrl;
 };
 
 // Socket connection for online status
@@ -101,7 +109,7 @@ const UserProfileView = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState(null);
-  const [posts, setPosts] = useState([]); // Initialize as empty array
+  const [posts, setPosts] = useState([]);
   const [gallery, setGallery] = useState({ folders: [] });
   const [onlineUsers, setOnlineUsers] = useState({});
   const [isUserOnline, setIsUserOnline] = useState(false);
@@ -184,16 +192,13 @@ const UserProfileView = () => {
   // Update online status for current profile user
   useEffect(() => {
     if (profileUser?.id && socket?.connected) {
-      // Request status for this specific user
       socket.emit('user:status', { targetUserId: profileUser.id });
-      
-      // Check if user is in onlineUsers object
       const isOnline = onlineUsers[profileUser.id]?.online || false;
       setIsUserOnline(isOnline);
     }
   }, [profileUser, onlineUsers]);
 
-  // Format user data consistently (like in UserProfileSettings)
+  // Format user data consistently
   const formatUserData = useCallback((userData, isPublic = false) => {
     if (!userData) return null;
     
@@ -228,7 +233,13 @@ const UserProfileView = () => {
     // Extract email
     let email = user.email;
     
-    // Extract avatar - just the filename/path, not the full URL
+    // Extract avatar - log all possible avatar sources
+    console.log('🖼️ Checking avatar sources:', {
+      avatar: user.avatar,
+      avatarUrl: user.avatarUrl,
+      profileAvatar: user.profile?.avatar
+    });
+    
     let avatarData = null;
     if (user.avatar) avatarData = user.avatar;
     else if (user.avatarUrl) avatarData = user.avatarUrl;
@@ -238,7 +249,17 @@ const UserProfileView = () => {
       avatarData = avatarData.url || avatarData.avatarUrl || null;
     }
     
-    // Extract banner - just the filename/path, not the full URL
+    console.log('🎯 Selected avatar data:', avatarData);
+    
+    // Extract banner - log all possible banner sources
+    console.log('🖼️ Checking banner sources:', {
+      bannerImage: user.bannerImage,
+      banner: user.banner,
+      bannerUrl: user.bannerUrl,
+      profileBannerImage: user.profile?.bannerImage,
+      profileBanner: user.profile?.banner
+    });
+    
     let bannerData = null;
     if (user.bannerImage) bannerData = user.bannerImage;
     else if (user.banner) bannerData = user.banner;
@@ -251,6 +272,8 @@ const UserProfileView = () => {
     if (bannerData && typeof bannerData === 'object') {
       bannerData = bannerData.url || bannerData.bannerUrl || null;
     }
+    
+    console.log('🎯 Selected banner data:', bannerData);
     
     const avatarInitial = user.avatarInitial || name?.charAt(0).toUpperCase() || 'U';
     
@@ -369,9 +392,9 @@ const UserProfileView = () => {
     console.log('✅ Formatted user:', {
       id: formattedUser.id,
       name: formattedUser.name,
-      hasBanner: formattedUser.hasBanner,
-      banner: formattedUser.banner,
       avatar: formattedUser.avatar,
+      banner: formattedUser.banner,
+      hasBanner: formattedUser.hasBanner,
       socialLinks: Object.keys(formattedUser.socialLinks).filter(k => formattedUser.socialLinks[k]),
       stats: formattedUser.stats
     });
@@ -392,7 +415,6 @@ const UserProfileView = () => {
       console.log('🔍 Fetching profile for user:', targetUserId, 'isOwnProfile:', isOwnProfile);
 
       if (isOwnProfile) {
-        // For own profile, fetch complete profile data
         console.log('📡 Fetching own complete profile...');
         const response = await fetch(`${API_URL}/profile/complete`, {
           headers: {
@@ -408,7 +430,6 @@ const UserProfileView = () => {
           }
         }
       } else {
-        // FOR OTHER USERS - Try public profile endpoint first
         console.log('📡 Fetching public profile for user:', targetUserId);
         
         try {
@@ -420,12 +441,6 @@ const UserProfileView = () => {
             
             if (publicData.success) {
               userData = formatUserData(publicData.profile || publicData.user || publicData, true);
-              console.log('🎯 User data from public endpoint:', {
-                hasBanner: userData?.hasBanner,
-                banner: userData?.banner,
-                avatar: userData?.avatar,
-                socialLinks: userData?.socialLinks
-              });
             }
           }
         } catch (publicError) {
@@ -455,12 +470,12 @@ const UserProfileView = () => {
       }
 
       if (userData) {
-        console.log('🎯 Setting profile user:', {
+        console.log('🎯 Setting profile user with data:', {
           id: userData.id,
           name: userData.name,
-          hasBanner: userData.hasBanner,
+          avatar: userData.avatar,
           banner: userData.banner,
-          avatar: userData.avatar
+          hasBanner: userData.hasBanner
         });
         
         setProfileUser(userData);
@@ -510,7 +525,6 @@ const UserProfileView = () => {
         console.log('📊 Posts response:', result);
         
         if (result.success) {
-          // Handle different response structures
           let postsArray = [];
           if (result.posts) {
             postsArray = result.posts;
@@ -577,10 +591,8 @@ const UserProfileView = () => {
         console.log('✅ Post created:', result);
         
         if (result.success) {
-          // Add the new post to the beginning of the posts array
           setPosts(prev => [result.post, ...prev]);
           
-          // Update post count
           setProfileUser(prev => ({
             ...prev,
             profile: {
@@ -628,7 +640,6 @@ const UserProfileView = () => {
     }
   }, []);
 
-  // Handle like post (wrapper for PostComponent)
   const handleLikePost = useCallback(async (postId) => {
     return await likePost(postId);
   }, [likePost]);
@@ -670,7 +681,6 @@ const UserProfileView = () => {
     }
   }, []);
 
-  // Handle comment on post (wrapper for PostComponent)
   const handleCommentOnPost = useCallback(async (postId, comment) => {
     return await commentOnPost(postId, comment);
   }, [commentOnPost]);
@@ -697,7 +707,6 @@ const UserProfileView = () => {
         console.log('✅ Reply added:', result);
         
         if (result.success) {
-          // Update the posts state with the new reply
           setPosts(prevPosts => prevPosts.map(post => {
             if (post._id === postId) {
               return {
@@ -742,7 +751,6 @@ const UserProfileView = () => {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Update local state
           setPosts(prev => prev.map(post => {
             if (post._id === postId) {
               return {
@@ -784,7 +792,6 @@ const UserProfileView = () => {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Update local state
           setPosts(prev => prev.map(post => {
             if (post._id === postId) {
               return {
@@ -839,7 +846,7 @@ const UserProfileView = () => {
     }
   }, []);
 
-  // Update handleRepost function
+  // Handle repost
   const handleRepost = useCallback(async (repostData) => {
     try {
       console.log('🔄 Reposting:', repostData);
@@ -861,7 +868,6 @@ const UserProfileView = () => {
         console.log('✅ Repost created:', result);
         
         if (result.success) {
-          // Add the new repost to the timeline if we're on the current user's profile
           if (isOwnProfile) {
             setPosts(prev => [result.repost, ...prev]);
           }
@@ -932,7 +938,6 @@ const UserProfileView = () => {
     }
   }, []);
 
-  // Handle delete post (wrapper for PostComponent)
   const handleDeletePost = useCallback(async (postId) => {
     if (window.confirm('Are you sure you want to delete this post?')) {
       await deletePost(postId);
@@ -1148,7 +1153,6 @@ const UserProfileView = () => {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Update local state
           setPosts(prev => prev.map(post => {
             if (post._id === postId) {
               return {
@@ -1181,7 +1185,6 @@ const UserProfileView = () => {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Update local state
           setPosts(prev => prev.map(post => {
             if (post._id === postId) {
               return {
@@ -1395,15 +1398,23 @@ const UserProfileView = () => {
       }));
   }, [profileUser?.socialLinks]);
 
-  // Get formatted avatar URL (like in UserProfileSettings)
+  // Get formatted avatar URL
   const getFormattedAvatar = useCallback(() => {
-    if (!profileUser?.avatar) return null;
+    if (!profileUser?.avatar) {
+      console.log('❌ No avatar data in profileUser');
+      return null;
+    }
+    console.log('🎯 Formatting avatar from:', profileUser.avatar);
     return formatImageUrl(profileUser.avatar, 'avatar');
   }, [profileUser?.avatar]);
 
-  // Get formatted banner URL (like in UserProfileSettings)
+  // Get formatted banner URL
   const getFormattedBanner = useCallback(() => {
-    if (!profileUser?.banner) return null;
+    if (!profileUser?.banner) {
+      console.log('❌ No banner data in profileUser');
+      return null;
+    }
+    console.log('🎯 Formatting banner from:', profileUser.banner);
     return formatImageUrl(profileUser.banner, 'banner');
   }, [profileUser?.banner]);
 
@@ -1439,10 +1450,18 @@ const UserProfileView = () => {
   const formattedAvatar = getFormattedAvatar();
   const formattedBanner = getFormattedBanner();
 
-  console.log('🎯 Rendering with formatted images:', {
-    avatar: formattedAvatar,
-    banner: formattedBanner,
-    hasBanner: profileUser.hasBanner
+  console.log('🎯 FINAL RENDER VALUES:', {
+    profileUser: {
+      id: profileUser.id,
+      name: profileUser.name,
+      avatar: profileUser.avatar,
+      banner: profileUser.banner,
+      hasBanner: profileUser.hasBanner
+    },
+    formattedAvatar,
+    formattedBanner,
+    avatarError,
+    bannerError
   });
 
   return (
@@ -1482,9 +1501,10 @@ const UserProfileView = () => {
                   alt={`${profileUser.name}'s banner`}
                   className={styles.bannerImage}
                   onError={() => {
-                    console.log('Banner failed to load:', formattedBanner);
+                    console.log('❌ Banner failed to load:', formattedBanner);
                     setBannerError(true);
                   }}
+                  onLoad={() => console.log('✅ Banner loaded successfully:', formattedBanner)}
                 />
               ) : (
                 <div className={styles.bannerPlaceholder}>
@@ -1517,9 +1537,10 @@ const UserProfileView = () => {
                   alt={profileUser.name}
                   className={styles.avatarImage}
                   onError={() => {
-                    console.log('Avatar failed to load:', formattedAvatar);
+                    console.log('❌ Avatar failed to load:', formattedAvatar);
                     setAvatarError(true);
                   }}
+                  onLoad={() => console.log('✅ Avatar loaded successfully:', formattedAvatar)}
                 />
               ) : (
                 <div className={styles.avatarInitial}>
