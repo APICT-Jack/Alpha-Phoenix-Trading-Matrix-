@@ -7,7 +7,8 @@
     "start": "node server.js",
     "cleanup-chat": "node scripts/cleanupChat.js",
     "fix-chat": "node scripts/fixChatIndexes.js",
-    "postinstall": "mkdir -p uploads/avatars uploads/banners uploads/gallery uploads/posts"
+    "postinstall": "mkdir -p uploads/avatars uploads/banners uploads/gallery uploads/posts",
+    "migrate:images": "node scripts/migrateImageUrls.js"
     
   },
   

@@ -1,6 +1,22 @@
-// utils/avatarUtils.js
+// utils/avatarUtils.js - FIXED VERSION
 
-const BASE_URL = process.env.REACT_APP_API_URL || (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000');
+/**
+ * Get the correct base URL based on environment
+ */
+const getBaseUrl = () => {
+  // In production (Render), use the current origin
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  
+  // In development, check for VITE_API_URL first (from .env)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace('/api', '');
+  }
+  
+  // Fallback for development
+  return 'http://localhost:5000';
+};
 
 /**
  * Format avatar URL to ensure it's properly constructed
@@ -8,7 +24,7 @@ const BASE_URL = process.env.REACT_APP_API_URL || (import.meta.env.VITE_API_URL 
  * @returns {string|null} - Formatted avatar URL or null
  */
 export const formatAvatarUrl = (avatarData) => {
-  // If it's null, undefined, or empty string, return null silently (no console.error)
+  // If it's null, undefined, or empty string, return null silently
   if (!avatarData || avatarData === 'null' || avatarData === 'undefined') {
     return null;
   }
@@ -35,7 +51,13 @@ export const formatAvatarUrl = (avatarData) => {
       return null;
     }
 
-    // If it's already a full URL, return as is
+    // CRITICAL FIX: If it's already a full URL with localhost and we're in production, fix it
+    if (avatarPath.includes('localhost') && import.meta.env.PROD) {
+      const filename = avatarPath.split('/').pop();
+      return `${window.location.origin}/uploads/avatars/${filename}`;
+    }
+
+    // If it's already a full URL (not localhost), return as is
     if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
       return avatarPath;
     }
@@ -45,26 +67,28 @@ export const formatAvatarUrl = (avatarData) => {
       return avatarPath;
     }
 
+    const baseUrl = getBaseUrl();
+
     // Handle /uploads paths
     if (avatarPath.startsWith('/uploads/')) {
-      return `${BASE_URL}${avatarPath}`;
+      return `${baseUrl}${avatarPath}`;
     }
 
     // Handle uploads paths without leading slash
     if (avatarPath.startsWith('uploads/')) {
-      return `${BASE_URL}/${avatarPath}`;
+      return `${baseUrl}/${avatarPath}`;
     }
 
     // If it contains avatar- (likely a filename)
     if (avatarPath.includes('avatar-')) {
-      return `${BASE_URL}/uploads/avatars/${avatarPath}`;
+      return `${baseUrl}/uploads/avatars/${avatarPath}`;
     }
 
     // Default case - try to construct a path
-    return `${BASE_URL}/uploads/avatars/${avatarPath}`;
+    return `${baseUrl}/uploads/avatars/${avatarPath}`;
 
   } catch (error) {
-    // Silent fail - just return null
+    console.error('Error formatting avatar URL:', error);
     return null;
   }
 };
@@ -98,6 +122,12 @@ export const formatBannerUrl = (bannerData) => {
       return null;
     }
 
+    // CRITICAL FIX: If it's already a full URL with localhost and we're in production, fix it
+    if (bannerPath.includes('localhost') && import.meta.env.PROD) {
+      const filename = bannerPath.split('/').pop();
+      return `${window.location.origin}/uploads/banners/${filename}`;
+    }
+
     if (bannerPath.startsWith('http://') || bannerPath.startsWith('https://')) {
       return bannerPath;
     }
@@ -106,21 +136,24 @@ export const formatBannerUrl = (bannerData) => {
       return bannerPath;
     }
 
+    const baseUrl = getBaseUrl();
+
     if (bannerPath.startsWith('/uploads/banners/')) {
-      return `${BASE_URL}${bannerPath}`;
+      return `${baseUrl}${bannerPath}`;
     }
 
     if (bannerPath.startsWith('uploads/banners/')) {
-      return `${BASE_URL}/${bannerPath}`;
+      return `${baseUrl}/${bannerPath}`;
     }
 
     if (bannerPath.includes('banner-')) {
-      return `${BASE_URL}/uploads/banners/${bannerPath}`;
+      return `${baseUrl}/uploads/banners/${bannerPath}`;
     }
 
-    return `${BASE_URL}/uploads/banners/${bannerPath}`;
+    return `${baseUrl}/uploads/banners/${bannerPath}`;
 
   } catch (error) {
+    console.error('Error formatting banner URL:', error);
     return null;
   }
 };
