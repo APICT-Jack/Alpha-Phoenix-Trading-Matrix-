@@ -1,20 +1,45 @@
-// utils/avatarUtils.js - FIXED VERSION
+// utils/avatarUtils.js - COMPLETE FIXED VERSION
 
 /**
  * Get the correct base URL based on environment
  */
 const getBaseUrl = () => {
-  // In production (Render), use the current origin
-  if (import.meta.env.PROD) {
+  console.log('🔍 getBaseUrl called:', {
+    mode: import.meta.env.MODE,
+    prod: import.meta.env.PROD,
+    dev: import.meta.env.DEV,
+    viteApiUrl: import.meta.env.VITE_API_URL,
+    origin: window.location.origin,
+    hostname: window.location.hostname
+  });
+
+  // Method 1: Use VITE_API_URL if available (for both dev and prod)
+  if (import.meta.env.VITE_API_URL) {
+    const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+    console.log('✅ Using VITE_API_URL:', baseUrl);
+    return baseUrl;
+  }
+
+  // Method 2: Check if we're on Render domain
+  if (window.location.hostname.includes('onrender.com')) {
+    console.log('✅ Detected Render domain, using:', window.location.origin);
     return window.location.origin;
   }
-  
-  // In development, check for VITE_API_URL first (from .env)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace('/api', '');
+
+  // Method 3: Use window.location.origin in production
+  if (import.meta.env.PROD) {
+    console.log('✅ Production mode, using:', window.location.origin);
+    return window.location.origin;
   }
-  
-  // Fallback for development
+
+  // Method 4: Check hostname for localhost
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log('✅ Using localhost:', 'http://localhost:5000');
+    return 'http://localhost:5000';
+  }
+
+  // Final fallback
+  console.log('⚠️ Using fallback URL: http://localhost:5000');
   return 'http://localhost:5000';
 };
 
@@ -51,19 +76,27 @@ export const formatAvatarUrl = (avatarData) => {
       return null;
     }
 
+    console.log('🎨 Formatting avatar URL from:', avatarPath);
+
+    // If it's a data URL (base64), return as is
+    if (avatarPath.startsWith('data:')) {
+      console.log('✅ Avatar is data URL');
+      return avatarPath;
+    }
+
     // CRITICAL FIX: If it's already a full URL with localhost and we're in production, fix it
-    if (avatarPath.includes('localhost') && import.meta.env.PROD) {
+    if (avatarPath.includes('localhost') && (import.meta.env.PROD || window.location.hostname.includes('onrender.com'))) {
+      console.log('⚠️ Found localhost URL in production, fixing...');
       const filename = avatarPath.split('/').pop();
-      return `${window.location.origin}/uploads/avatars/${filename}`;
+      const baseUrl = getBaseUrl();
+      const fixedUrl = `${baseUrl}/uploads/avatars/${filename}`;
+      console.log('✅ Fixed avatar URL:', fixedUrl);
+      return fixedUrl;
     }
 
     // If it's already a full URL (not localhost), return as is
     if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
-      return avatarPath;
-    }
-
-    // If it's a data URL (base64), return as is
-    if (avatarPath.startsWith('data:')) {
+      console.log('✅ Avatar is already a full URL:', avatarPath);
       return avatarPath;
     }
 
@@ -71,24 +104,32 @@ export const formatAvatarUrl = (avatarData) => {
 
     // Handle /uploads paths
     if (avatarPath.startsWith('/uploads/')) {
-      return `${baseUrl}${avatarPath}`;
+      const fullUrl = `${baseUrl}${avatarPath}`;
+      console.log('✅ Formatted avatar (path):', fullUrl);
+      return fullUrl;
     }
 
     // Handle uploads paths without leading slash
     if (avatarPath.startsWith('uploads/')) {
-      return `${baseUrl}/${avatarPath}`;
+      const fullUrl = `${baseUrl}/${avatarPath}`;
+      console.log('✅ Formatted avatar (uploads):', fullUrl);
+      return fullUrl;
     }
 
     // If it contains avatar- (likely a filename)
     if (avatarPath.includes('avatar-')) {
-      return `${baseUrl}/uploads/avatars/${avatarPath}`;
+      const fullUrl = `${baseUrl}/uploads/avatars/${avatarPath}`;
+      console.log('✅ Formatted avatar (filename):', fullUrl);
+      return fullUrl;
     }
 
     // Default case - try to construct a path
-    return `${baseUrl}/uploads/avatars/${avatarPath}`;
+    const fullUrl = `${baseUrl}/uploads/avatars/${avatarPath}`;
+    console.log('✅ Formatted avatar (default):', fullUrl);
+    return fullUrl;
 
   } catch (error) {
-    console.error('Error formatting avatar URL:', error);
+    console.error('❌ Error formatting avatar URL:', error);
     return null;
   }
 };
@@ -122,38 +163,54 @@ export const formatBannerUrl = (bannerData) => {
       return null;
     }
 
-    // CRITICAL FIX: If it's already a full URL with localhost and we're in production, fix it
-    if (bannerPath.includes('localhost') && import.meta.env.PROD) {
-      const filename = bannerPath.split('/').pop();
-      return `${window.location.origin}/uploads/banners/${filename}`;
-    }
+    console.log('🎨 Formatting banner URL from:', bannerPath);
 
-    if (bannerPath.startsWith('http://') || bannerPath.startsWith('https://')) {
+    if (bannerPath.startsWith('data:')) {
+      console.log('✅ Banner is data URL');
       return bannerPath;
     }
 
-    if (bannerPath.startsWith('data:')) {
+    // CRITICAL FIX: If it's already a full URL with localhost and we're in production, fix it
+    if (bannerPath.includes('localhost') && (import.meta.env.PROD || window.location.hostname.includes('onrender.com'))) {
+      console.log('⚠️ Found localhost URL in production, fixing...');
+      const filename = bannerPath.split('/').pop();
+      const baseUrl = getBaseUrl();
+      const fixedUrl = `${baseUrl}/uploads/banners/${filename}`;
+      console.log('✅ Fixed banner URL:', fixedUrl);
+      return fixedUrl;
+    }
+
+    if (bannerPath.startsWith('http://') || bannerPath.startsWith('https://')) {
+      console.log('✅ Banner is already a full URL:', bannerPath);
       return bannerPath;
     }
 
     const baseUrl = getBaseUrl();
 
     if (bannerPath.startsWith('/uploads/banners/')) {
-      return `${baseUrl}${bannerPath}`;
+      const fullUrl = `${baseUrl}${bannerPath}`;
+      console.log('✅ Formatted banner (path):', fullUrl);
+      return fullUrl;
     }
 
     if (bannerPath.startsWith('uploads/banners/')) {
-      return `${baseUrl}/${bannerPath}`;
+      const fullUrl = `${baseUrl}/${bannerPath}`;
+      console.log('✅ Formatted banner (uploads):', fullUrl);
+      return fullUrl;
     }
 
     if (bannerPath.includes('banner-')) {
-      return `${baseUrl}/uploads/banners/${bannerPath}`;
+      const fullUrl = `${baseUrl}/uploads/banners/${bannerPath}`;
+      console.log('✅ Formatted banner (filename):', fullUrl);
+      return fullUrl;
     }
 
-    return `${baseUrl}/uploads/banners/${bannerPath}`;
+    const fullUrl = `${baseUrl}/uploads/banners/${bannerPath}`;
+    console.log('✅ Formatted banner (default):', fullUrl);
+    return fullUrl;
 
   } catch (error) {
-    console.error('Error formatting banner URL:', error);
+    console.error('❌ Error formatting banner URL:', error);
     return null;
   }
 };
@@ -336,4 +393,16 @@ export const getBannerProps = (user) => {
     src,
     hasImage: !!src
   };
+};
+
+// Default export for convenience
+export default {
+  formatAvatarUrl,
+  formatBannerUrl,
+  getAvatarInitial,
+  hasValidAvatar,
+  hasValidBanner,
+  getAvatarColor,
+  getAvatarProps,
+  getBannerProps
 };
