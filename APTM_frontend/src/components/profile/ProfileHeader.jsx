@@ -1,4 +1,4 @@
-// ProfileHeader.jsx - FIXED VERSION USING UTILITIES
+// ProfileHeader.jsx - FIXED VERSION (Following UserProfileSettings pattern)
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -21,8 +21,11 @@ import {
   FaInstagram
 } from 'react-icons/fa';
 
-// Import the utility functions
-import { formatAvatarUrl, formatBannerUrl, getAvatarInitial, hasValidBanner } from '../../utils/avatarUtils';
+// Constants for API URLs - same as UserProfileSettings
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
+                 import.meta.env.VITE_BASE_URL || 
+                 (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 
 const socialIcons = {
   twitter: FaTwitter,
@@ -36,6 +39,36 @@ const socialIcons = {
   reddit: FaReddit,
   youtube: FaYoutube,
   instagram: FaInstagram
+};
+
+// Helper function to format image URLs - EXACT same as UserProfileSettings
+const formatImageUrl = (imagePath, type = 'avatar') => {
+  if (!imagePath) return null;
+  
+  // If it's already a full URL, return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // If it's a data URL, return as is
+  if (imagePath.startsWith('data:')) {
+    return imagePath;
+  }
+  
+  // Extract just the filename if it contains path
+  let cleanPath = imagePath;
+  if (imagePath.includes('/')) {
+    cleanPath = imagePath.split('/').pop();
+  }
+  
+  const folders = {
+    avatar: 'avatars',
+    banner: 'banners',
+    addressProof: 'address-proofs'
+  };
+  
+  const folder = folders[type] || type;
+  return `${BASE_URL}/uploads/${folder}/${cleanPath}`;
 };
 
 const ProfileHeader = ({
@@ -54,7 +87,7 @@ const ProfileHeader = ({
   const [avatarError, setAvatarError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
 
-  // Format avatar URL using the utility
+  // Format avatar URL using the helper - exactly like UserProfileSettings
   const getFormattedAvatar = () => {
     if (!profileUser?.avatar) return null;
     
@@ -63,11 +96,10 @@ const ProfileHeader = ({
     if (profileUser.avatarUrl) avatarPath = profileUser.avatarUrl;
     if (profileUser.profile?.avatar) avatarPath = profileUser.profile.avatar;
     
-    // Use the utility function
-    return formatAvatarUrl(avatarPath);
+    return formatImageUrl(avatarPath, 'avatar');
   };
 
-  // Format banner URL using the utility
+  // Format banner URL using the helper - exactly like UserProfileSettings
   const getFormattedBanner = () => {
     // Check multiple possible banner sources
     let bannerPath = null;
@@ -80,8 +112,7 @@ const ProfileHeader = ({
     
     if (!bannerPath) return null;
     
-    // Use the utility function
-    return formatBannerUrl(bannerPath);
+    return formatImageUrl(bannerPath, 'banner');
   };
 
   const handleSocialLinkClick = (url) => {
@@ -154,7 +185,6 @@ const ProfileHeader = ({
 
   const formattedAvatar = getFormattedAvatar();
   const formattedBanner = getFormattedBanner();
-  const bannerExists = hasBanner || profileUser?.hasBanner || hasValidBanner(profileUser?.banner) || !!formattedBanner;
 
   console.log('🎯 ProfileHeader render:', {
     profileUser: {
@@ -166,9 +196,10 @@ const ProfileHeader = ({
     },
     formattedAvatar,
     formattedBanner,
-    bannerExists,
     avatarError,
-    bannerError
+    bannerError,
+    BASE_URL,
+    environment: import.meta.env.PROD ? 'production' : 'development'
   });
 
   return (
@@ -176,7 +207,7 @@ const ProfileHeader = ({
       {/* Banner Section */}
       <div className={styles.bannerSection}>
         <div className={styles.bannerWrapper}>
-          {bannerExists && formattedBanner && !bannerError ? (
+          {(hasBanner || formattedBanner) && !bannerError ? (
             <img 
               src={formattedBanner} 
               alt={`${profileUser?.name || 'User'}'s banner`}
@@ -227,7 +258,7 @@ const ProfileHeader = ({
             />
           ) : (
             <div className={styles.avatarInitial}>
-              {profileUser?.avatarInitial || getAvatarInitial(profileUser) || 'U'}
+              {profileUser?.avatarInitial || profileUser?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
           )}
         </div>
