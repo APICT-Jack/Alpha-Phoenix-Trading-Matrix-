@@ -1,4 +1,4 @@
-// ProfileHeader.jsx - COMPLETE FIXED VERSION
+// ProfileHeader.jsx - COMPLETE FIXED VERSION WITH AGGRESSIVE URL FIXING
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -53,29 +53,27 @@ const socialIcons = {
   instagram: FaInstagram
 };
 
-// FIXED: Intelligent URL formatter that fixes localhost URLs in production
+// FIXED: Aggressive URL formatter that ALWAYS fixes localhost URLs in production
 const formatImageUrl = (imagePath, type = 'avatar') => {
   if (!imagePath) return null;
   
   console.log(`🎨 Formatting ${type} URL:`, imagePath);
+  console.log(`🌍 Environment:`, import.meta.env.PROD ? 'production' : 'development');
+  console.log(`📍 Current origin:`, window.location.origin);
   
   // If it's a data URL, return as is
   if (imagePath.startsWith('data:')) {
     return imagePath;
   }
   
-  // Handle full URLs
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    // CRITICAL FIX: If we're in production and the URL contains localhost, replace it
-    if (import.meta.env.PROD && imagePath.includes('localhost')) {
-      console.log(`⚠️ ${type} URL contains localhost in production, fixing...`);
-      // Extract just the filename
-      const filename = imagePath.split('/').pop();
-      const fixedUrl = `${window.location.origin}/uploads/${type === 'avatar' ? 'avatars' : 'banners'}/${filename}`;
-      console.log(`✅ Fixed ${type} URL:`, fixedUrl);
-      return fixedUrl;
-    }
-    return imagePath;
+  // CRITICAL FIX: ALWAYS check for localhost in production regardless of URL format
+  if (import.meta.env.PROD && imagePath.includes('localhost')) {
+    console.log(`⚠️ ${type} URL contains localhost in production, FORCE FIXING...`);
+    // Extract just the filename
+    const filename = imagePath.split('/').pop();
+    const fixedUrl = `${window.location.origin}/uploads/${type === 'avatar' ? 'avatars' : 'banners'}/${filename}`;
+    console.log(`✅ Fixed ${type} URL:`, fixedUrl);
+    return fixedUrl;
   }
   
   // Handle paths starting with /uploads
