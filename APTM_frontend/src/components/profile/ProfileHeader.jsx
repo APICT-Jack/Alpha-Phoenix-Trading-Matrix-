@@ -47,7 +47,8 @@ const ProfileHeader = ({
   onAvatarClick,
   onStatClick,
   bannerUrl,
-  hasBanner
+  hasBanner,
+   isOnline
 }) => {
   const navigate = useNavigate();
   const [avatarError, setAvatarError] = useState(false);
