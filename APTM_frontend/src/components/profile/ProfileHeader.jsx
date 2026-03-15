@@ -1,4 +1,4 @@
-// ProfileHeader.jsx - FIXED VERSION
+// ProfileHeader.jsx - COMPLETE FIXED VERSION
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -21,9 +21,14 @@ import {
   FaInstagram
 } from 'react-icons/fa';
 
-// FIXED: Better URL construction for Render deployment
+// FIXED: Get the correct base URL based on environment
 const getBaseUrl = () => {
-  // First try environment variables
+  // For production (Render), use the current origin
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  
+  // For development, try environment variables
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL.replace('/api', '');
   }
@@ -31,12 +36,6 @@ const getBaseUrl = () => {
     return import.meta.env.VITE_BASE_URL;
   }
   
-  // For production (Render), use window.location.origin
-  if (import.meta.env.PROD) {
-    return window.location.origin;
-  }
-  
-  // Fallback for development
   return 'http://localhost:5000';
 };
 
@@ -54,44 +53,52 @@ const socialIcons = {
   instagram: FaInstagram
 };
 
-// FIXED: Improved image URL formatter
+// FIXED: Intelligent URL formatter that fixes localhost URLs in production
 const formatImageUrl = (imagePath, type = 'avatar') => {
   if (!imagePath) return null;
   
   console.log(`🎨 Formatting ${type} URL:`, imagePath);
   
-  // If it's already a full URL, return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    console.log(`✅ ${type} is already a full URL:`, imagePath);
-    return imagePath;
-  }
-  
   // If it's a data URL, return as is
   if (imagePath.startsWith('data:')) {
-    console.log(`✅ ${type} is a data URL`);
     return imagePath;
   }
   
-  // Get the base URL
-  const baseUrl = getBaseUrl();
+  // Handle full URLs
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    // CRITICAL FIX: If we're in production and the URL contains localhost, replace it
+    if (import.meta.env.PROD && imagePath.includes('localhost')) {
+      console.log(`⚠️ ${type} URL contains localhost in production, fixing...`);
+      // Extract just the filename
+      const filename = imagePath.split('/').pop();
+      const fixedUrl = `${window.location.origin}/uploads/${type === 'avatar' ? 'avatars' : 'banners'}/${filename}`;
+      console.log(`✅ Fixed ${type} URL:`, fixedUrl);
+      return fixedUrl;
+    }
+    return imagePath;
+  }
   
-  // Determine the correct folder
+  // Handle paths starting with /uploads
+  if (imagePath.startsWith('/uploads/')) {
+    const baseUrl = getBaseUrl();
+    return `${baseUrl}${imagePath}`;
+  }
+  
+  // Handle just filenames
+  const baseUrl = getBaseUrl();
   const folders = {
     avatar: 'avatars',
     banner: 'banners'
   };
   const folder = folders[type] || type;
   
-  // Extract just the filename
+  // Extract just the filename if it contains path
   let filename = imagePath;
   if (imagePath.includes('/')) {
     filename = imagePath.split('/').pop();
   }
   
-  // Construct the full URL
-  // For Render, we need to ensure we're using the correct path
   const formattedUrl = `${baseUrl}/uploads/${folder}/${filename}`;
-  
   console.log(`✅ Formatted ${type} URL:`, formattedUrl);
   
   return formattedUrl;
@@ -162,7 +169,6 @@ const ProfileHeader = ({
   const getActiveSocialLinks = () => {
     if (!profileUser?.socialLinks) return [];
     
-    // Handle both direct socialLinks and nested profile.socialLinks
     const socialLinks = profileUser.socialLinks || profileUser.profile?.socialLinks || {};
     
     return Object.entries(socialLinks)
@@ -224,7 +230,9 @@ const ProfileHeader = ({
     formattedAvatar,
     formattedBanner,
     avatarError,
-    bannerError
+    bannerError,
+    environment: import.meta.env.PROD ? 'production' : 'development',
+    origin: window.location.origin
   });
 
   return (
