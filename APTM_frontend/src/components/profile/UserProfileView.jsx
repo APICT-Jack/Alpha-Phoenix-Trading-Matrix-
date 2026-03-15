@@ -13,6 +13,8 @@ import CreatePost from './CreatePost';
 import PostComponent from './PostComponent';
 import OverviewTab from './OverviewTab';
 import GalleryComponent from './GalleryComponent';
+// In UserProfileView.jsx, add this import with the other component imports
+import ProfileHeader from './ProfileHeader';  // Add this line
 
 // Import utilities - SAME as ConnectionPanel
 import { formatAvatarUrl, formatBannerUrl, getAvatarInitial, hasValidAvatar, hasValidBanner } from '../../utils/avatarUtils';
