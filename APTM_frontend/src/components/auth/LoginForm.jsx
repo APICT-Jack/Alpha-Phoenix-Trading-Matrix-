@@ -10,7 +10,9 @@ const LoginForm = ({ onSuccess, switchToSignup, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn } = useAuth();
+  
+  // ✅ Fix: Destructure signInWithGoogle from useAuth
+  const { signIn, signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -62,29 +64,30 @@ const LoginForm = ({ onSuccess, switchToSignup, onClose }) => {
       setLoading(false);
     }
   };
-  const handleGoogleSignIn = async () => {
-  setError('');
-  setGoogleLoading(true);
 
-  try {
-    console.log('🔐 Attempting Google sign in');
-    
-    // ✅ Use the signInWithGoogle function from AuthContext
-    const result = await signInWithGoogle();
-    
-    if (result && result.success) {
-      console.log('🎉 Google sign in successful');
-      if (onSuccess) onSuccess();
-    } else {
-      setError(result?.message || 'Google sign in failed');
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+
+    try {
+      console.log('🔐 Attempting Google sign in');
+      
+      // ✅ Now signInWithGoogle is properly defined
+      const result = await signInWithGoogle();
+      
+      if (result && result.success) {
+        console.log('🎉 Google sign in successful');
+        if (onSuccess) onSuccess();
+      } else {
+        setError(result?.message || 'Google sign in failed');
+      }
+    } catch (error) {
+      console.error('❌ Google sign in error:', error);
+      setError(error.message || 'Google sign in failed');
+    } finally {
+      setGoogleLoading(false);
     }
-  } catch (error) {
-    console.error('❌ Google sign in error:', error);
-    setError(error.message || 'Google sign in failed');
-  } finally {
-    setGoogleLoading(false);
-  }
-};
+  };
 
   const handleForgotPassword = () => {
     console.log('Forgot password clicked for:', email);
