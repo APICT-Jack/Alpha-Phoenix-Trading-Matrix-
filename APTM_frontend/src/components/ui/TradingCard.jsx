@@ -57,24 +57,52 @@ export default function TradingCard() {
     alert(`Copy trade executed with TP: ${positionSettings.takeProfit}, SL: ${positionSettings.stopLoss}`);
   };
 
-  // Clean up TradingView widget properly
+  // FIXED: Safe cleanup function with proper error handling
   const removeTradingViewWidget = () => {
+    // Remove widget reference first
     if (tradingViewWidgetRef.current) {
       try {
-        tradingViewWidgetRef.current.remove();
-        tradingViewWidgetRef.current = null;
+        // Check if widget exists and has remove method
+        if (tradingViewWidgetRef.current && typeof tradingViewWidgetRef.current.remove === 'function') {
+          tradingViewWidgetRef.current.remove();
+        }
       } catch (error) {
-        console.log('Error removing TradingView widget:', error);
+        // Silently fail - widget might already be removed
+        console.debug('Widget removal (non-critical):', error.message);
+      } finally {
+        tradingViewWidgetRef.current = null;
       }
     }
     
-    // Remove any existing TradingView scripts
-    const scripts = document.querySelectorAll('script[src*="tradingview.com"]');
-    scripts.forEach(script => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
+    // FIXED: Safely remove scripts with null checks
+    try {
+      const scripts = document.querySelectorAll('script[src*="tradingview.com"]');
+      scripts.forEach(script => {
+        // Check if script exists and has parentNode before removing
+        if (script && script.parentNode) {
+          try {
+            script.parentNode.removeChild(script);
+          } catch (e) {
+            // Script might already be removed
+            console.debug('Script removal (non-critical):', e.message);
+          }
+        }
+      });
+    } catch (error) {
+      console.debug('Error cleaning up scripts:', error.message);
+    }
+    
+    // FIXED: Safely clear container content
+    if (widgetRef.current) {
+      try {
+        // Check if widgetRef.current is still valid
+        if (widgetRef.current && widgetRef.current.innerHTML) {
+          widgetRef.current.innerHTML = '';
+        }
+      } catch (error) {
+        console.debug('Error clearing container:', error.message);
       }
-    });
+    }
   };
 
   const initializeTradingView = () => {
@@ -83,8 +111,12 @@ export default function TradingCard() {
     setIsLoading(true);
     
     // Clear previous content safely
-    if (widgetRef.current) {
-      widgetRef.current.innerHTML = '';
+    try {
+      if (widgetRef.current) {
+        widgetRef.current.innerHTML = '';
+      }
+    } catch (error) {
+      console.debug('Error clearing container:', error);
     }
 
     // Remove any existing widget first
@@ -97,8 +129,18 @@ export default function TradingCard() {
     tvContainer.style.height = '100%';
     tvContainer.style.minHeight = '400px';
     
+    // FIXED: Check if widgetRef.current still exists
     if (widgetRef.current) {
-      widgetRef.current.appendChild(tvContainer);
+      try {
+        widgetRef.current.appendChild(tvContainer);
+      } catch (error) {
+        console.error('Error appending container:', error);
+        setIsLoading(false);
+        return;
+      }
+    } else {
+      setIsLoading(false);
+      return;
     }
 
     const loadTradingViewScript = () => {
@@ -380,27 +422,44 @@ export default function TradingCard() {
     }
   };
 
+  // FIXED: Clean up on unmount with proper error handling
   useEffect(() => {
-    // Clean up on unmount
     return () => {
-      removeTradingViewWidget();
+      try {
+        removeTradingViewWidget();
+      } catch (error) {
+        console.debug('Cleanup error (non-critical):', error.message);
+      }
     };
   }, []);
 
   useEffect(() => {
-    switch (activeTab) {
-      case 'tradingview':
-        initializeTradingView();
-        break;
-      case 'positions':
-        initializePositionSettings();
-        break;
-      case 'stats':
-        initializeAccountStats();
-        break;
-      default:
-        initializeTradingView();
-    }
+    let isMounted = true;
+    
+    const loadContent = () => {
+      if (!isMounted) return;
+      
+      switch (activeTab) {
+        case 'tradingview':
+          initializeTradingView();
+          break;
+        case 'positions':
+          initializePositionSettings();
+          break;
+        case 'stats':
+          initializeAccountStats();
+          break;
+        default:
+          initializeTradingView();
+      }
+    };
+
+    loadContent();
+
+    return () => {
+      isMounted = false;
+      // Don't try to clean up here as removeTradingViewWidget will be called on unmount
+    };
   }, [activeTab, darkMode]);
 
   return (
