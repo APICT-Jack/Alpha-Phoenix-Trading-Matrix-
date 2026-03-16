@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { socketService } from '../../services/userStatusService';
+import { userStatusService } from '../../services/userStatusService';
 import styles from './ConnectionPanel.module.css';
 import { formatAvatarUrl, getAvatarInitial, hasValidAvatar } from '../../utils/avatarUtils';
 

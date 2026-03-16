@@ -20,7 +20,7 @@ import { experienceLevels } from './profileConstants';
 
 // Import services
 import { socketService } from '../../services/socketService';
-import { profileService } from '../../services/userStatusService';
+import { userStatusService } from '../../services/userStatusService';
 
 // Import styles
 import styles from './UserProfileView.module.css';
