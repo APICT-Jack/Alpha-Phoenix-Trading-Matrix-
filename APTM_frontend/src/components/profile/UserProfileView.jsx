@@ -20,7 +20,7 @@ import { experienceLevels } from './profileConstants';
 
 // Import services
 import { socketService } from '../../services/socketService';
-import { profileService } from '../../services/profileService';
+import { profileService } from '../../services/userStatusService';
 
 // Import styles
 import styles from './UserProfileView.module.css';
@@ -109,31 +109,89 @@ const UserProfileView = () => {
   };
 
   // ============ SOCKET & PROFILE SERVICE SETUP ============
-  useEffect(() => {
-    if (!currentUser || !currentUser.id) return;
+  // In UserProfileView.jsx - Update the socket related useEffect blocks
 
-    console.log('🔌 Initializing socket for user:', currentUser.id);
+// Replace the existing socket-related useEffects with this:
 
-    // Connect to socket
-    socketService.connect(currentUser.id, localStorage.getItem('token'));
+// ============ USER STATUS SERVICE SETUP ============
+useEffect(() => {
+  if (!currentUser || !currentUser.id) return;
 
-    // Check connection
-    const checkConnection = async () => {
-      const isConnected = await socketService.checkConnection(3000);
-      setSocketConnected(isConnected);
-    };
-    
-    checkConnection();
+  console.log('🔌 Initializing user status service for:', currentUser.id);
 
-    // Monitor connection
-    const connectionInterval = setInterval(() => {
-      setSocketConnected(socketService.isConnected());
-    }, 5000);
+  // Initialize the service
+  userStatusService.init(currentUser, {
+    onConnect: () => {
+      console.log('✅ User status service connected');
+      setSocketConnected(true);
+      
+      // Request status for the current profile user
+      if (profileUser?.id) {
+        setTimeout(() => {
+          userStatusService.getUserStatus(profileUser.id);
+        }, 500);
+      }
+    },
+    onDisconnect: () => {
+      console.log('❌ User status service disconnected');
+      setSocketConnected(false);
+    },
+    onUserOnline: (data) => {
+      console.log('🟢 User online:', data);
+      if (data.userId === profileUser?.id) {
+        setIsUserOnline(true);
+        setLastSeen(null);
+      }
+      setOnlineUsers(prev => ({ ...prev, [data.userId]: true }));
+    },
+    onUserOffline: (data) => {
+      console.log('🔴 User offline:', data);
+      if (data.userId === profileUser?.id) {
+        setIsUserOnline(false);
+        setLastSeen(data.timestamp || new Date());
+      }
+      setOnlineUsers(prev => ({ ...prev, [data.userId]: false }));
+    },
+    onUsersOnline: (users) => {
+      console.log('📊 Online users received');
+      setOnlineUsers(prev => {
+        const newState = { ...prev };
+        Object.entries(users).forEach(([id, status]) => {
+          newState[id] = status.online;
+        });
+        return newState;
+      });
+      
+      // Update current profile status
+      if (profileUser?.id && users[profileUser.id]) {
+        setIsUserOnline(true);
+        setLastSeen(null);
+      }
+    },
+    onUserStatusResponse: (data) => {
+      console.log('📡 User status response:', data);
+      if (data.userId === profileUser?.id) {
+        setIsUserOnline(data.isOnline);
+        if (!data.isOnline && data.lastSeen) {
+          setLastSeen(data.lastSeen);
+        }
+      }
+    }
+  });
 
-    return () => {
-      clearInterval(connectionInterval);
-    };
-  }, [currentUser?.id]);
+  return () => {
+    console.log('🧹 Cleaning up user status service');
+    userStatusService.disconnect();
+  };
+}, [currentUser, profileUser?.id]);
+
+// Add effect to request status when profile user changes
+useEffect(() => {
+  if (profileUser?.id && userStatusService.isConnected()) {
+    console.log('🔍 Requesting status for profile user:', profileUser.id);
+    userStatusService.getUserStatus(profileUser.id);
+  }
+}, [profileUser?.id]);
 
   // ============ PROFILE TRACKING ============
   useEffect(() => {

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { socketService } from '../../services/socketService';
+import { socketService } from '../../services/userStatusService';
 import styles from './ConnectionPanel.module.css';
 import { formatAvatarUrl, getAvatarInitial, hasValidAvatar } from '../../utils/avatarUtils';
 
@@ -112,157 +112,122 @@ const ConnectionPanel = () => {
 
   // Initialize socket connection
   useEffect(() => {
-    if (!currentUser) {
-      console.log('❌ No current user, skipping socket connection');
-      return;
-    }
-    
-    console.log('🔌 Initializing socket connection for user:', currentUser.id);
-    
-    // Connect to socket
-    socketService.connect(currentUser.id, localStorage.getItem('token'));
-    
-    // Join user's personal room
-    socketService.joinUser(currentUser.id);
+  if (!currentUser) {
+    console.log('❌ No current user, skipping user status service');
+    return;
+  }
+  
+  console.log('🔌 ConnectionPanel initializing user status service');
 
-    // Set up event listeners
-    socketService.on('users:online', handleOnlineUsers);
-    socketService.on('user:online', handleUserOnline);
-    socketService.on('user:offline', handleUserOffline);
-    socketService.on('user:status:response', handleUserStatusResponse);
-
-    // Listen for connect event
-    const handleConnect = () => {
-      console.log('✅ Socket connected successfully');
-      socketService.getSocket()?.emit('get-online-users');
-      socketService.getUserStatus(currentUser.id);
-    };
-    
-    socketService.on('connect', handleConnect);
-
-    // Listen for room updates
-    socketService.on('room-updated', (room) => {
-      setChatRooms(prev => 
-        prev.map(r => r.id === room.id ? { ...r, ...room } : r)
-      );
-    });
-
-    socketService.on('room-created', (room) => {
-      setChatRooms(prev => [room, ...prev]);
-      addRecentActivity({
-        type: 'room-created',
-        roomId: room.id,
-        roomName: room.title,
-        timestamp: new Date().toISOString()
-      });
-    });
-
-    socketService.on('room-deleted', (roomId) => {
-      setChatRooms(prev => prev.filter(r => r.id !== roomId));
-    });
-
-    socketService.on('room-member-joined', ({ roomId, user }) => {
-      setRoomMembers(prev => ({
-        ...prev,
-        [roomId]: [...(prev[roomId] || []), user]
-      }));
+  userStatusService.init(currentUser, {
+    onConnect: () => {
+      console.log('✅ ConnectionPanel: User status service connected');
       
-      setChatRooms(prev => 
-        prev.map(room => 
-          room.id === roomId 
-            ? { ...room, memberCount: (room.memberCount || 0) + 1 }
-            : room
-        )
-      );
-
-      addRecentActivity({
-        type: 'member-joined',
-        roomId,
-        userName: user.name,
-        timestamp: new Date().toISOString()
-      });
-    });
-
-    socketService.on('room-member-left', ({ roomId, userId }) => {
-      setRoomMembers(prev => ({
-        ...prev,
-        [roomId]: (prev[roomId] || []).filter(member => member.id !== userId)
-      }));
-      
-      setChatRooms(prev => 
-        prev.map(room => 
-          room.id === roomId 
-            ? { ...room, memberCount: Math.max(0, (room.memberCount || 1) - 1) }
-            : room
-        )
-      );
-    });
-
-    socketService.on('user-typing', ({ roomId, userId, username }) => {
-      setTypingUsers(prev => ({
-        ...prev,
-        [roomId]: { userId, username }
-      }));
-      
+      // Request online users list
       setTimeout(() => {
-        setTypingUsers(prev => {
-          const newState = { ...prev };
-          if (newState[roomId]?.userId === userId) {
-            delete newState[roomId];
-          }
-          return newState;
+        userStatusService.getOnlineUsers();
+        
+        // Request status for all users
+        users.forEach(user => {
+          userStatusService.getUserStatus(user.id || user._id);
         });
-      }, 2000);
-    });
-
-    socketService.on('unread-count', (counts) => {
-      setUnreadCounts(counts);
-    });
-
-    socketService.on('recent-activity', (activity) => {
-      addRecentActivity(activity);
-    });
-
-    socketService.on('notification', (notification) => {
-      setNotifications(prev => [notification, ...prev].slice(0, 20));
+      }, 500);
+    },
+    onDisconnect: () => {
+      console.log('❌ ConnectionPanel: User status service disconnected');
+    },
+    onOnlineUsers: (users) => {
+      console.log('📊 ConnectionPanel: Online users received');
+      setOnlineUsers(users);
       
-      if (Notification.permission === 'granted') {
-        new Notification(notification.title, {
-          body: notification.body,
-          icon: notification.icon
-        });
-      }
-    });
-
-    // Check if already connected
-    if (socketService.isConnected()) {
-      console.log('✅ Socket already connected');
-      socketService.getSocket()?.emit('get-online-users');
+      // Update users list with online status
+      setUsers(prevUsers => 
+        prevUsers.map(user => {
+          const userId = user.id || user._id;
+          return {
+            ...user,
+            online: users[userId]?.online || false
+          };
+        })
+      );
+    },
+    onUserOnline: (data) => {
+      console.log('🟢 ConnectionPanel: User online:', data);
+      setOnlineUsers(prev => ({ 
+        ...prev, 
+        [data.userId]: { online: true, userData: data.userData } 
+      }));
+      
+      setUsers(prevUsers => 
+        prevUsers.map(user => {
+          const userId = user.id || user._id;
+          if (userId === data.userId) {
+            return { ...user, online: true };
+          }
+          return user;
+        })
+      );
+      
+      addRecentActivity({
+        type: 'user-online',
+        userId: data.userId,
+        userName: data.userData?.name,
+        timestamp: new Date().toISOString()
+      });
+    },
+    onUserOffline: (data) => {
+      console.log('🔴 ConnectionPanel: User offline:', data);
+      setOnlineUsers(prev => {
+        const newState = { ...prev };
+        delete newState[data.userId];
+        return newState;
+      });
+      
+      setUsers(prevUsers => 
+        prevUsers.map(user => {
+          const userId = user.id || user._id;
+          if (userId === data.userId) {
+            return { ...user, online: false };
+          }
+          return user;
+        })
+      );
+      
+      addRecentActivity({
+        type: 'user-offline',
+        userId: data.userId,
+        timestamp: new Date().toISOString()
+      });
+    },
+    onUserStatusResponse: (data) => {
+      console.log('📡 ConnectionPanel: User status response:', data);
+      setOnlineUsers(prev => ({
+        ...prev,
+        [data.userId]: { online: data.isOnline, userData: data.userData }
+      }));
+      
+      setUsers(prevUsers => 
+        prevUsers.map(user => {
+          const userId = user.id || user._id;
+          if (userId === data.userId) {
+            return { ...user, online: data.isOnline };
+          }
+          return user;
+        })
+      );
     }
+  });
 
-    // Request notification permission
-    if (Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-
-    return () => {
-      console.log('🔌 Cleaning up socket listeners');
-      socketService.off('users:online');
-      socketService.off('user:online');
-      socketService.off('user:offline');
-      socketService.off('user:status:response');
-      socketService.off('connect');
-      socketService.off('room-updated');
-      socketService.off('room-created');
-      socketService.off('room-deleted');
-      socketService.off('room-member-joined');
-      socketService.off('room-member-left');
-      socketService.off('user-typing');
-      socketService.off('unread-count');
-      socketService.off('recent-activity');
-      socketService.off('notification');
-    };
-  }, [currentUser, handleOnlineUsers, handleUserOnline, handleUserOffline, handleUserStatusResponse]);
+  return () => {
+    console.log('🧹 ConnectionPanel cleaning up user status service');
+    // Don't disconnect here as it might affect other components
+    // Just remove our listeners
+    userStatusService.offUserOnline();
+    userStatusService.offUserOffline();
+    userStatusService.offUsersOnline();
+    userStatusService.offUserStatusResponse();
+  };
+}, [currentUser, users.length]);
 
   // Handle click outside for mobile panel
   useEffect(() => {
@@ -465,21 +430,21 @@ const ConnectionPanel = () => {
 
   // Manual refresh function
   const refreshOnlineStatus = () => {
-    console.log('🔄 Manually refreshing online status');
-    setIsRefreshing(true);
+  console.log('🔄 Manually refreshing online status');
+  setIsRefreshing(true);
+  
+  if (userStatusService.isConnected()) {
+    userStatusService.getOnlineUsers();
     
-    if (socketService.isConnected()) {
-      socketService.getSocket()?.emit('get-online-users');
-      
-      users.forEach(user => {
-        socketService.getUserStatus(user.id || user._id);
-      });
-    }
-    
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
-  };
+    users.forEach(user => {
+      userStatusService.getUserStatus(user.id || user._id);
+    });
+  }
+  
+  setTimeout(() => {
+    setIsRefreshing(false);
+  }, 1000);
+};
 
   // Memoized filtered users
   const filteredUsersMemo = useMemo(() => {
