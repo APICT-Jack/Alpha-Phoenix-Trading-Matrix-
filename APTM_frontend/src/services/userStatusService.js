@@ -1,4 +1,4 @@
-// src/services/userStatusService.js
+// userStatusService.js - EXACT SAME PATTERN AS chatService.js
 import { io } from 'socket.io-client';
 
 class UserStatusService {
@@ -42,8 +42,6 @@ class UserStatusService {
       this.reconnectAttempts = 0;
       this.emitConnectionChange(true);
       callbacks.onConnect?.();
-      
-      // Request online users when connected
       this.getOnlineUsers();
     });
 
@@ -88,7 +86,6 @@ class UserStatusService {
       callbacks.onUserStatusResponse?.(data);
     });
 
-    // Check if already connected
     if (this.socket.connected) {
       console.log('✅ UserStatusService already connected');
       this.emitConnectionChange(true);
@@ -213,5 +210,4 @@ class UserStatusService {
   }
 }
 
-// Create singleton instance
 export const userStatusService = new UserStatusService();

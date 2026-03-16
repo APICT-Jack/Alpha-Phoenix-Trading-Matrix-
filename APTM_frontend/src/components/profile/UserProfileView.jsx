@@ -18,16 +18,13 @@ import ProfileHeader from './ProfileHeader';
 import { formatAvatarUrl, formatBannerUrl, getAvatarInitial, hasValidAvatar, hasValidBanner } from '../../utils/avatarUtils';
 import { experienceLevels } from './profileConstants';
 
-// Import services
-import { socketService } from '../../services/socketService';
-import { profileService } from '../../services/profileService';
+// Import services - USING SAME PATTERN AS CHAT
+import { userStatusService } from '../../services/userStatusService';
 
 // Import styles
 import styles from './UserProfileView.module.css';
 
 // Import icons
-// Replace the problematic import line with this:
-
 import { 
   FaComments, 
   FaChartLine, 
@@ -73,6 +70,7 @@ const UserProfileView = () => {
   const { user: currentUser } = useAuth();
   const { darkMode } = useTheme();
 
+  // All state variables
   const [profileUser, setProfileUser] = useState(null);
   const [activeTab, setActiveTab] = useState('timeline');
   const [isScrolled, setIsScrolled] = useState(false);
@@ -108,115 +106,76 @@ const UserProfileView = () => {
     instagram: FaInstagram
   };
 
-  // ============ SOCKET & PROFILE SERVICE SETUP ============
+  // ============ USER STATUS SERVICE SETUP (SAME PATTERN AS CHAT) ============
   useEffect(() => {
     if (!currentUser || !currentUser.id) return;
 
-    console.log('🔌 Initializing socket for user:', currentUser.id);
+    console.log('🔌 Initializing user status service for:', currentUser.id);
 
-    // Connect to socket
-    socketService.connect(currentUser.id, localStorage.getItem('token'));
-
-    // Check connection
-    const checkConnection = async () => {
-      const isConnected = await socketService.checkConnection(3000);
-      setSocketConnected(isConnected);
-    };
-    
-    checkConnection();
-
-    // Monitor connection
-    const connectionInterval = setInterval(() => {
-      setSocketConnected(socketService.isConnected());
-    }, 5000);
+    userStatusService.init(currentUser, {
+      onConnect: () => {
+        console.log('✅ User status service connected');
+        setSocketConnected(true);
+        
+        // Request status for current profile
+        if (profileUser?.id) {
+          setTimeout(() => {
+            userStatusService.getUserStatus(profileUser.id);
+          }, 500);
+        }
+      },
+      onDisconnect: () => {
+        console.log('❌ User status service disconnected');
+        setSocketConnected(false);
+      },
+      onUserOnline: (data) => {
+        console.log('🟢 User online:', data);
+        if (data.userId === profileUser?.id) {
+          setIsUserOnline(true);
+          setLastSeen(null);
+        }
+        setOnlineUsers(prev => ({ ...prev, [data.userId]: true }));
+      },
+      onUserOffline: (data) => {
+        console.log('🔴 User offline:', data);
+        if (data.userId === profileUser?.id) {
+          setIsUserOnline(false);
+          setLastSeen(data.timestamp || new Date());
+        }
+        setOnlineUsers(prev => ({ ...prev, [data.userId]: false }));
+      },
+      onOnlineUsers: (users) => {
+        console.log('📊 Online users received');
+        setOnlineUsers(users);
+        
+        if (profileUser?.id && users[profileUser.id]) {
+          setIsUserOnline(true);
+          setLastSeen(null);
+        }
+      },
+      onUserStatusResponse: (data) => {
+        console.log('📡 User status response:', data);
+        if (data.userId === profileUser?.id) {
+          setIsUserOnline(data.isOnline);
+          if (!data.isOnline && data.lastSeen) {
+            setLastSeen(data.lastSeen);
+          }
+        }
+      }
+    });
 
     return () => {
-      clearInterval(connectionInterval);
+      console.log('🧹 Cleaning up user status service');
+      userStatusService.disconnect();
     };
-  }, [currentUser?.id]);
+  }, [currentUser, profileUser?.id]);
 
-  // ============ PROFILE TRACKING ============
+  // Add effect to request status when profile changes
   useEffect(() => {
-    if (!profileUser?.id) return;
-
-    console.log('👤 Tracking profile:', profileUser.id);
-    
-    // Track this profile
-    profileService.trackProfile(profileUser.id);
-
-    // Request initial status
-    profileService.getUserStatus(profileUser.id);
-
-    // Set up profile update handler
-    const handleProfileUpdate = (data) => {
-      console.log('📡 Profile update received:', data);
-      
-      if (data.userId === profileUser.id) {
-        setIsUserOnline(data.online);
-        if (!data.online && data.lastSeen) {
-          setLastSeen(data.lastSeen);
-        }
-      }
-    };
-
-    profileService.onProfileUpdate(handleProfileUpdate);
-
-    // Set up socket event handlers
-    const handleUsersOnline = (users) => {
-      console.log('📊 Online users received');
-      setOnlineUsers(users);
-      
-      // Update current profile status
-      if (users[profileUser.id]) {
-        setIsUserOnline(true);
-        setLastSeen(null);
-      }
-    };
-
-    const handleUserOnline = (data) => {
-      console.log('🟢 User online:', data);
-      if (data.userId === profileUser.id) {
-        setIsUserOnline(true);
-        setLastSeen(null);
-      }
-    };
-
-    const handleUserOffline = (data) => {
-      console.log('🔴 User offline:', data);
-      if (data.userId === profileUser.id) {
-        setIsUserOnline(false);
-        setLastSeen(data.timestamp || new Date());
-      }
-    };
-
-    const handleUserStatusResponse = (data) => {
-      console.log('📊 User status response:', data);
-      if (data.userId === profileUser.id) {
-        setIsUserOnline(data.isOnline);
-        if (!data.isOnline && data.lastSeen) {
-          setLastSeen(data.lastSeen);
-        }
-      }
-    };
-
-    // Register listeners via profileService (which uses socketService)
-    profileService.onUsersOnline(handleUsersOnline);
-    profileService.onUserOnline(handleUserOnline);
-    profileService.onUserOffline(handleUserOffline);
-    profileService.onUserStatusResponse(handleUserStatusResponse);
-
-    // Request online users list
-    setTimeout(() => {
-      if (socketService.isConnected()) {
-        socketService.getOnlineUsers();
-      }
-    }, 500);
-
-    return () => {
-      console.log('🧹 Cleaning up profile tracking');
-      profileService.untrackProfile();
-      profileService.removeAllListeners();
-    };
+    if (profileUser?.id && userStatusService.isConnected()) {
+      console.log('🔍 Requesting status for profile user:', profileUser.id);
+      userStatusService.getUserStatus(profileUser.id);
+    }
   }, [profileUser?.id]);
 
   // Format user data consistently
@@ -1481,19 +1440,14 @@ const UserProfileView = () => {
           </div>
           <div className={styles.socketStatus}>
             {socketConnected ? (
-    <span className={`${styles.socketStatus} ${styles.connected}`} title="Real-time connected">
-      <FaWifi />
-      {connectionQuality === 'poor' && (
-        <span className={styles.qualityWarning}>
-          <FaExclamationCircle />
-        </span>
-      )}
-    </span>
-  ) : (
-    <span className={`${styles.socketStatus} ${styles.disconnected}`} title="Real-time disconnected">
-      <FaPlug />
-    </span>
-  )}
+              <span className={`${styles.socketStatus} ${styles.connected}`} title="Real-time connected">
+                <FaWifi />
+              </span>
+            ) : (
+              <span className={`${styles.socketStatus} ${styles.disconnected}`} title="Real-time disconnected">
+                <FaPlug />
+              </span>
+            )}
           </div>
         </div>
 
