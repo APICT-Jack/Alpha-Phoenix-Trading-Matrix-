@@ -57,56 +57,44 @@ export default function TradingCard() {
     alert(`Copy trade executed with TP: ${positionSettings.takeProfit}, SL: ${positionSettings.stopLoss}`);
   };
 
-  // FIXED: Safe cleanup function with proper error handling
+  // FIXED: Safe cleanup function
   const removeTradingViewWidget = () => {
     // Remove widget reference first
     if (tradingViewWidgetRef.current) {
       try {
-        // Check if widget exists and has remove method
         if (tradingViewWidgetRef.current && typeof tradingViewWidgetRef.current.remove === 'function') {
           tradingViewWidgetRef.current.remove();
         }
       } catch (error) {
-        // Silently fail - widget might already be removed
-        console.debug('Widget removal (non-critical):', error.message);
+        console.debug('Widget removal (non-critical):', error?.message);
       } finally {
         tradingViewWidgetRef.current = null;
       }
     }
     
-    // FIXED: Safely remove scripts with null checks
+    // Safely remove scripts
     try {
       const scripts = document.querySelectorAll('script[src*="tradingview.com"]');
       scripts.forEach(script => {
-        // Check if script exists and has parentNode before removing
         if (script && script.parentNode) {
           try {
             script.parentNode.removeChild(script);
           } catch (e) {
-            // Script might already be removed
-            console.debug('Script removal (non-critical):', e.message);
+            // Ignore
           }
         }
       });
     } catch (error) {
-      console.debug('Error cleaning up scripts:', error.message);
-    }
-    
-    // FIXED: Safely clear container content
-    if (widgetRef.current) {
-      try {
-        // Check if widgetRef.current is still valid
-        if (widgetRef.current && widgetRef.current.innerHTML) {
-          widgetRef.current.innerHTML = '';
-        }
-      } catch (error) {
-        console.debug('Error clearing container:', error.message);
-      }
+      // Ignore
     }
   };
 
+  // FIXED: Initialize TradingView with proper DOM checks
   const initializeTradingView = () => {
-    if (!widgetRef.current) return;
+    if (!widgetRef.current) {
+      console.log('Widget ref not ready yet');
+      return;
+    }
 
     setIsLoading(true);
     
@@ -122,14 +110,17 @@ export default function TradingCard() {
     // Remove any existing widget first
     removeTradingViewWidget();
 
-    // Create a dedicated container for TradingView
+    // Create container ID
+    const containerId = 'tradingview-widget-' + Date.now();
+    
+    // Create container element
     const tvContainer = document.createElement('div');
-    tvContainer.id = 'tradingview-widget-container-' + Date.now();
+    tvContainer.id = containerId;
     tvContainer.style.width = '100%';
     tvContainer.style.height = '100%';
     tvContainer.style.minHeight = '400px';
     
-    // FIXED: Check if widgetRef.current still exists
+    // FIXED: Ensure widgetRef.current exists before appending
     if (widgetRef.current) {
       try {
         widgetRef.current.appendChild(tvContainer);
@@ -143,10 +134,29 @@ export default function TradingCard() {
       return;
     }
 
+    // FIXED: Check if container actually exists in DOM
+    const checkContainer = () => {
+      const container = document.getElementById(containerId);
+      if (!container) {
+        console.log('Container not yet in DOM, retrying...');
+        setTimeout(checkContainer, 50);
+        return false;
+      }
+      return true;
+    };
+
     const loadTradingViewScript = () => {
+      // First check if container exists
+      if (!checkContainer()) {
+        setTimeout(loadTradingViewScript, 50);
+        return;
+      }
+
       if (window.TradingView) {
-        createTradingViewWidget(tvContainer.id);
-        setIsLoading(false);
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+          createTradingViewWidget(containerId);
+        }, 100);
         return;
       }
 
@@ -154,43 +164,54 @@ export default function TradingCard() {
       script.src = 'https://s3.tradingview.com/tv.js';
       script.async = true;
       script.onload = () => {
-        // Small delay to ensure TradingView is fully loaded
-        setTimeout(() => {
-          createTradingViewWidget(tvContainer.id);
+        // Check container again after script loads
+        if (!checkContainer()) {
+          console.log('Container missing after script load');
           setIsLoading(false);
-        }, 100);
+          return;
+        }
+        
+        setTimeout(() => {
+          createTradingViewWidget(containerId);
+        }, 200);
       };
       script.onerror = () => {
-        setIsLoading(false);
         console.error('Failed to load TradingView script');
+        setIsLoading(false);
       };
       document.head.appendChild(script);
     };
 
-    // Small delay to ensure DOM is ready
-    setTimeout(loadTradingViewScript, 50);
+    // Start loading
+    setTimeout(loadTradingViewScript, 100);
   };
 
+  // FIXED: Create widget with proper error handling
   const createTradingViewWidget = (containerId) => {
-    if (!window.TradingView || !document.getElementById(containerId)) {
-      console.error('TradingView not loaded or container not found');
+    // Double-check container exists
+    const container = document.getElementById(containerId);
+    if (!window.TradingView || !container) {
+      console.error('TradingView not loaded or container not found', { 
+        hasTradingView: !!window.TradingView, 
+        containerExists: !!container 
+      });
       setIsLoading(false);
       return;
     }
 
     try {
-      // Remove any existing widget first
+      // Remove any existing widget
       removeTradingViewWidget();
 
       tradingViewWidgetRef.current = new window.TradingView.widget({
         autosize: true,
-        symbol: `BINANCE:BTCUSDT`,
+        symbol: 'BINANCE:BTCUSDT',
         interval: '30',
-        timezone: "Etc/UTC",
-        theme: darkMode ? "dark" : "light",
-        style: "1",
-        locale: "en",
-        toolbar_bg: darkMode ? "#1e222d" : "#f1f3f6",
+        timezone: 'Etc/UTC',
+        theme: darkMode ? 'dark' : 'light',
+        style: '1',
+        locale: 'en',
+        toolbar_bg: darkMode ? '#1e222d' : '#f1f3f6',
         enable_publishing: false,
         hide_top_toolbar: false,
         hide_side_toolbar: false,
@@ -199,6 +220,9 @@ export default function TradingCard() {
         container_id: containerId,
         studies: []
       });
+
+      // Success - loading complete
+      setTimeout(() => setIsLoading(false), 500);
     } catch (error) {
       console.error('Error creating TradingView widget:', error);
       setIsLoading(false);
@@ -422,43 +446,52 @@ export default function TradingCard() {
     }
   };
 
-  // FIXED: Clean up on unmount with proper error handling
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       try {
         removeTradingViewWidget();
       } catch (error) {
-        console.debug('Cleanup error (non-critical):', error.message);
+        // Ignore
       }
     };
   }, []);
 
+  // Initialize based on active tab
   useEffect(() => {
     let isMounted = true;
-    
+    let timeoutId;
+
     const loadContent = () => {
       if (!isMounted) return;
       
-      switch (activeTab) {
-        case 'tradingview':
-          initializeTradingView();
-          break;
-        case 'positions':
-          initializePositionSettings();
-          break;
-        case 'stats':
-          initializeAccountStats();
-          break;
-        default:
-          initializeTradingView();
-      }
+      // Small delay to ensure DOM is ready
+      timeoutId = setTimeout(() => {
+        if (!isMounted) return;
+
+        switch (activeTab) {
+          case 'tradingview':
+            initializeTradingView();
+            break;
+          case 'positions':
+            initializePositionSettings();
+            break;
+          case 'stats':
+            initializeAccountStats();
+            break;
+          default:
+            initializeTradingView();
+        }
+      }, 100);
     };
 
     loadContent();
 
     return () => {
       isMounted = false;
-      // Don't try to clean up here as removeTradingViewWidget will be called on unmount
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [activeTab, darkMode]);
 
@@ -517,11 +550,10 @@ export default function TradingCard() {
           className={`platform-container ${activeTab}`}
           style={{ 
             height: activeTab === 'tradingview' ? '400px' : 'auto',
-            minHeight: activeTab === 'tradingview' ? '400px' : '200px'
+            minHeight: activeTab === 'tradingview' ? '400px' : '200px',
+            position: 'relative'
           }}
-        >
-          {/* Content will be dynamically loaded based on active tab */}
-        </div>
+        />
       </div>
       
       <div className="card-footer">
@@ -548,7 +580,6 @@ export default function TradingCard() {
              activeTab === 'positions' ? 'Position Settings' : 'Account Statistics'}
           </span>
         </div>
-
       </div>
     </div>
   );
