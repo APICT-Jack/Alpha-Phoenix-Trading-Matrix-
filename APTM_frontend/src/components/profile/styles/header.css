@@ -1,6 +1,6 @@
-/* ProfileHeader.module.css*/
+/* ProfileHeader.module.css - UPDATED WITH SMALLER BADGES */
 
-/*CSS VARIABLES */
+/* CSS VARIABLES */
 :root {
   --ig-blue: #225cb3;
   --ig-gradient: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
@@ -22,7 +22,7 @@
   transition: var(--ig-transition);
 }
 
-/*BANNER SECTION*/
+/* BANNER SECTION */
 .bannerSection {
   position: relative;
   height: var(--banner-height);
@@ -86,7 +86,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/*AVATAR SECTION*/
+/* AVATAR SECTION */
 .avatarContainer {
   position: absolute;
   top: calc(var(--banner-height) - var(--avatar-overlap));
@@ -159,7 +159,7 @@
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
-/*HEADER CONTENT*/
+/* HEADER CONTENT */
 .headerContent {
   padding: calc(var(--avatar-size) - 35px) var(--space-xxl) var(--space-xl) var(--space-xxl);
   background: var(--bg-secondary);
@@ -173,7 +173,7 @@
   animation: fadeInUp 0.5s ease-out;
 }
 
-/*USER NAME ROW */
+/* USER NAME ROW */
 .userNameRow {
   display: flex;
   align-items: center;
@@ -234,46 +234,61 @@
   text-decoration: underline;
 }
 
-/*USER DETAILS */
+/* ===== USER DETAILS BADGES - SMALLER, NON-BUTTON STYLE ===== */
 .userDetails {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-sm);
+  gap: 8px;
   margin-bottom: var(--space-lg);
 }
 
 .detailItem {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
+  gap: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  border: none;
+  font-size: 12px;
   color: var(--text-secondary);
   transition: var(--ig-transition);
   font-family: inherit;
   cursor: default;
+  line-height: 1.4;
+  border-radius: 4px;
 }
 
-.detailItem.clickable {
-  cursor: pointer;
+/* Subtle hover effect only */
+.detailItem:hover {
+  background: var(--bg-tertiary);
 }
 
-.detailItem.clickable:hover {
-  border-color: var(--primary);
-  transform: translateY(-2px);
-  background: var(--bg-hover);
-  box-shadow: var(--ig-card-shadow);
-}
-
+/* Icon styling */
 .detailIcon {
-  font-size: 12px;
-  opacity: 0.8;
+  font-size: 10px;
+  opacity: 0.7;
+  color: var(--text-tertiary);
 }
 
-/* SOCIAL LINKS*/
+/* Mobile online status - matches badge style */
+.mobileOnlineStatus {
+  display: none;
+}
+
+.onlineIcon, .offlineIcon {
+  font-size: 8px;
+  margin-right: 2px;
+}
+
+.onlineIcon {
+  color: var(--success);
+}
+
+.offlineIcon {
+  color: var(--text-tertiary);
+}
+
+/* ===== SOCIAL LINKS ===== */
 .socialLinksContainer {
   margin: var(--space-lg) 0;
   padding: var(--space-lg) 0;
@@ -301,13 +316,13 @@
 .socialLink {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 18px;
+  gap: 6px;
+  padding: 6px 14px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-full);
   color: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-size: 12px;
   font-family: inherit;
   cursor: pointer;
   transition: var(--ig-transition);
@@ -343,13 +358,14 @@
 .socialLink i, .socialLink svg {
   position: relative;
   z-index: 1;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .socialPlatformName {
   position: relative;
   z-index: 1;
   font-weight: 500;
+  font-size: 11px;
 }
 
 /* Platform hover colors */
@@ -366,7 +382,7 @@
 .socialLink.telegram:hover { background: #0088cc; }
 .socialLink.discord:hover { background: #5865F2; }
 
-/* USER STATS*/
+/* ===== USER STATS ===== */
 .userStats {
   display: flex;
   align-items: center;
@@ -411,7 +427,7 @@
   font-family: inherit;
 }
 
-/*  ACTION BUTTONS */
+/* ===== ACTION BUTTONS ===== */
 .actionButtons {
   display: flex;
   gap: var(--space-sm);
@@ -491,7 +507,62 @@
   border-color: #ff3040;
 }
 
-/*  POLL STYLES */
+/* ===== ONLINE STATUS FOOTER (MOBILE) ===== */
+.onlineStatusFooter {
+  display: none;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-primary);
+  font-size: 13px;
+}
+
+.onlineStatusFooter .onlineText,
+.onlineStatusFooter .offlineText {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onlineStatusFooter .onlineDot {
+  color: var(--success);
+  font-size: 8px;
+}
+
+.onlineStatusFooter .offlineDot {
+  color: var(--text-tertiary);
+  font-size: 8px;
+}
+
+/* ===== ONLINE TOOLTIP ===== */
+.onlineTooltip {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.onlineTooltip .tooltipOnlineIcon {
+  color: var(--success);
+  font-size: 8px;
+}
+
+.onlineTooltip .tooltipOfflineIcon {
+  color: var(--text-tertiary);
+  font-size: 8px;
+}
+
+/* ===== POLL STYLES ===== */
 .pollContainer {
   margin-top: var(--space-md);
   padding: var(--space-md);
@@ -647,8 +718,7 @@
   font-family: inherit;
 }
 
-/* MOBILE SCALING */
-
+/* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 1024px) {
   .headerContent {
     padding-left: var(--space-xl);
@@ -730,15 +800,26 @@
   }
   
   .socialLink {
-    padding: 8px 14px;
+    padding: 6px 12px;
   }
   
   .socialPlatformName {
     display: inline-block; 
-    font-size: 13px;
+    font-size: 11px;
   }
   
-  /* Banner edit button */
+  .mobileOnlineStatus {
+    display: flex;
+  }
+  
+  .onlineStatusFooter {
+    display: block;
+  }
+  
+  .onlineTooltip {
+    display: none;
+  }
+  
   .bannerEditOverlay {
     top: var(--space-md);
     right: var(--space-md);
@@ -752,24 +833,29 @@
 
 @media (max-width: 640px) {
   .socialLinks {
-    gap: var(--space-xs);
+    gap: 6px;
   }
   
   .socialLink {
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 5px 10px;
+    font-size: 11px;
   }
   
   .socialLink i, .socialLink svg {
-    font-size: 14px;
+    font-size: 12px;
   }
   
   .socialPlatformName {
-    font-size: 12px;
+    font-size: 10px;
   }
   
   .userStats {
     gap: var(--space-lg);
+  }
+  
+  .detailItem {
+    font-size: 11px;
+    padding: 2px 6px;
   }
 }
 
@@ -815,8 +901,13 @@
   }
   
   .detailItem {
-    padding: 4px 10px;
-    font-size: 11px;
+    padding: 2px 6px;
+    font-size: 10px;
+    gap: 3px;
+  }
+  
+  .detailIcon {
+    font-size: 9px;
   }
   
   .actionBtn {
@@ -826,19 +917,18 @@
   }
 
   .socialLink {
-    padding: 6px 10px;
-    gap: 6px;
+    padding: 5px 8px;
+    gap: 4px;
   }
   
   .socialLink i, .socialLink svg {
-    font-size: 13px;
-  }
-  
-  .socialPlatformName {
     font-size: 11px;
   }
   
-  /* Poll styles */
+  .socialPlatformName {
+    font-size: 9px;
+  }
+  
   .pollOptionButton {
     padding: 10px 12px;
     font-size: var(--text-xs);
@@ -855,18 +945,17 @@
   }
 }
 
-/*VERY SMALL DEVICES */
 @media (max-width: 360px) {
   .socialLink {
-    padding: 6px 8px;
+    padding: 4px 6px;
   }
   
   .socialPlatformName {
-    font-size: 10px;
+    font-size: 8px;
   }
   
   .socialLink i, .socialLink svg {
-    font-size: 12px;
+    font-size: 10px;
   }
   
   .userStats {
@@ -878,9 +967,18 @@
     padding: 5px 8px;
     font-size: 12px;
   }
+  
+  .detailItem {
+    font-size: 9px;
+    padding: 2px 4px;
+  }
+  
+  .detailIcon {
+    font-size: 8px;
+  }
 }
 
-/* DARK MODE  */
+/* ===== DARK MODE ADAPTATIONS ===== */
 @media (prefers-color-scheme: dark) {
   :root {
     --ig-light-bg: #1a1a1a;
@@ -903,13 +1001,12 @@
     border-color: rgba(255, 255, 255, 0.2);
   }
   
-  .detailItem {
+  .detailItem:hover {
     background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
   }
 }
 
-/* TOUCH OPTIMIZATIONS */
+/* ===== TOUCH OPTIMIZATIONS ===== */
 @media (hover: none) and (pointer: coarse) {
   .avatarWrapper:hover {
     transform: none;
@@ -931,11 +1028,9 @@
     transform: none;
   }
   
-  /* Increase touch targets on mobile */
   .actionBtn,
   .socialLink,
-  .statItem,
-  .detailItem {
+  .statItem {
     min-height: 44px;
     min-width: 44px;
   }
@@ -952,7 +1047,7 @@
   outline-offset: 2px;
 }
 
-/* ANIMATIONS  */
+/* ===== ANIMATIONS ===== */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -984,7 +1079,7 @@
   animation-fill-mode: both;
 }
 
-/* animation for social links */
+/* Animation delays for social links */
 .socialLink:nth-child(1) { animation-delay: 0.05s; }
 .socialLink:nth-child(2) { animation-delay: 0.1s; }
 .socialLink:nth-child(3) { animation-delay: 0.15s; }

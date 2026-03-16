@@ -217,6 +217,52 @@
   text-overflow: ellipsis;
 }
 
+/* ===== SOCKET STATUS INDICATOR ===== */
+.socketStatus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 16px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.socketStatus.connected {
+  color: var(--success);
+  background-color: rgba(16, 185, 129, 0.1);
+  animation: pulse 2s infinite;
+}
+
+.socketStatus.disconnected {
+  color: var(--danger);
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.socketStatus.connected:hover {
+  background-color: rgba(16, 185, 129, 0.2);
+  transform: scale(1.05);
+}
+
+.socketStatus.disconnected:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  transform: scale(1.05);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
 /* ===== MAIN CONTENT - FULL WIDTH ===== */
 .mainContent {
   margin-top: var(--space-xl);
@@ -418,66 +464,7 @@ button {
   cursor: pointer;
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 1200px) {
-  :root {
-    --nav-width: 320px;
-    --space-xxl: 20px;
-  }
-}
-
-@media (max-width: 992px) {
-  :root {
-    --nav-width: 280px;
-  }
-}
-
-@media (max-width: 768px) {
-  :root {
-    --nav-width: 0;
-    --avatar-size: 110px;
-    --banner-height: 180px;
-    --avatar-overlap: 55px;
-    --space-xxl: 16px;
-    --tabs-height: 48px;
-  }
-  
-  .profileContainer {
-    margin-left: 0;
-    width: 100%;
-  }
-  
-  .navigationBar {
-    left: 0;
-    padding: 0 var(--space-lg);
-  }
-  
-  .mainContent {
-    padding: 0 var(--space-lg);
-  }
-  
-  .errorActions {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .backButton, .homeButton {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-  :root {
-    --avatar-size: 100px;
-    --banner-height: 160px;
-    --avatar-overlap: 50px;
-    --tabs-height: 46px;
-  }
-}
-/* Add to UserProfileView.module.css */
-
-/* Charts Tab */
+/* ===== CHARTS TAB STYLES ===== */
 .chartsTab {
   padding: var(--space-lg);
 }
@@ -864,29 +851,8 @@ button {
   cursor: pointer;
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .spinning {
   animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 /* Dark mode adjustments */
@@ -910,8 +876,124 @@ button {
   border-color: #404040;
 }
 
-/* Responsive */
+/* ===== ONLINE STATUS TOOLTIP ===== */
+.onlineTooltip {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.onlineTooltip .tooltipOnlineIcon {
+  color: var(--success);
+  font-size: 8px;
+}
+
+.onlineTooltip .tooltipOfflineIcon {
+  color: var(--text-tertiary);
+  font-size: 8px;
+}
+
+.mobileOnlineStatus {
+  display: none;
+}
+
+.onlineStatusFooter {
+  display: none;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-primary);
+  font-size: var(--text-sm);
+}
+
+.onlineStatusFooter .onlineText,
+.onlineStatusFooter .offlineText {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onlineStatusFooter .onlineDot {
+  color: var(--success);
+  font-size: 10px;
+}
+
+.onlineStatusFooter .offlineDot {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 1200px) {
+  :root {
+    --nav-width: 320px;
+    --space-xxl: 20px;
+  }
+}
+
+@media (max-width: 992px) {
+  :root {
+    --nav-width: 280px;
+  }
+}
+
 @media (max-width: 768px) {
+  :root {
+    --nav-width: 0;
+    --avatar-size: 110px;
+    --banner-height: 180px;
+    --avatar-overlap: 55px;
+    --space-xxl: 16px;
+    --tabs-height: 48px;
+  }
+  
+  .profileContainer {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .navigationBar {
+    left: 0;
+    padding: 0 var(--space-lg);
+  }
+  
+  .mainContent {
+    padding: 0 var(--space-lg);
+  }
+  
+  .errorActions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .backButton, .homeButton {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .mobileOnlineStatus {
+    display: flex;
+  }
+  
+  .onlineStatusFooter {
+    display: block;
+  }
+  
+  .onlineTooltip {
+    display: none; /* Hide tooltip on mobile */
+  }
+  
   .chartsList {
     grid-template-columns: 1fr;
   }
@@ -932,118 +1014,18 @@ button {
     max-height: 95vh;
   }
 }
-/* Add to UserProfileView.module.css */
 
-.socketStatusContainer {
-  display: flex;
-  align-items: center;
-  margin-left: 10px;
-}
-
-.socketStatus {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  font-size: 14px;
-  position: relative;
-}
-
-.socketStatus.connected {
-  color: #10b981;
-  background-color: rgba(16, 185, 129, 0.1);
-}
-
-.socketStatus.disconnected {
-  color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.1);
-}
-
-.qualityWarning {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 12px;
-  height: 12px;
-  background-color: #f59e0b;
-  color: white;
-  border-radius: 50%;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-}
-
-.onlineTooltip {
-  position: absolute;
-  bottom: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  white-space: nowrap;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.onlineTooltip .tooltipOnlineIcon {
-  color: #10b981;
-  font-size: 8px;
-}
-
-.onlineTooltip .tooltipOfflineIcon {
-  color: #9ca3af;
-  font-size: 8px;
-}
-
-.mobileOnlineStatus {
-  display: none;
-}
-
-.onlineStatusFooter {
-  display: none;
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid var(--border-color);
-  font-size: 14px;
-}
-
-.onlineStatusFooter .onlineText,
-.onlineStatusFooter .offlineText {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.onlineStatusFooter .onlineDot {
-  color: #10b981;
-  font-size: 10px;
-}
-
-.onlineStatusFooter .offlineDot {
-  color: #9ca3af;
-  font-size: 10px;
-}
-
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-  .mobileOnlineStatus {
-    display: flex;
+@media (max-width: 480px) {
+  :root {
+    --avatar-size: 100px;
+    --banner-height: 160px;
+    --avatar-overlap: 50px;
+    --tabs-height: 46px;
   }
   
-  .onlineStatusFooter {
-    display: block;
-  }
-  
-  .onlineTooltip {
-    display: none; /* Hide tooltip on mobile */
+  .socketStatus {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
 }
