@@ -7,6 +7,667 @@
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-border);
   background: rgba(var(--color-bg-rgb), 0.95);
+  transition: all 0.3s ease;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  position: relative;
+}
+
+/* Logo Styles */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--color-text);
+  z-index: 1001;
+  padding: 0.25rem 0;
+  transition: opacity 0.2s ease;
+}
+
+.logo-container:hover {
+  opacity: 0.8;
+}
+
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-squares {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.logo-square {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--color-primary);
+  border-radius: 1px;
+}
+
+.logo-square.square-1 {
+  top: 0;
+  left: 0;
+}
+
+.logo-square.square-2 {
+  top: 0;
+  right: 0;
+  border-color: var(--color-accent);
+}
+
+.logo-square.square-3 {
+  bottom: 0;
+  left: 0;
+  border-color: var(--color-success);
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.logo-text p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.logo-text p:first-child {
+  font-size: 1rem;
+  letter-spacing: -0.3px;
+}
+
+.logo-text p:last-child {
+  font-size: 0.65rem;
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+/* Desktop Navigation */
+.desktop-nav {
+  display: flex;
+}
+
+.desktop-nav ul {
+  display: flex;
+  list-style: none;
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+.desktop-nav a {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.desktop-nav a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 1px;
+  transform: translateX(-50%);
+  transition: width 0.3s ease;
+}
+
+.desktop-nav a:hover,
+.desktop-nav a.active {
+  color: var(--color-text);
+  background: var(--color-bg-tertiary);
+}
+
+.desktop-nav a:hover::after,
+.desktop-nav a.active::after {
+  width: 70%;
+}
+
+/* User Actions */
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.user-avatar-container {
+  display: flex;
+  align-items: center;
+}
+
+/* Notification Button */
+.notification-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-btn:hover,
+.notification-btn.active {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+
+.notification-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--color-danger);
+  color: white;
+  font-size: 0.65rem;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  border: 2px solid var(--color-card);
+}
+
+/* Mobile Login Button - NEW */
+.mobile-login-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 36px;
+  white-space: nowrap;
+}
+
+.mobile-login-btn:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+.mobile-login-btn svg {
+  font-size: 1rem;
+}
+
+.mobile-login-text {
+  display: inline-block;
+}
+
+@media (max-width: 480px) {
+  .mobile-login-btn {
+    padding: 0.5rem;
+  }
+  
+  .mobile-login-text {
+    display: none;
+  }
+  
+  .mobile-login-btn svg {
+    font-size: 1.2rem;
+  }
+}
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0.5rem;
+  gap: 4px;
+  transition: all 0.2s ease;
+  z-index: 1002;
+}
+
+.mobile-menu-toggle:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-primary);
+}
+
+.mobile-menu-toggle span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--color-text-secondary);
+  transition: all 0.2s ease;
+  border-radius: 1px;
+}
+
+.mobile-menu-toggle.active span:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+
+.mobile-menu-toggle.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-menu-toggle.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Mobile Navigation */
+.mobile-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.mobile-nav.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.mobile-nav-content {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100%;
+  background: var(--color-card);
+  border-left: 1px solid var(--color-border);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mobile-nav.active .mobile-nav-content {
+  transform: translateX(0);
+}
+
+.mobile-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  flex-shrink: 0;
+  min-height: 60px;
+}
+
+.mobile-nav-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.mobile-nav-header .close-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.mobile-nav-header .close-btn:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+.mobile-nav-links {
+  flex: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.mobile-nav-links li {
+  width: 100%;
+  margin: 0;
+}
+
+.mobile-nav-links a,
+.mobile-nav-login-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: 0.95rem;
+  width: 100%;
+  box-sizing: border-box;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border-light);
+  cursor: pointer;
+  text-align: left;
+}
+
+.mobile-nav-links a:hover,
+.mobile-nav-links a.active,
+.mobile-nav-login-btn:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+/* Special styling for login button in mobile nav */
+.mobile-nav-login-btn {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.mobile-nav-login-btn svg {
+  color: var(--color-primary);
+}
+
+/* ================ USER AVATAR COMPONENT STYLES ================ */
+.user-avatar-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-avatar-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.user-avatar-content.size-small .avatar-container {
+  width: 32px;
+  height: 32px;
+}
+
+.user-avatar-content.size-medium .avatar-container {
+  width: 40px;
+  height: 40px;
+}
+
+.user-avatar-content.size-large .avatar-container {
+  width: 48px;
+  height: 48px;
+}
+
+.avatar-container {
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+  border: 2px solid var(--color-border);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.avatar-container.clickable {
+  cursor: pointer;
+}
+
+.avatar-container.clickable:hover {
+  border-color: var(--color-primary);
+  transform: scale(1.05);
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.avatar-name {
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* ================ NOTIFICATIONS PANEL ================ */
+.notifications-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.notifications-panel {
+  width: 90%;
+  max-width: 400px;
+  max-height: 80vh;
+  background: var(--color-card);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+  overflow: hidden;
+}
+
+.notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+
+.notifications-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.notifications-header .close-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
+}
+
+.notifications-header .close-btn:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+.notifications-content {
+  padding: 1.25rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ================ RESPONSIVE DESIGN ================ */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.75rem;
+  }
+  
+  .mobile-menu-toggle {
+    display: flex;
+  }
+  
+  .desktop-nav {
+    display: none;
+  }
+  
+  .mobile-nav-content {
+    width: 280px;
+  }
+  
+  /* Hide user avatar container on mobile */
+  .user-avatar-container {
+    display: none !important;
+  }
+  
+  .notifications-panel {
+    width: 95%;
+    margin: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 0.5rem;
+  }
+  
+  .logo-text p:first-child {
+    font-size: 0.9rem;
+  }
+  
+  .logo-text p:last-child {
+    font-size: 0.6rem;
+  }
+  
+  .notification-btn {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .mobile-menu-toggle {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .mobile-nav-content {
+    width: 100%;
+    border-left: none;
+  }
+  
+  .notifications-panel {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    max-height: 100vh;
+    height: 100vh;
+  }
+}
+
+/* Utility classes for UserAvatar states */
+.user-avatar-wrapper.logged-in .avatar-container {
+  border-color: var(--color-primary);
+}
+
+.user-avatar-wrapper.logged-out .avatar-container {
+  border-color: var(--color-border);
+}
+
+.user-avatar-wrapper.logged-out .avatar-container:hover {
+  border-color: var(--color-primary);
+}
+/* Add these styles to your Header.css file */
+
+/* Main Header Styles */
+.main-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(var(--color-bg-rgb), 0.95);
   transition: transform 0.3s ease, background 0.3s ease;
   width: 100%;
 }
@@ -21,6 +682,40 @@
   transform: translateY(0);
 }
 
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+  .main-header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    transition: transform 0.3s ease, background 0.3s ease;
+    will-change: transform;
+  }
+
+  .header-content {
+    min-height: 60px; /* Ensure consistent height */
+    padding: 0.5rem 0;
+  }
+
+  /* Add safe area insets for modern mobile devices */
+  @supports (padding: max(0px)) {
+    .main-header {
+      padding-top: env(safe-area-inset-top);
+    }
+  }
+}
+
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .main-header {
+    /* Fix for iOS sticky positioning */
+    position: -webkit-sticky;
+    position: sticky;
+  }
+}
+
+/* Rest of your existing CSS remains the same */
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -300,7 +995,6 @@
   left: 0;
   width: 100%;
   height: 100vh;
-  height: -webkit-fill-available; /* Better mobile support */
   background: rgba(0, 0, 0, 0.5);
   z-index: 9999;
   opacity: 0;
@@ -377,7 +1071,6 @@
   margin: 0;
   padding: 0;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 .mobile-nav-links li {
@@ -422,190 +1115,10 @@
   color: var(--color-primary);
 }
 
-/* ================ USER AVATAR COMPONENT STYLES ================ */
-.user-avatar-wrapper {
-  display: inline-flex;
-  align-items: center;
-}
-
-.user-avatar-content {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  position: relative;
-}
-
-.user-avatar-content.size-small .avatar-container {
-  width: 32px;
-  height: 32px;
-}
-
-.user-avatar-content.size-medium .avatar-container {
-  width: 40px;
-  height: 40px;
-}
-
-.user-avatar-content.size-large .avatar-container {
-  width: 48px;
-  height: 48px;
-}
-
-.avatar-container {
-  position: relative;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--color-bg-secondary);
-  border: 2px solid var(--color-border);
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.avatar-container.clickable {
-  cursor: pointer;
-}
-
-.avatar-container.clickable:hover {
-  border-color: var(--color-primary);
-  transform: scale(1.05);
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-fallback {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-primary);
-  color: white;
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.avatar-name {
-  font-weight: 500;
-  color: var(--color-text);
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-
-/* ================ NOTIFICATIONS PANEL ================ */
-.notifications-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeIn 0.3s ease-out;
-}
-
-.notifications-panel {
-  width: 90%;
-  max-width: 400px;
-  max-height: 80vh;
-  background: var(--color-card);
-  border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  animation: slideUp 0.3s ease-out;
-  overflow: hidden;
-}
-
-.notifications-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-}
-
-.notifications-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.notifications-header .close-btn {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  font-size: 1.1rem;
-}
-
-.notifications-header .close-btn:hover {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text);
-}
-
-.notifications-content {
-  padding: 1.25rem;
-  text-align: center;
-  color: var(--color-text-secondary);
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
 /* ================ RESPONSIVE DESIGN ================ */
-/* Mobile-specific improvements */
 @media (max-width: 768px) {
-  .main-header {
-    position: sticky;
-    top: 0;
-    left: 0;
-    right: 0;
-    transition: transform 0.3s ease, background 0.3s ease;
-    will-change: transform;
-  }
-
   .container {
     padding: 0 0.75rem;
-  }
-  
-  .header-content {
-    min-height: 60px;
-    padding: 0.5rem 0;
   }
   
   .mobile-menu-toggle {
@@ -628,17 +1141,6 @@
   .notifications-panel {
     width: 95%;
     margin: 1rem;
-  }
-
-  /* Add safe area insets for modern mobile devices */
-  @supports (padding: max(0px)) {
-    .main-header {
-      padding-top: env(safe-area-inset-top);
-    }
-    
-    .mobile-nav-content {
-      padding-bottom: env(safe-area-inset-bottom);
-    }
   }
 }
 
@@ -691,51 +1193,21 @@
   }
 }
 
-/* iOS-specific fixes */
-@supports (-webkit-touch-callout: none) {
-  .main-header {
-    position: -webkit-sticky;
-    position: sticky;
+/* Animation for header hide/show */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
   }
-  
-  .mobile-nav {
-    height: -webkit-fill-available;
+  to {
+    transform: translateY(0);
   }
 }
 
-/* Landscape Mode on Mobile */
-@media (max-height: 500px) and (orientation: landscape) {
-  .mobile-nav-content {
-    width: 100%;
+@keyframes slideUp {
+  from {
+    transform: translateY(0);
   }
-  
-  .mobile-nav-links a,
-  .mobile-nav-login-btn {
-    padding: 0.75rem 1.5rem;
-  }
-}
-
-/* Utility classes for UserAvatar states */
-.user-avatar-wrapper.logged-in .avatar-container {
-  border-color: var(--color-primary);
-}
-
-.user-avatar-wrapper.logged-out .avatar-container {
-  border-color: var(--color-border);
-}
-
-.user-avatar-wrapper.logged-out .avatar-container:hover {
-  border-color: var(--color-primary);
-}
-
-/* Reduced motion preferences */
-@media (prefers-reduced-motion: reduce) {
-  .main-header,
-  .mobile-nav,
-  .mobile-nav-content,
-  .mobile-menu-toggle span,
-  .notification-btn,
-  .mobile-login-btn {
-    transition: none;
+  to {
+    transform: translateY(-100%);
   }
 }
