@@ -10,7 +10,7 @@ import {
   FaBars,
   FaTimes,
   FaUser,
-  FaSignInAlt  // Added login icon
+  FaSignInAlt
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import AuthModal from '../auth/AuthModal';
@@ -84,9 +84,12 @@ export default function Header() {
   const [notificationCount, setNotificationCount] = useState(0);
   const [activeNav, setActiveNav] = useState('home');
   const [isMobile, setIsMobile] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [showHeader, setShowHeader] = useState(true);
   
   const mobileNavRef = useRef(null);
   const mobileMenuToggleRef = useRef(null);
+  const headerRef = useRef(null);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -94,16 +97,43 @@ export default function Header() {
       setIsMobile(window.innerWidth <= 768);
     };
 
-    // Initial check
     checkMobile();
-
-    // Add resize listener
     window.addEventListener('resize', checkMobile);
     
     return () => {
       window.removeEventListener('resize', checkMobile);
     };
   }, []);
+
+  // Handle scroll behavior for mobile - hide/show header on scroll down/up
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Don't hide header if mobile nav is open
+      if (showMobileNav) {
+        setShowHeader(true);
+        return;
+      }
+
+      // Show header when scrolling up, hide when scrolling down
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setShowHeader(false);
+      } else {
+        setShowHeader(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [lastScrollY, isMobile, showMobileNav]);
 
   // Auth check
   const canShowDashboard = user && typeof user === 'object' && (isAuthenticated || localStorage.getItem('token'));
@@ -135,6 +165,8 @@ export default function Header() {
 
       if (showMobileNav && !isMobileNavClick && !isMobileToggleClick) {
         setShowMobileNav(false);
+        // Ensure header is visible when mobile nav closes
+        setShowHeader(true);
       }
 
       if (showNotifications && !isNotificationClick) {
@@ -154,23 +186,39 @@ export default function Header() {
   // Close mobile nav when scrolling
   useEffect(() => {
     const handleScroll = () => {
-      setShowMobileNav(false);
+      if (showMobileNav) {
+        setShowMobileNav(false);
+        setShowHeader(true);
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [showMobileNav]);
 
   // Handle body scroll when mobile nav is open
   useEffect(() => {
     if (showMobileNav) {
       document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${window.scrollY}px`;
     } else {
+      const scrollY = document.body.style.top;
       document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
     }
 
     return () => {
       document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
     };
   }, [showMobileNav]);
 
@@ -202,18 +250,21 @@ export default function Header() {
   const handleMobileNavToggle = () => {
     setShowMobileNav(prev => !prev);
     setShowNotifications(false);
+    // Ensure header is visible when toggling mobile nav
+    setShowHeader(true);
   };
 
   const handleNavLinkClick = (navItem) => {
     setActiveNav(navItem);
     setShowMobileNav(false);
+    setShowHeader(true);
   };
 
   // Scroll to section function
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
-      const headerHeight = document.querySelector('.main-header')?.offsetHeight || 0;
+      const headerHeight = headerRef.current?.offsetHeight || 0;
       const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
       const offsetPosition = elementPosition - headerHeight - 20;
 
@@ -229,6 +280,7 @@ export default function Header() {
     e.preventDefault();
     setActiveNav('home');
     setShowMobileNav(false);
+    setShowHeader(true);
     
     if (location.pathname !== '/') {
       navigate('/');
@@ -244,6 +296,7 @@ export default function Header() {
     event.preventDefault();
     setActiveNav(sectionId);
     setShowMobileNav(false);
+    setShowHeader(true);
     
     if (location.pathname !== '/') {
       navigate(`/#${sectionId}`);
@@ -298,16 +351,15 @@ export default function Header() {
   const handleMobileLoginClick = () => {
     setShowAuthModal(true);
     setShowMobileNav(false);
+    setShowHeader(true);
   };
 
   // Format user object for UserAvatar
   const getFormattedUser = () => {
     if (!user) return null;
     
-    // Ensure user has all required fields
     return {
       ...user,
-      // Make sure avatar URL is properly formatted if needed
       avatar: user.avatar || user.avatarUrl || null,
       name: user.name || user.displayName || 'User',
       username: user.username || user.userName || 'user'
@@ -316,9 +368,12 @@ export default function Header() {
 
   const formattedUser = getFormattedUser();
 
+  // Determine header classes
+  const headerClasses = `main-header ${!showHeader && isMobile ? 'header-hidden' : ''} ${showMobileNav ? 'mobile-nav-open' : ''}`;
+
   return (
     <>
-      <header className="main-header">
+      <header ref={headerRef} className={headerClasses}>
         <div className="container">
           <div className="header-content">
             {/* Logo */}
@@ -458,6 +513,7 @@ export default function Header() {
                 ref={mobileMenuToggleRef}
                 className={`mobile-menu-toggle ${showMobileNav ? 'active' : ''}`}
                 onClick={handleMobileNavToggle}
+                aria-label="Toggle menu"
               >
                 <span></span>
                 <span></span>
