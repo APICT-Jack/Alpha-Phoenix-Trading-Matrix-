@@ -9,14 +9,14 @@ import {
   FaBell, 
   FaBars,
   FaTimes,
-  FaUser
+  FaUser,
+  FaSignInAlt  // Added login icon
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import AuthModal from '../auth/AuthModal';
 import UserAvatar from './UserAvatar';
 import './Header.css';
 
-// Constants for API URLs
 // Constants for API URLs
 const API_URL = import.meta.env.VITE_API_URL || 
                 (import.meta.env.PROD ? `${window.location.origin}/api` : 'http://localhost:5000/api');
@@ -294,6 +294,12 @@ export default function Header() {
     }
   };
 
+  // Handle mobile login click
+  const handleMobileLoginClick = () => {
+    setShowAuthModal(true);
+    setShowMobileNav(false);
+  };
+
   // Format user object for UserAvatar
   const getFormattedUser = () => {
     if (!user) return null;
@@ -435,6 +441,18 @@ export default function Header() {
                 </div>
               )}
               
+              {/* Mobile Login Button - Only shown when not logged in on mobile */}
+              {isMobile && !canShowDashboard && (
+                <button 
+                  className="mobile-login-btn"
+                  onClick={() => setShowAuthModal(true)}
+                  aria-label="Login"
+                >
+                  <FaSignInAlt />
+                  <span className="mobile-login-text">Login</span>
+                </button>
+              )}
+              
               {/* Mobile Menu Toggle */}
               <button 
                 ref={mobileMenuToggleRef}
@@ -528,21 +546,19 @@ export default function Header() {
                       </li>
                     </>
                   )}
+                  
+                  {/* Login option in mobile nav for non-authenticated users */}
+                  {!canShowDashboard && (
+                    <li className="mobile-nav-login">
+                      <button 
+                        className="mobile-nav-login-btn"
+                        onClick={handleMobileLoginClick}
+                      >
+                        <FaSignInAlt /> Login / Sign Up
+                      </button>
+                    </li>
+                  )}
                 </ul>
-
-                {!canShowDashboard && (
-                  <div className="mobile-auth-actions">
-                    <button 
-                      className="auth-btn primary"
-                      onClick={() => {
-                        setShowAuthModal(true);
-                        setShowMobileNav(false);
-                      }}
-                    >
-                      Login
-                    </button>
-                  </div>
-                )}
               </div>
             </nav>
           </div>
