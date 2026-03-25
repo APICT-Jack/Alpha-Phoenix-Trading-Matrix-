@@ -57,7 +57,7 @@ const HomePage = () => (
       </section>
       <div className="floating-buttons">
         <ThemeToggle />
-        <FloatingAssistant />
+        
       </div>
     </main>
     <Footer />
