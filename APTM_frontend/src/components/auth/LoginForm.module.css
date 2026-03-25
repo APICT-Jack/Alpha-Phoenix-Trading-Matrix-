@@ -3,14 +3,13 @@
 .container {
   position: relative;
   width: 100%;
-  max-width: 100%;
   margin: 0 auto;
-  padding: 0;
+  box-sizing: border-box;
 }
 
 .closeButton {
   position: absolute;
-  top: -45px;
+  top: -40px;
   right: 0;
   background: none;
   border: none;
@@ -18,25 +17,23 @@
   cursor: pointer;
   padding: 8px;
   border-radius: 8px;
-  transition: all var(--transition-speed-fast) var(--transition-easing);
+  transition: all 0.2s ease;
   z-index: 10;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.closeButton:hover {
+.closeButton:hover:not(:disabled) {
   background: var(--color-bg-tertiary);
   color: var(--color-text);
+  transform: scale(1.05);
 }
 
 .closeButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.form {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
 }
 
 .header {
@@ -69,22 +66,32 @@
   gap: 12px;
   background: rgba(239, 83, 80, 0.1);
   color: var(--color-danger);
-  padding: 16px;
+  padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid rgba(239, 83, 80, 0.2);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   margin-bottom: 24px;
   animation: slideDown 0.3s ease-out;
 }
 
+.error svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.form {
+  width: 100%;
+}
+
 .formGroup {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   width: 100%;
 }
 
 .label {
   display: block;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: var(--color-text);
   margin-bottom: 8px;
@@ -106,7 +113,7 @@
   font-size: 0.8rem;
   cursor: pointer;
   text-decoration: none;
-  transition: color var(--transition-speed-fast) var(--transition-easing);
+  transition: color 0.2s ease;
   padding: 4px 0;
 }
 
@@ -129,15 +136,15 @@
 
 .input {
   width: 100%;
-  padding: 14px 16px 14px 40px;
+  padding: 12px 16px 12px 40px;
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background: var(--color-bg);
   color: var(--color-text);
   font-size: 1rem;
-  transition: all var(--transition-speed-fast) var(--transition-easing);
+  transition: all 0.2s ease;
   outline: none;
-  font-family: var(--font-primary);
+  font-family: inherit;
   box-sizing: border-box;
   -webkit-appearance: none;
   appearance: none;
@@ -145,12 +152,14 @@
 
 .input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+  outline: none;
 }
 
 .input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  background: var(--color-bg-secondary);
 }
 
 .inputIcon {
@@ -169,9 +178,9 @@
   border: none;
   color: var(--color-text-secondary);
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   border-radius: 6px;
-  transition: all var(--transition-speed-fast) var(--transition-easing);
+  transition: all 0.2s ease;
   width: 32px;
   height: 32px;
   display: flex;
@@ -191,27 +200,26 @@
 
 .submitButton {
   width: 100%;
-  padding: 16px;
-  background: #2563eb;
+  padding: 14px;
   background: var(--color-primary, #2563eb);
   color: white;
-  color: var(--color-white, white);
   border: none;
   border-radius: 12px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-speed-fast) var(--transition-easing);
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   margin: 0 0 24px 0;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
 }
 
 .submitButton:hover:not(:disabled) {
-  background: #1d4ed8;
   background: var(--color-primary-dark, #1d4ed8);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
@@ -222,7 +230,8 @@
 }
 
 .submitButton:disabled {
-  background: #94a3b8;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
   cursor: not-allowed;
   transform: none;
   opacity: 0.7;
@@ -230,13 +239,17 @@
 
 .spinner {
   animation: spin 1s linear infinite;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Google Sign-in Section */
@@ -249,7 +262,7 @@
   display: flex;
   align-items: center;
   text-align: center;
-  margin: 24px 0;
+  margin: 20px 0;
   color: var(--color-text-secondary);
   font-size: 0.8rem;
 }
@@ -267,15 +280,15 @@
 
 .googleButton {
   width: 100%;
-  padding: 14px;
+  padding: 12px;
   background: white;
-  color: #757575;
+  color: #5f6368;
   border: 1px solid #dadce0;
   border-radius: 12px;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-speed-fast) var(--transition-easing);
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -289,7 +302,7 @@
   background: #f8f9fa;
   border-color: #bdc1c6;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .googleButton:active:not(:disabled) {
@@ -305,40 +318,18 @@
   color: #9aa0a6;
 }
 
-.googleButton:focus-visible {
-  outline: 2px solid #4285f4;
-  outline-offset: 2px;
-}
-
-/* Google logo container */
 .googleButton svg {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
 }
 
-/* Loading state for Google button */
-.googleButton[aria-busy="true"] {
-  position: relative;
-  color: transparent;
-}
-
-.googleButton[aria-busy="true"]::after {
-  content: '';
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  border: 2px solid transparent;
-  border-top: 2px solid #757575;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
 .switchText {
   text-align: center;
   color: var(--color-text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   line-height: 1.5;
+  margin-top: 8px;
 }
 
 .switchButton {
@@ -347,7 +338,7 @@
   color: var(--color-primary);
   cursor: pointer;
   font-weight: 600;
-  transition: color var(--transition-speed-fast) var(--transition-easing);
+  transition: color 0.2s ease;
   padding: 4px 8px;
   font-size: inherit;
   -webkit-tap-highlight-color: transparent;
@@ -363,191 +354,176 @@
   cursor: not-allowed;
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
-
-/* Mobile Devices (Portrait) - Default styles are already mobile-first */
+/* Mobile Responsive */
 @media (max-width: 640px) {
   .container {
-    padding: 0 16px;
+    padding: 0;
   }
-  
+
+  .header {
+    margin-bottom: 20px;
+  }
+
   .title {
     font-size: 1.5rem;
+    margin-bottom: 8px;
   }
-  
+
   .subtitle {
     font-size: 0.85rem;
   }
-  
+
+  .formGroup {
+    margin-bottom: 16px;
+  }
+
   .input {
-    font-size: 16px; /* Prevents zoom on mobile iOS */
-    padding: 12px 12px 12px 40px;
+    padding: 11px 12px 11px 38px;
+    font-size: 16px; /* Prevents zoom on iOS */
   }
-  
+
+  .inputIcon {
+    left: 12px;
+    width: 16px;
+    height: 16px;
+  }
+
   .submitButton {
-    padding: 14px;
-  }
-  
-  .googleButton {
     padding: 12px;
+    margin-bottom: 20px;
+  }
+
+  .googleButton {
+    padding: 11px;
+  }
+
+  .error {
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    font-size: 0.8rem;
   }
 }
 
-/* Small Mobile Devices */
 @media (max-width: 480px) {
-  .container {
-    padding: 0 12px;
-  }
-  
   .title {
     font-size: 1.3rem;
   }
-  
+
   .subtitle {
     font-size: 0.8rem;
   }
-  
-  .formGroup {
-    margin-bottom: 20px;
+
+  .label {
+    font-size: 0.8rem;
   }
-  
-  .error {
-    padding: 12px;
+
+  .input {
+    padding: 10px 12px 10px 36px;
+  }
+
+  .inputIcon {
+    left: 10px;
+    width: 15px;
+    height: 15px;
+  }
+
+  .submitButton {
+    padding: 11px;
+    font-size: 0.95rem;
+  }
+
+  .googleButton {
+    padding: 10px;
     font-size: 0.85rem;
   }
-  
+
+  .divider {
+    margin: 16px 0;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .title {
+    font-size: 1.2rem;
+  }
+
+  .subtitle {
+    font-size: 0.75rem;
+  }
+
+  .input {
+    padding: 9px 12px 9px 34px;
+    font-size: 14px;
+  }
+
+  .inputIcon {
+    left: 10px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .passwordToggle {
+    width: 28px;
+    height: 28px;
+  }
+
   .labelContainer {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
   }
-  
+
   .forgotPassword {
     align-self: flex-start;
   }
 }
 
-/* Extra Small Mobile Devices */
-@media (max-width: 360px) {
-  .container {
-    padding: 0 8px;
-  }
-  
-  .title {
-    font-size: 1.2rem;
-  }
-  
-  .subtitle {
-    font-size: 0.75rem;
-  }
-  
-  .input {
-    padding: 10px 10px 10px 36px;
-    font-size: 14px;
-  }
-  
-  .inputIcon {
-    left: 10px;
-    width: 16px;
-    height: 16px;
-  }
-  
-  .submitButton {
-    padding: 12px;
-    font-size: 0.9rem;
-  }
-  
-  .googleButton {
-    padding: 10px;
-    font-size: 0.85rem;
-  }
-}
-
-/* Tablet Devices */
+/* Tablet */
 @media (min-width: 641px) and (max-width: 1024px) {
   .container {
-    max-width: 500px;
-    margin: 0 auto;
+    max-width: 100%;
   }
-  
+
   .title {
     font-size: 1.7rem;
   }
-  
-  .subtitle {
-    font-size: 0.9rem;
-  }
-  
+
   .input {
     font-size: 0.95rem;
   }
 }
 
-/* Desktop Devices */
-@media (min-width: 1025px) {
-  .container {
-    max-width: 450px;
-    margin: 0 auto;
-  }
-  
-  .title {
-    font-size: 1.8rem;
-  }
-  
-  .subtitle {
-    font-size: 0.95rem;
-  }
-  
-  .input {
-    font-size: 0.95rem;
-  }
-  
-  .submitButton {
-    font-size: 1rem;
-    padding: 14px;
-  }
-  
-  .closeButton {
-    top: -45px;
-    right: -10px;
-  }
-}
-
-/* Landscape Mode on Mobile */
+/* Landscape Mode */
 @media (max-height: 500px) and (orientation: landscape) {
-  .container {
-    padding: 0 20px;
-  }
-  
   .header {
     margin-bottom: 12px;
   }
-  
+
   .title {
     font-size: 1.2rem;
+    margin-bottom: 4px;
   }
-  
+
   .subtitle {
     font-size: 0.7rem;
   }
-  
+
   .formGroup {
     margin-bottom: 12px;
   }
-  
+
   .submitButton {
     padding: 10px;
     margin-bottom: 12px;
   }
-  
+
   .googleSection {
     margin-bottom: 12px;
   }
-  
-  .error {
-    padding: 8px;
-    margin-bottom: 12px;
-    font-size: 0.8rem;
+
+  .divider {
+    margin: 12px 0;
   }
 }
 
@@ -563,98 +539,53 @@
   }
 }
 
-/* Focus styles for accessibility */
-.input:focus-visible,
-.submitButton:focus-visible,
-.googleButton:focus-visible,
-.switchButton:focus-visible,
-.forgotPassword:focus-visible,
-.passwordToggle:focus-visible,
-.closeButton:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-/* Loading state improvements */
-.submitButton[aria-busy="true"] {
-  position: relative;
-  cursor: wait;
-}
-
-.submitButton[aria-busy="true"]::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: inherit;
-}
-
-/* Ensure proper contrast for accessibility */
-@media (prefers-reduced-motion: reduce) {
-  .submitButton,
-  .googleButton,
-  .input,
-  .passwordToggle,
-  .closeButton,
-  .switchButton,
-  .forgotPassword,
-  .spinner,
-  .error {
-    transition: none;
-    animation: none;
-  }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .input {
-    border-width: 2px;
-  }
-  
-  .submitButton {
-    border: 2px solid currentColor;
-  }
-  
-  .googleButton {
-    border-width: 2px;
-    border-color: #757575;
-  }
-}
-
-/* Dark mode adjustments */
+/* Dark Mode */
 @media (prefers-color-scheme: dark) {
-  .input {
-    background: var(--color-bg-secondary);
-  }
-  
   .googleButton {
     background: #2d2d2d;
     color: #e8eaed;
     border-color: #5f6368;
   }
-  
+
   .googleButton:hover:not(:disabled) {
     background: #3c4043;
     border-color: #80868b;
   }
-  
+
   .googleButton:active:not(:disabled) {
     background: #424548;
   }
-  
+
   .googleButton:disabled {
     background: #2d2d2d;
     color: #9aa0a6;
   }
+
+  .input {
+    background: var(--color-bg-secondary);
+  }
 }
 
-/* Print styles */
-@media print {
-  .googleButton,
-  .closeButton {
-    display: none;
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High Contrast */
+@media (prefers-contrast: high) {
+  .input {
+    border-width: 2px;
+  }
+
+  .submitButton {
+    border: 2px solid currentColor;
+  }
+
+  .googleButton {
+    border-width: 2px;
   }
 }
