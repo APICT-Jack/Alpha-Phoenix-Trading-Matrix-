@@ -3,9 +3,11 @@
 .container {
   position: relative;
   width: 100%;
+  max-width: 100%;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .closeButton {
@@ -15,6 +17,7 @@
 .header {
   text-align: center;
   margin-bottom: 24px;
+  width: 100%;
 }
 
 .title {
@@ -27,6 +30,7 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   line-height: 1.3;
+  word-break: break-word;
 }
 
 .subtitle {
@@ -34,6 +38,7 @@
   color: var(--color-text-secondary);
   margin: 0;
   line-height: 1.4;
+  word-break: break-word;
 }
 
 .error {
@@ -48,6 +53,8 @@
   font-size: 0.85rem;
   margin-bottom: 20px;
   animation: slideDown 0.3s ease-out;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .error svg {
@@ -60,11 +67,13 @@
   width: 100%;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 .formGroup {
   margin-bottom: 18px;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .label {
@@ -80,6 +89,7 @@
   display: flex;
   align-items: center;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .input {
@@ -94,6 +104,7 @@
   outline: none;
   font-family: inherit;
   box-sizing: border-box;
+  min-width: 0;
 }
 
 .input:focus {
@@ -108,6 +119,7 @@
   pointer-events: none;
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
 }
 
 .passwordToggle {
@@ -124,6 +136,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .passwordToggle svg {
@@ -147,6 +160,7 @@
   justify-content: center;
   gap: 8px;
   margin: 0 0 20px 0;
+  box-sizing: border-box;
 }
 
 .submitButton:hover:not(:disabled) {
@@ -166,6 +180,8 @@
   font-size: 0.8rem;
   line-height: 1.5;
   margin-top: 8px;
+  width: 100%;
+  word-break: break-word;
 }
 
 .switchButton {
@@ -176,6 +192,7 @@
   font-weight: 600;
   padding: 2px 6px;
   font-size: inherit;
+  white-space: nowrap;
 }
 
 .spinner {
@@ -191,6 +208,11 @@
 
 /* Mobile Styles */
 @media (max-width: 768px) {
+  .container {
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
   .header {
     margin-bottom: 20px;
   }
@@ -212,6 +234,12 @@
     font-size: 16px;
   }
   
+  .inputIcon {
+    left: 10px;
+    width: 15px;
+    height: 15px;
+  }
+  
   .submitButton {
     padding: 11px;
     margin-bottom: 18px;
@@ -219,6 +247,10 @@
 }
 
 @media (max-width: 480px) {
+  .container {
+    overflow-x: hidden;
+  }
+  
   .title {
     font-size: 1.3rem;
   }
@@ -241,9 +273,44 @@
     height: 14px;
   }
   
+  .passwordToggle {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .passwordToggle svg {
+    width: 14px;
+    height: 14px;
+  }
+  
   .submitButton {
     padding: 10px;
     font-size: 0.9rem;
+  }
+  
+  .switchText {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .title {
+    font-size: 1.2rem;
+  }
+  
+  .input {
+    padding: 8px 12px 8px 32px;
+    font-size: 14px;
+  }
+  
+  .inputIcon {
+    left: 8px;
+    width: 13px;
+    height: 13px;
+  }
+  
+  .passwordToggle {
+    right: 8px;
   }
 }
 
