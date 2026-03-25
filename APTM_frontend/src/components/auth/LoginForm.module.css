@@ -3,8 +3,9 @@
 .container {
   position: relative;
   width: 100%;
-  max-width: min(400px, 90vw);
+  max-width: 100%;
   margin: 0 auto;
+  padding: 0;
 }
 
 .closeButton {
@@ -15,11 +16,11 @@
   border: none;
   color: var(--color-text-secondary);
   cursor: pointer;
-  padding: clamp(4px, 1.5vw, 8px);
-  border-radius: clamp(4px, 1.5vw, 8px);
+  padding: 8px;
+  border-radius: 8px;
   transition: all var(--transition-speed-fast) var(--transition-easing);
   z-index: 10;
-  font-size: clamp(0.7rem, 3vw, 0.9rem);
+  font-size: 0.9rem;
 }
 
 .closeButton:hover {
@@ -32,14 +33,20 @@
   cursor: not-allowed;
 }
 
+.form {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .header {
   text-align: center;
-  margin-bottom: clamp(16px, 4vw, 24px);
+  margin-bottom: 24px;
 }
 
 .title {
-  font-size: clamp(1.2rem, 6vw, 1.8rem);
-  margin: 0 0 clamp(8px, 2vw, 12px) 0;
+  font-size: 1.8rem;
+  margin: 0 0 12px 0;
   font-weight: 700;
   color: var(--color-text);
   background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
@@ -50,7 +57,7 @@
 }
 
 .subtitle {
-  font-size: clamp(0.75rem, 3.5vw, 0.9rem);
+  font-size: 0.9rem;
   color: var(--color-text-secondary);
   margin: 0;
   line-height: 1.5;
@@ -59,35 +66,35 @@
 .error {
   display: flex;
   align-items: center;
-  gap: clamp(8px, 2vw, 12px);
+  gap: 12px;
   background: rgba(239, 83, 80, 0.1);
   color: var(--color-danger);
-  padding: clamp(12px, 3vw, 16px);
-  border-radius: clamp(8px, 2vw, 12px);
+  padding: 16px;
+  border-radius: 12px;
   border: 1px solid rgba(239, 83, 80, 0.2);
-  font-size: clamp(0.75rem, 3.5vw, 0.9rem);
-  margin-bottom: clamp(16px, 4vw, 24px);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
   animation: slideDown 0.3s ease-out;
 }
 
 .formGroup {
-  margin-bottom: clamp(16px, 4vw, 24px);
+  margin-bottom: 24px;
   width: 100%;
 }
 
 .label {
   display: block;
-  font-size: clamp(0.75rem, 3.5vw, 0.9rem);
+  font-size: 0.9rem;
   font-weight: 500;
   color: var(--color-text);
-  margin-bottom: clamp(6px, 1.5vw, 8px);
+  margin-bottom: 8px;
 }
 
 .labelContainer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: clamp(6px, 1.5vw, 8px);
+  margin-bottom: 8px;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -96,7 +103,7 @@
   background: none;
   border: none;
   color: var(--color-primary);
-  font-size: clamp(0.7rem, 3vw, 0.8rem);
+  font-size: 0.8rem;
   cursor: pointer;
   text-decoration: none;
   transition: color var(--transition-speed-fast) var(--transition-easing);
@@ -122,12 +129,12 @@
 
 .input {
   width: 100%;
-  padding: clamp(10px, 3vw, 14px) clamp(12px, 3vw, 16px) clamp(10px, 3vw, 14px) clamp(32px, 8vw, 40px);
+  padding: 14px 16px 14px 40px;
   border: 1px solid var(--color-border);
-  border-radius: clamp(8px, 2vw, 12px);
+  border-radius: 12px;
   background: var(--color-bg);
   color: var(--color-text);
-  font-size: clamp(0.8rem, 3.5vw, 1rem);
+  font-size: 1rem;
   transition: all var(--transition-speed-fast) var(--transition-easing);
   outline: none;
   font-family: var(--font-primary);
@@ -148,25 +155,25 @@
 
 .inputIcon {
   position: absolute;
-  left: clamp(10px, 2.5vw, 12px);
+  left: 12px;
   color: var(--color-text-secondary);
   pointer-events: none;
-  width: clamp(16px, 4vw, 18px);
-  height: clamp(16px, 4vw, 18px);
+  width: 18px;
+  height: 18px;
 }
 
 .passwordToggle {
   position: absolute;
-  right: clamp(10px, 2.5vw, 12px);
+  right: 12px;
   background: none;
   border: none;
   color: var(--color-text-secondary);
   cursor: pointer;
-  padding: clamp(6px, 1.5vw, 8px);
-  border-radius: clamp(4px, 1.5vw, 6px);
+  padding: 8px;
+  border-radius: 6px;
   transition: all var(--transition-speed-fast) var(--transition-easing);
-  width: clamp(28px, 6vw, 32px);
-  height: clamp(28px, 6vw, 32px);
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -183,23 +190,23 @@
 }
 
 .submitButton {
-  width: min(80%, 300px);
-  padding: clamp(12px, 3.5vw, 16px);
+  width: 100%;
+  padding: 16px;
   background: #2563eb;
   background: var(--color-primary, #2563eb);
   color: white;
   color: var(--color-white, white);
   border: none;
-  border-radius: clamp(8px, 2vw, 12px);
-  font-size: clamp(0.9rem, 4vw, 1.1rem);
+  border-radius: 12px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-speed-fast) var(--transition-easing);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(8px, 2vw, 12px);
-  margin: 0 auto clamp(20px, 5vw, 32px) auto;
+  gap: 12px;
+  margin: 0 0 24px 0;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -223,8 +230,8 @@
 
 .spinner {
   animation: spin 1s linear infinite;
-  width: clamp(16px, 4vw, 20px);
-  height: clamp(16px, 4vw, 20px);
+  width: 20px;
+  height: 20px;
 }
 
 @keyframes spin {
@@ -234,7 +241,7 @@
 
 /* Google Sign-in Section */
 .googleSection {
-  margin-bottom: clamp(20px, 5vw, 32px);
+  margin-bottom: 24px;
   width: 100%;
 }
 
@@ -242,9 +249,9 @@
   display: flex;
   align-items: center;
   text-align: center;
-  margin: clamp(20px, 5vw, 32px) 0;
+  margin: 24px 0;
   color: var(--color-text-secondary);
-  font-size: clamp(0.7rem, 3vw, 0.8rem);
+  font-size: 0.8rem;
 }
 
 .divider::before,
@@ -255,24 +262,24 @@
 }
 
 .divider span {
-  padding: 0 clamp(10px, 2.5vw, 16px);
+  padding: 0 16px;
 }
 
 .googleButton {
   width: 100%;
-  padding: clamp(12px, 3.5vw, 16px);
+  padding: 14px;
   background: white;
   color: #757575;
   border: 1px solid #dadce0;
-  border-radius: clamp(8px, 2vw, 12px);
-  font-size: clamp(0.8rem, 3.5vw, 1rem);
+  border-radius: 12px;
+  font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-speed-fast) var(--transition-easing);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(10px, 2.5vw, 16px);
+  gap: 12px;
   position: relative;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   -webkit-tap-highlight-color: transparent;
@@ -305,8 +312,8 @@
 
 /* Google logo container */
 .googleButton svg {
-  width: clamp(18px, 4.5vw, 22px);
-  height: clamp(18px, 4.5vw, 22px);
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
 }
 
@@ -319,8 +326,8 @@
 .googleButton[aria-busy="true"]::after {
   content: '';
   position: absolute;
-  width: clamp(18px, 4.5vw, 22px);
-  height: clamp(18px, 4.5vw, 22px);
+  width: 20px;
+  height: 20px;
   border: 2px solid transparent;
   border-top: 2px solid #757575;
   border-radius: 50%;
@@ -330,7 +337,7 @@
 .switchText {
   text-align: center;
   color: var(--color-text-secondary);
-  font-size: clamp(0.8rem, 3.5vw, 0.9rem);
+  font-size: 0.9rem;
   line-height: 1.5;
 }
 
@@ -356,171 +363,191 @@
   cursor: not-allowed;
 }
 
-/* Mobile-First Responsive Design */
-@media (max-width: 480px) {
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Mobile Devices (Portrait) - Default styles are already mobile-first */
+@media (max-width: 640px) {
   .container {
-    max-width: 100%;
-    padding: 0 12px;
+    padding: 0 16px;
   }
-
-  .closeButton {
-    top: -40px;
-    right: 0;
-    font-size: 0.8rem;
-    padding: 8px;
-  }
-
-  .header {
-    margin-bottom: 20px;
-  }
-
+  
   .title {
     font-size: 1.5rem;
   }
-
+  
   .subtitle {
     font-size: 0.85rem;
   }
-
-  .formGroup {
-    margin-bottom: 20px;
-  }
-
+  
   .input {
+    font-size: 16px; /* Prevents zoom on mobile iOS */
     padding: 12px 12px 12px 40px;
-    font-size: 16px; /* Prevents zoom on mobile */
   }
-
+  
   .submitButton {
     padding: 14px;
-    font-size: 1rem;
-    width: 90%;
   }
-
+  
   .googleButton {
-    padding: 14px;
-    font-size: 0.95rem;
-  }
-
-  .divider {
-    margin: 24px 0;
-    font-size: 0.8rem;
-  }
-
-  .error {
-    padding: 14px;
-    font-size: 0.85rem;
+    padding: 12px;
   }
 }
 
-@media (max-width: 360px) {
+/* Small Mobile Devices */
+@media (max-width: 480px) {
   .container {
-    padding: 0 8px;
+    padding: 0 12px;
   }
-
+  
   .title {
     font-size: 1.3rem;
   }
-
+  
   .subtitle {
     font-size: 0.8rem;
   }
-
-  .input {
-    padding: 10px 10px 10px 36px;
+  
+  .formGroup {
+    margin-bottom: 20px;
   }
-
-  .submitButton {
-    width: 100%;
+  
+  .error {
+    padding: 12px;
+    font-size: 0.85rem;
   }
-
+  
   .labelContainer {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
   }
-
+  
   .forgotPassword {
     align-self: flex-start;
   }
 }
 
-/* Tablet Devices */
-@media (min-width: 481px) and (max-width: 768px) {
+/* Extra Small Mobile Devices */
+@media (max-width: 360px) {
   .container {
-    max-width: 90%;
+    padding: 0 8px;
   }
-
+  
   .title {
-    font-size: 1.6rem;
+    font-size: 1.2rem;
   }
+  
+  .subtitle {
+    font-size: 0.75rem;
+  }
+  
+  .input {
+    padding: 10px 10px 10px 36px;
+    font-size: 14px;
+  }
+  
+  .inputIcon {
+    left: 10px;
+    width: 16px;
+    height: 16px;
+  }
+  
+  .submitButton {
+    padding: 12px;
+    font-size: 0.9rem;
+  }
+  
+  .googleButton {
+    padding: 10px;
+    font-size: 0.85rem;
+  }
+}
 
+/* Tablet Devices */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .container {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .title {
+    font-size: 1.7rem;
+  }
+  
   .subtitle {
     font-size: 0.9rem;
   }
-
+  
   .input {
-    font-size: 15px;
+    font-size: 0.95rem;
   }
+}
 
+/* Desktop Devices */
+@media (min-width: 1025px) {
+  .container {
+    max-width: 450px;
+    margin: 0 auto;
+  }
+  
+  .title {
+    font-size: 1.8rem;
+  }
+  
+  .subtitle {
+    font-size: 0.95rem;
+  }
+  
+  .input {
+    font-size: 0.95rem;
+  }
+  
   .submitButton {
-    width: 85%;
+    font-size: 1rem;
+    padding: 14px;
+  }
+  
+  .closeButton {
+    top: -45px;
+    right: -10px;
   }
 }
 
 /* Landscape Mode on Mobile */
 @media (max-height: 500px) and (orientation: landscape) {
   .container {
-    padding: 0 16px;
+    padding: 0 20px;
   }
-
+  
   .header {
     margin-bottom: 12px;
   }
-
+  
   .title {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
   }
-
+  
   .subtitle {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
-
+  
   .formGroup {
     margin-bottom: 12px;
   }
-
+  
   .submitButton {
     padding: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
-
+  
   .googleSection {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
-}
-
-/* Large Screens */
-@media (min-width: 1200px) {
-  .container {
-    max-width: 450px;
-  }
-
-  .title {
-    font-size: 1.8rem;
-  }
-
-  .subtitle {
-    font-size: 0.95rem;
-  }
-
-  .input {
-    font-size: 0.95rem;
-  }
-
-  .submitButton {
-    font-size: 1rem;
-    padding: 14px;
+  
+  .error {
+    padding: 8px;
+    margin-bottom: 12px;
+    font-size: 0.8rem;
   }
 }
 

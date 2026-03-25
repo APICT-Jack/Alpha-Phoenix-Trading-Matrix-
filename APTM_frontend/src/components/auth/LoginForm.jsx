@@ -11,7 +11,7 @@ const LoginForm = ({ onSuccess, switchToSignup, onClose }) => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  // ✅ Fix: Destructure signInWithGoogle from useAuth
+  //Destructure signInWithGoogle from useAuth
   const { signIn, signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e) => {
