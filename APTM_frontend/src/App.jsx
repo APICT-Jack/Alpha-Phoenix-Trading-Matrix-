@@ -173,7 +173,7 @@ function App() {
                 <Route path="*" element={<PageNotFound />} />
               </Routes>
               
-              <MarketTicker />
+              
             </Router>
           </EducationProvider>
         </ThemeProvider>
