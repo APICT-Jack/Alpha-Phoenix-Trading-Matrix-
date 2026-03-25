@@ -1,4 +1,5 @@
-/* AuthModal.css - Complete styling for the authentication modal */
+/* src/components/auth/AuthModal.css */
+
 .auth-modal-overlay {
   position: fixed;
   top: 0;
@@ -11,27 +12,26 @@
   justify-content: center;
   z-index: 2000;
   backdrop-filter: blur(3.5px);
-  padding: 20px;
+  padding: 16px;
   box-sizing: border-box;
-  overflow-y: auto;
 }
 
 .auth-modal-container {
   background: var(--color-card);
-  border-radius: 16px;
-  box-shadow: var(--shadow-xl);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   position: relative;
-  padding: 24px;
+  padding: 28px;
   animation: fadeIn 0.3s ease-out;
   margin: auto;
   box-sizing: border-box;
-  max-height: calc(100vh - 40px);
+  max-height: calc(100vh - 32px);
   overflow-y: auto;
 }
 
-/* Custom scrollbar for modal */
+/* Custom scrollbar */
 .auth-modal-container::-webkit-scrollbar {
   width: 6px;
 }
@@ -46,18 +46,22 @@
   border-radius: 3px;
 }
 
+.auth-modal-container::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
 .close-button {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 20px;
+  right: 20px;
   background: none;
   border: none;
   color: var(--color-text-secondary);
-  font-size: 1.2rem;
   cursor: pointer;
-  transition: all var(--transition-speed-fast) var(--transition-easing);
-  width: 32px;
-  height: 32px;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -74,10 +78,10 @@
 
 .auth-modal-tabs {
   display: flex;
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 20px;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: 24px;
   gap: 8px;
-  padding-right: 32px;
+  padding-right: 36px;
 }
 
 .auth-tab {
@@ -89,9 +93,15 @@
   cursor: pointer;
   position: relative;
   font-size: 1rem;
-  transition: color var(--transition-speed-fast) var(--transition-easing);
+  transition: all 0.2s ease;
   flex: 1;
   text-align: center;
+  border-radius: 8px 8px 0 0;
+}
+
+.auth-tab:hover:not(.active) {
+  color: var(--color-text);
+  background: var(--color-bg-tertiary);
 }
 
 .auth-tab.active {
@@ -101,7 +111,7 @@
 .auth-tab.active::after {
   content: '';
   position: absolute;
-  bottom: -1px;
+  bottom: -2px;
   left: 0;
   width: 100%;
   height: 2px;
@@ -112,6 +122,7 @@
 .auth-modal-content {
   padding: 0;
   width: 100%;
+  overflow: visible;
 }
 
 /* Animation */
@@ -126,20 +137,25 @@
   }
 }
 
-/* Responsive Design - Mobile First */
-
-/* Mobile Devices (up to 640px) */
+/* Mobile Devices */
 @media (max-width: 640px) {
   .auth-modal-overlay {
     padding: 12px;
-    align-items: center;
   }
   
   .auth-modal-container {
     max-width: 100%;
-    max-height: calc(100vh - 24px);
     padding: 20px;
-    border-radius: 20px;
+    border-radius: 16px;
+    max-height: calc(100vh - 24px);
+  }
+  
+  .close-button {
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
   }
   
   .auth-modal-tabs {
@@ -151,18 +167,9 @@
     padding: 10px 16px;
     font-size: 0.95rem;
   }
-  
-  .close-button {
-    top: 12px;
-    right: 12px;
-    width: 36px;
-    height: 36px;
-    font-size: 1.1rem;
-    background: rgba(0, 0, 0, 0.05);
-  }
 }
 
-/* Small Mobile Devices (up to 480px) */
+/* Small Mobile Devices */
 @media (max-width: 480px) {
   .auth-modal-overlay {
     padding: 8px;
@@ -170,76 +177,25 @@
   
   .auth-modal-container {
     padding: 16px;
+    border-radius: 12px;
     max-height: calc(100vh - 16px);
-    border-radius: 16px;
   }
   
-  .auth-modal-tabs {
-    margin-bottom: 16px;
-    gap: 4px;
+  .close-button {
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    font-size: 0.9rem;
   }
   
   .auth-tab {
     padding: 8px 12px;
     font-size: 0.9rem;
   }
-  
-  .close-button {
-    top: 8px;
-    right: 8px;
-    width: 32px;
-    height: 32px;
-  }
 }
 
-/* Extra Small Mobile Devices (up to 360px) */
-@media (max-width: 360px) {
-  .auth-modal-container {
-    padding: 12px;
-  }
-  
-  .auth-tab {
-    padding: 8px 10px;
-    font-size: 0.85rem;
-  }
-  
-  .auth-modal-tabs {
-    margin-bottom: 12px;
-  }
-}
-
-/* Tablet Devices (641px to 1024px) */
-@media (min-width: 641px) and (max-width: 1024px) {
-  .auth-modal-container {
-    max-width: 480px;
-    padding: 28px;
-  }
-  
-  .auth-tab {
-    padding: 12px 24px;
-    font-size: 1rem;
-  }
-}
-
-/* Desktop Devices (1025px and above) */
-@media (min-width: 1025px) {
-  .auth-modal-container {
-    max-width: 450px;
-    padding: 28px;
-  }
-  
-  .close-button {
-    top: 20px;
-    right: 20px;
-  }
-  
-  .close-button:hover {
-    background: rgba(0, 0, 0, 0.1);
-    transform: scale(1.05);
-  }
-}
-
-/* Landscape Mode on Mobile */
+/* Landscape Mode */
 @media (max-height: 500px) and (orientation: landscape) {
   .auth-modal-overlay {
     padding: 8px;
@@ -247,10 +203,10 @@
   }
   
   .auth-modal-container {
-    max-width: 600px;
-    max-height: calc(100vh - 16px);
-    padding: 12px 20px;
+    max-width: 500px;
+    padding: 16px 20px;
     border-radius: 12px;
+    max-height: calc(100vh - 16px);
   }
   
   .auth-modal-tabs {
@@ -262,57 +218,10 @@
     font-size: 0.85rem;
   }
   
-  .auth-modal-content {
-    max-height: calc(100vh - 100px);
-    overflow-y: auto;
-  }
-  
   .close-button {
-    top: 8px;
-    right: 8px;
+    top: 10px;
+    right: 10px;
     width: 28px;
     height: 28px;
-  }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .auth-modal-container {
-    border: 2px solid currentColor;
-  }
-  
-  .close-button {
-    border: 1px solid currentColor;
-  }
-  
-  .auth-tab.active::after {
-    height: 3px;
-  }
-}
-
-/* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-  .close-button {
-    background: rgba(255, 255, 255, 0.05);
-  }
-  
-  .close-button:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-  
-  .auth-modal-container::-webkit-scrollbar-track {
-    background: var(--color-bg-secondary);
-  }
-  
-  .auth-modal-container::-webkit-scrollbar-thumb {
-    background: var(--color-text-tertiary);
-  }
-}
-
-/* Reduce motion if preferred */
-@media (prefers-reduced-motion: reduce) {
-  .auth-modal-container,
-  .auth-modal-overlay {
-    animation: none;
   }
 }
