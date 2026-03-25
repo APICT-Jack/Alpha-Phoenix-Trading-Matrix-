@@ -57,7 +57,7 @@ const HomePage = () => (
       </section>
       <div className="floating-buttons">
         <ThemeToggle />
-        
+        <FloatingAssistant />
       </div>
     </main>
     <Footer />
@@ -173,7 +173,7 @@ function App() {
                 <Route path="*" element={<PageNotFound />} />
               </Routes>
               
-              
+              <MarketTicker />
             </Router>
           </EducationProvider>
         </ThemeProvider>
