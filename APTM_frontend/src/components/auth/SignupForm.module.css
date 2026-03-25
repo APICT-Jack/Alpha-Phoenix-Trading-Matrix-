@@ -3,58 +3,57 @@
 .container {
   position: relative;
   width: 100%;
-  max-width: 100%;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
 .closeButton {
-  display: none; /* Hide since modal has its own close button */
+  display: none;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .title {
-  font-size: 1.6rem;
-  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+  margin: 0 0 6px 0;
   font-weight: 700;
   color: var(--color-text);
   background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .subtitle {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--color-text-secondary);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .error {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: rgba(239, 83, 80, 0.1);
   color: var(--color-danger);
-  padding: 10px 14px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid rgba(239, 83, 80, 0.2);
-  font-size: 0.8rem;
-  margin-bottom: 20px;
+  font-size: 0.75rem;
+  margin-bottom: 18px;
   animation: slideDown 0.3s ease-out;
 }
 
 .error svg {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .form {
@@ -64,16 +63,16 @@
 }
 
 .formGroup {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   width: 100%;
 }
 
 .label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--color-text);
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .inputContainer {
@@ -85,12 +84,12 @@
 
 .input {
   width: 100%;
-  padding: 10px 12px 10px 36px;
+  padding: 9px 12px 9px 34px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-bg);
   color: var(--color-text);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   transition: all 0.2s ease;
   outline: none;
   font-family: inherit;
@@ -100,54 +99,46 @@
 .input:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
-  outline: none;
-}
-
-.input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background: var(--color-bg-secondary);
 }
 
 .inputIcon {
   position: absolute;
-  left: 12px;
+  left: 10px;
   color: var(--color-text-secondary);
   pointer-events: none;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .passwordToggle {
   position: absolute;
-  right: 10px;
+  right: 8px;
   background: none;
   border: none;
   color: var(--color-text-secondary);
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
-  transition: all 0.2s ease;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.passwordToggle:hover:not(:disabled) {
-  color: var(--color-text);
-  background: var(--color-bg-tertiary);
+.passwordToggle svg {
+  width: 14px;
+  height: 14px;
 }
 
 .submitButton {
   width: 100%;
-  padding: 12px;
+  padding: 11px;
   background: var(--color-primary, #2563eb);
   color: white;
   border: none;
   border-radius: 10px;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -155,46 +146,14 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin: 0 0 20px 0;
-}
-
-.submitButton:hover:not(:disabled) {
-  background: var(--color-primary-dark, #1d4ed8);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
-}
-
-.submitButton:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.submitButton:disabled {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.spinner {
-  animation: spin 1s linear infinite;
-  width: 16px;
-  height: 16px;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  margin: 0 0 18px 0;
 }
 
 .switchText {
   text-align: center;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  line-height: 1.5;
+  font-size: 0.75rem;
+  line-height: 1.4;
 }
 
 .switchButton {
@@ -203,80 +162,84 @@
   color: var(--color-primary);
   cursor: pointer;
   font-weight: 600;
-  transition: color 0.2s ease;
-  padding: 2px 6px;
+  padding: 2px 4px;
   font-size: inherit;
 }
 
-.switchButton:hover:not(:disabled) {
-  color: var(--color-primary-dark);
-  text-decoration: underline;
+.spinner {
+  animation: spin 1s linear infinite;
+  width: 14px;
+  height: 14px;
 }
 
-/* Mobile Responsive */
-@media (max-width: 640px) {
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Mobile Specific Fixes */
+@media (max-width: 768px) {
+  .container {
+    width: 100%;
+  }
+  
   .header {
-    margin-bottom: 20px;
-  }
-
-  .title {
-    font-size: 1.4rem;
-  }
-
-  .subtitle {
-    font-size: 0.8rem;
-  }
-
-  .formGroup {
-    margin-bottom: 16px;
-  }
-
-  .input {
-    padding: 9px 12px 9px 36px;
-    font-size: 16px;
-  }
-
-  .submitButton {
-    padding: 11px;
     margin-bottom: 18px;
   }
-}
-
-@media (max-width: 480px) {
+  
   .title {
     font-size: 1.3rem;
   }
-
+  
   .subtitle {
     font-size: 0.75rem;
   }
-
-  .label {
-    font-size: 0.8rem;
+  
+  .formGroup {
+    margin-bottom: 14px;
   }
-
+  
   .input {
-    padding: 8px 12px 8px 34px;
+    padding: 8px 12px 8px 32px;
+    font-size: 16px;
   }
-
+  
   .inputIcon {
     left: 10px;
     width: 14px;
     height: 14px;
   }
-
+  
   .submitButton {
     padding: 10px;
-    font-size: 0.9rem;
-  }
-
-  .passwordToggle {
-    width: 26px;
-    height: 26px;
+    margin-bottom: 16px;
   }
 }
 
-/* Animations */
+@media (max-width: 480px) {
+  .title {
+    font-size: 1.2rem;
+  }
+  
+  .subtitle {
+    font-size: 0.7rem;
+  }
+  
+  .label {
+    font-size: 0.75rem;
+  }
+  
+  .input {
+    padding: 7px 12px 7px 32px;
+    font-size: 14px;
+  }
+  
+  .submitButton {
+    padding: 9px;
+    font-size: 0.85rem;
+  }
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;
