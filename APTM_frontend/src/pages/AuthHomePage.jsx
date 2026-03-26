@@ -11,8 +11,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import Container from '../components/ui/Container';
 import Footer from '../components/layout/Footer';
-import ThemeToggle from '../components/ui/ThemeToggle';
-import FloatingAssistant from '../components/ui/FloatingAssistant';
 import './AuthHomePage.css';
 
 const AuthHomePage = () => {
@@ -272,12 +270,6 @@ const AuthHomePage = () => {
           </Container>
         </section>
       </main>
-
-      {/* Floating Buttons */}
-      <div className="floating-buttons">
-        <ThemeToggle />
-        <FloatingAssistant />
-      </div>
 
       {/* Footer */}
       <Footer />
