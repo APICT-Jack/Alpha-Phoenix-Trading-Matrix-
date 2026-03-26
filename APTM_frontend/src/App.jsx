@@ -9,7 +9,7 @@ import FloatingAssistant from './components/ui/FloatingAssistant';
 import ThemeToggle from './components/ui/ThemeToggle';
 import Footer from './components/layout/Footer';
 import { ThemeProvider } from './context/ThemeContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { EducationProvider } from './context/EducationContext';
 import Header from './components/layout/Header';
 import SignupForm from './components/auth/SignupForm';
@@ -21,7 +21,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import EducationPage from './pages/Education/EducationPage';
 import AcademyDetailPage from './pages/Education/AcademyDetailPage';
 import Chat from './components/chat/Chat';
-import HomePage from './pages/HomePage'; // Import the new HomePage component
+import AuthHomePage from './pages/AuthHomePage'; // Import the authenticated homepage
 
 // Fallback component for missing pages
 const PageNotFound = () => (
@@ -39,10 +39,40 @@ const ConditionalHeader = () => {
   const isProfileRoute = location.pathname.startsWith('/profile');
   const isDashboardRoute = location.pathname === '/dashboard';
   const isChatRoute = location.pathname.startsWith('/chat');
-  const isHomeRoute = location.pathname === '/'; // Home page now has its own header
+  const isHomeRoute = location.pathname === '/'; // Home page now has its own header handling
   
   // Show header on routes that need it (excluding home, education, auth, profile, dashboard, and chat)
   return !(isHomeRoute || isEducationRoute || isAuthRoute || isProfileRoute || isDashboardRoute || isChatRoute) ? <Header /> : null;
+};
+
+// HomePage wrapper that conditionally renders based on authentication status
+const HomePageWrapper = () => {
+  const { isAuthenticated, user } = useAuth();
+  
+  // If authenticated, show the authenticated homepage
+  if (isAuthenticated && user) {
+    return <AuthHomePage />;
+  }
+  
+  // Original unauthenticated homepage
+  return (
+    <>
+      <main className="main-content">
+        <section id="hero">
+          <Hero />
+        </section>
+        <Features />
+        <section id="community">
+          <Community />
+        </section>
+        <div className="floating-buttons">
+          <ThemeToggle />
+          <FloatingAssistant />
+        </div>
+      </main>
+      <Footer />
+    </>
+  );
 };
 
 // Layout component for pages that need full-width experience
@@ -82,8 +112,8 @@ function App() {
                   </main>
                 } />
                 
-                {/* Main app route - Now uses the new HomePage component */}
-                <Route path="/" element={<HomePage />} />
+                {/* Main app route - Uses wrapper that conditionally renders based on auth */}
+                <Route path="/" element={<HomePageWrapper />} />
                 
                 {/* Education routes */}
                 <Route path="/education" element={<EducationPage />} />
@@ -152,36 +182,47 @@ function App() {
                 
                 {/* Tools page route - Coming soon */}
                 <Route path="/tools" element={
-                  <div style={{ 
-                    minHeight: '100vh', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    flexDirection: 'column',
-                    padding: '2rem',
-                    textAlign: 'center'
-                  }}>
-                    <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔧</h1>
-                    <h2>Advanced Tools Coming Soon</h2>
-                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '1rem' }}>
-                      We're building powerful tools to help you trade better. Stay tuned!
-                    </p>
-                    <button 
-                      onClick={() => window.location.href = '/'}
-                      style={{
-                        marginTop: '2rem',
-                        padding: '0.75rem 2rem',
-                        background: 'var(--color-primary)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        fontWeight: '600'
-                      }}
-                    >
-                      Go Back Home
-                    </button>
-                  </div>
+                  <ProtectedRoute>
+                    <div style={{ 
+                      minHeight: '100vh', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      flexDirection: 'column',
+                      padding: '2rem',
+                      textAlign: 'center'
+                    }}>
+                      <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔧</h1>
+                      <h2 style={{ color: 'var(--color-text)' }}>Advanced Tools Coming Soon</h2>
+                      <p style={{ color: 'var(--color-text-secondary)', marginTop: '1rem' }}>
+                        We're building powerful tools to help you trade better. Stay tuned!
+                      </p>
+                      <button 
+                        onClick={() => window.location.href = '/'}
+                        style={{
+                          marginTop: '2rem',
+                          padding: '0.75rem 2rem',
+                          background: 'var(--color-primary)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 10px 25px rgba(41, 121, 255, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      >
+                        Go Back Home
+                      </button>
+                    </div>
+                  </ProtectedRoute>
                 } />
                 
                 {/* 404 fallback */}
