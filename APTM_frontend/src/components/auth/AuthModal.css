@@ -6,8 +6,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
+  background-color: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,6 +15,17 @@
   padding: 16px;
   box-sizing: border-box;
   cursor: pointer;
+  transition: background-color 0.2s ease, backdrop-filter 0.2s ease;
+}
+
+.auth-modal-overlay.visible {
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+.auth-modal-overlay.closing {
+  background-color: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
 }
 
 .auth-modal-container {
@@ -31,7 +42,19 @@
   overflow-y: auto;
   overflow-x: hidden;
   cursor: default;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  transform: scale(0.95) translateY(20px);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.auth-modal-container.visible {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.auth-modal-container.closing {
+  opacity: 0;
+  transform: scale(0.95) translateY(20px);
 }
 
 /* Modern Scrollbar */
@@ -155,7 +178,8 @@
   }
 }
 
-/* Tablet Styles */
+/* ========== FIXED MOBILE RESPONSIVE STYLES ========== */
+/* Tablet Devices */
 @media (max-width: 768px) {
   .auth-modal-overlay {
     padding: 12px;
@@ -190,16 +214,17 @@
   }
 }
 
-/* Mobile Landscape & Portrait */
+/* Mobile Landscape & Portrait - CRITICAL FIX */
 @media (max-width: 640px) {
   .auth-modal-container {
-    padding: 20px 16px 24px;
+    padding: 18px 16px 22px;
     border-radius: 20px;
+    max-height: 85vh;
   }
   
   .close-button {
-    top: 14px;
-    right: 14px;
+    top: 12px;
+    right: 12px;
     width: 32px;
     height: 32px;
     font-size: 14px;
@@ -207,7 +232,7 @@
   
   .auth-modal-tabs {
     margin-bottom: 20px;
-    padding-right: 34px;
+    padding-right: 32px;
     gap: 4px;
   }
   
@@ -217,16 +242,35 @@
   }
 }
 
-/* Small Mobile Devices */
+/* Small Mobile Devices - CRITICAL FIX */
 @media (max-width: 480px) {
   .auth-modal-overlay {
     padding: 8px;
+    align-items: flex-end;
   }
   
   .auth-modal-container {
-    padding: 18px 14px 22px;
+    padding: 20px 16px 24px;
     max-height: 92vh;
-    border-radius: 20px;
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    margin-bottom: 0;
+    animation: slideUpMobile 0.3s ease-out;
+  }
+  
+  .auth-modal-container.visible {
+    animation: slideUpMobile 0.3s ease-out;
+  }
+  
+  @keyframes slideUpMobile {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   
   .close-button {
@@ -238,25 +282,32 @@
   }
   
   .auth-modal-tabs {
-    margin-bottom: 18px;
-    padding-right: 30px;
+    margin-bottom: 16px;
+    padding-right: 28px;
     gap: 2px;
   }
   
   .auth-tab {
-    padding: 6px 10px;
+    padding: 8px 12px;
     font-size: 0.85rem;
+  }
+  
+  /* Ensure content fits without overflow */
+  .auth-modal-content {
+    max-height: calc(92vh - 100px);
+    overflow-y: auto;
   }
 }
 
 /* Extra Small Devices */
-@media (max-width: 360px) {
+@media (max-width: 380px) {
   .auth-modal-container {
     padding: 16px 12px 20px;
+    max-height: 90vh;
   }
   
   .auth-tab {
-    padding: 5px 8px;
+    padding: 6px 10px;
     font-size: 0.8rem;
   }
   
@@ -265,6 +316,47 @@
     right: 10px;
     width: 28px;
     height: 28px;
+  }
+  
+  .auth-modal-content {
+    max-height: calc(90vh - 80px);
+  }
+}
+
+/* iPhone SE and similar small devices */
+@media (max-width: 375px) {
+  .auth-modal-container {
+    padding: 14px 12px 18px;
+  }
+  
+  .auth-tab {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+  }
+  
+  .auth-modal-tabs {
+    margin-bottom: 14px;
+  }
+}
+
+/* Landscape mode for mobile */
+@media (max-height: 600px) and (orientation: landscape) {
+  .auth-modal-container {
+    max-height: 90vh;
+    padding: 12px 16px 16px;
+  }
+  
+  .auth-modal-content {
+    max-height: calc(90vh - 80px);
+  }
+  
+  .auth-tab {
+    padding: 6px 12px;
+  }
+  
+  .close-button {
+    top: 8px;
+    right: 8px;
   }
 }
 

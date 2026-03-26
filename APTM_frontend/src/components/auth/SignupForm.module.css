@@ -12,13 +12,13 @@
 
 .header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
   width: 100%;
 }
 
 .title {
-  font-size: clamp(1.4rem, 5vw, 1.8rem);
-  margin: 0 0 8px 0;
+  font-size: clamp(1.2rem, 5vw, 1.8rem);
+  margin: 0 0 6px 0;
   font-weight: 700;
   background: linear-gradient(135deg, var(--color-primary, #2563eb), var(--color-accent, #8b5cf6));
   -webkit-background-clip: text;
@@ -28,7 +28,7 @@
 }
 
 .subtitle {
-  font-size: clamp(0.75rem, 3vw, 0.85rem);
+  font-size: clamp(0.7rem, 3vw, 0.85rem);
   color: var(--color-text-secondary, #6b7280);
   margin: 0;
   line-height: 1.4;
@@ -37,23 +37,24 @@
 .serverError {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid rgba(239, 68, 68, 0.25);
-  font-size: 0.85rem;
-  margin-bottom: 20px;
+  font-size: 0.8rem;
+  margin-bottom: 16px;
   animation: slideDown 0.3s ease-out;
 }
 
 .fieldError {
   color: #ef4444;
-  font-size: 0.75rem;
-  margin-top: 6px;
+  font-size: 0.7rem;
+  margin-top: 4px;
   margin-bottom: 0;
   padding-left: 12px;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .form {
@@ -61,16 +62,16 @@
 }
 
 .formGroup {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   width: 100%;
 }
 
 .label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--color-text, #111827);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .inputContainer {
@@ -88,12 +89,12 @@
 
 .input {
   width: 100%;
-  padding: 12px 12px 12px 40px;
+  padding: 10px 12px 10px 36px;
   border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--color-bg, #ffffff);
   color: var(--color-text, #111827);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   transition: all 0.2s ease;
   outline: none;
   font-family: inherit;
@@ -107,22 +108,22 @@
 
 .inputIcon {
   position: absolute;
-  left: 12px;
+  left: 10px;
   color: var(--color-text-secondary, #9ca3af);
   pointer-events: none;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .passwordToggle {
   position: absolute;
-  right: 12px;
+  right: 10px;
   background: none;
   border: none;
   color: var(--color-text-secondary, #9ca3af);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 8px;
+  padding: 5px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -134,32 +135,32 @@
 }
 
 .passwordToggle svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .submitButton {
   width: 100%;
-  padding: 14px;
+  padding: 12px;
   background: var(--color-primary, #2563eb);
   color: white;
   border: none;
-  border-radius: 14px;
-  font-size: 1rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin: 8px 0 20px;
+  gap: 8px;
+  margin: 8px 0 16px;
 }
 
 .submitButton:hover:not(:disabled) {
   background: var(--color-primary-dark, #1d4ed8);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .submitButton:active:not(:disabled) {
@@ -174,7 +175,7 @@
 .switchText {
   text-align: center;
   color: var(--color-text-secondary, #6b7280);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   line-height: 1.5;
 }
 
@@ -184,7 +185,7 @@
   color: var(--color-primary, #2563eb);
   cursor: pointer;
   font-weight: 600;
-  padding: 2px 6px;
+  padding: 2px 4px;
   font-size: inherit;
   transition: opacity 0.2s;
 }
@@ -196,8 +197,8 @@
 
 .spinner {
   animation: spin 0.8s linear infinite;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 @keyframes spin {
@@ -208,7 +209,7 @@
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
@@ -216,44 +217,99 @@
   }
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Specific Styles */
+@media (max-width: 480px) {
   .header {
-    margin-bottom: 24px;
+    margin-bottom: 16px;
+  }
+  
+  .title {
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+  }
+  
+  .subtitle {
+    font-size: 0.7rem;
   }
   
   .formGroup {
-    margin-bottom: 18px;
+    margin-bottom: 14px;
+  }
+  
+  .label {
+    font-size: 0.75rem;
   }
   
   .input {
-    padding: 11px 12px 11px 38px;
-    font-size: 16px;
-  }
-  
-  .submitButton {
-    padding: 12px;
-    margin: 4px 0 18px;
-  }
-}
-
-@media (max-width: 480px) {
-  .input {
-    padding: 10px 12px 10px 36px;
+    padding: 9px 12px 9px 34px;
+    font-size: 16px; /* Prevents zoom on iOS */
   }
   
   .inputIcon {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     left: 10px;
   }
   
+  .passwordToggle svg {
+    width: 14px;
+    height: 14px;
+  }
+  
   .submitButton {
-    padding: 11px;
-    font-size: 0.95rem;
+    padding: 10px;
+    font-size: 0.9rem;
+    margin: 4px 0 14px;
+  }
+  
+  .switchText {
+    font-size: 0.75rem;
+  }
+  
+  .serverError {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    margin-bottom: 14px;
   }
 }
 
+@media (max-width: 375px) {
+  .header {
+    margin-bottom: 12px;
+  }
+  
+  .title {
+    font-size: 1.2rem;
+  }
+  
+  .formGroup {
+    margin-bottom: 12px;
+  }
+  
+  .input {
+    padding: 8px 12px 8px 32px;
+    font-size: 15px;
+  }
+  
+  .inputIcon {
+    left: 8px;
+    width: 13px;
+    height: 13px;
+  }
+}
+
+/* Dark Mode */
 @media (prefers-color-scheme: dark) {
   .input {
     background: #1f2937;
