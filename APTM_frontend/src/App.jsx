@@ -20,7 +20,8 @@ import UserProfileView from './components/profile/UserProfileView';
 import ProtectedRoute from './components/ProtectedRoute'; 
 import EducationPage from './pages/Education/EducationPage';
 import AcademyDetailPage from './pages/Education/AcademyDetailPage';
-import Chat from './components/chat/Chat'; // Import the Chat component
+import Chat from './components/chat/Chat';
+import HomePage from './pages/HomePage'; // Import the new HomePage component
 
 // Fallback component for missing pages
 const PageNotFound = () => (
@@ -37,32 +38,12 @@ const ConditionalHeader = () => {
   const isAuthRoute = location.pathname === '/login' || location.pathname === '/signup';
   const isProfileRoute = location.pathname.startsWith('/profile');
   const isDashboardRoute = location.pathname === '/dashboard';
-  const isChatRoute = location.pathname.startsWith('/chat'); // Exclude chat routes from header
+  const isChatRoute = location.pathname.startsWith('/chat');
+  const isHomeRoute = location.pathname === '/'; // Home page now has its own header
   
-  // Show header on ALL routes except education, auth, profile, dashboard, and chat pages
-  return !(isEducationRoute || isAuthRoute || isProfileRoute || isDashboardRoute || isChatRoute) ? <Header /> : null;
+  // Show header on routes that need it (excluding home, education, auth, profile, dashboard, and chat)
+  return !(isHomeRoute || isEducationRoute || isAuthRoute || isProfileRoute || isDashboardRoute || isChatRoute) ? <Header /> : null;
 };
-
-// Separate home page component
-const HomePage = () => (
-  <>
-    <main className="main-content">
-      <section id="hero">
-        <Hero />
-      </section>
-      <Features />
-     
-      <section id="community">
-        <Community />
-      </section>
-      <div className="floating-buttons">
-        <ThemeToggle />
-        <FloatingAssistant />
-      </div>
-    </main>
-    <Footer />
-  </>
-);
 
 // Layout component for pages that need full-width experience
 const FullWidthLayout = ({ children }) => (
@@ -85,7 +66,7 @@ function App() {
         <ThemeProvider>
           <EducationProvider>
             <Router>
-              {/* Conditional Header - Now excludes profile, dashboard, and chat routes */}
+              {/* Conditional Header - Now excludes home, education, auth, profile, dashboard, and chat routes */}
               <ConditionalHeader />
               
               <Routes>
@@ -101,7 +82,7 @@ function App() {
                   </main>
                 } />
                 
-                {/* Main app route */}
+                {/* Main app route - Now uses the new HomePage component */}
                 <Route path="/" element={<HomePage />} />
                 
                 {/* Education routes */}
@@ -167,6 +148,40 @@ function App() {
                       <Chat />
                     </ChatLayout>
                   </ProtectedRoute>
+                } />
+                
+                {/* Tools page route - Coming soon */}
+                <Route path="/tools" element={
+                  <div style={{ 
+                    minHeight: '100vh', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    flexDirection: 'column',
+                    padding: '2rem',
+                    textAlign: 'center'
+                  }}>
+                    <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔧</h1>
+                    <h2>Advanced Tools Coming Soon</h2>
+                    <p style={{ color: 'var(--color-text-secondary)', marginTop: '1rem' }}>
+                      We're building powerful tools to help you trade better. Stay tuned!
+                    </p>
+                    <button 
+                      onClick={() => window.location.href = '/'}
+                      style={{
+                        marginTop: '2rem',
+                        padding: '0.75rem 2rem',
+                        background: 'var(--color-primary)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        fontWeight: '600'
+                      }}
+                    >
+                      Go Back Home
+                    </button>
+                  </div>
                 } />
                 
                 {/* 404 fallback */}
