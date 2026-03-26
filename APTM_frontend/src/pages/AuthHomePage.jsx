@@ -163,7 +163,7 @@ const AuthHomePage = () => {
           <Container>
             <div className="welcome-content">
               <h1 className="welcome-title">
-                Welcome back, <span className="user-name">{user?.name || 'Trader'}!</span>
+                Welcome back, <span className="user-name">{user?.name || user?.username || 'Trader'}!</span>
               </h1>
               <p className="welcome-description">
                 Ready to continue your trading journey? Access your tools, connect with the community, and track your progress.

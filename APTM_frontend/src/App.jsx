@@ -31,30 +31,41 @@ const PageNotFound = () => (
   </div>
 );
 
-// Separate component for conditional header that uses useLocation
+// Separate component for conditional header that uses useLocation and useAuth
 const ConditionalHeader = () => {
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const isEducationRoute = location.pathname.startsWith('/education');
   const isAuthRoute = location.pathname === '/login' || location.pathname === '/signup';
   const isProfileRoute = location.pathname.startsWith('/profile');
   const isDashboardRoute = location.pathname === '/dashboard';
   const isChatRoute = location.pathname.startsWith('/chat');
-  const isHomeRoute = location.pathname === '/'; // Home page now has its own header handling
+  const isHomeRoute = location.pathname === '/';
   
-  // Show header on routes that need it (excluding home, education, auth, profile, dashboard, and chat)
-  return !(isHomeRoute || isEducationRoute || isAuthRoute || isProfileRoute || isDashboardRoute || isChatRoute) ? <Header /> : null;
+  // Show header on:
+  // 1. Home route ONLY if user is authenticated (AuthHomePage has its own header)
+  // 2. All other routes except education, auth, profile, dashboard, and chat
+  const shouldShowHeader = !isEducationRoute && !isAuthRoute && !isProfileRoute && !isDashboardRoute && !isChatRoute;
+  
+  // For home route, only show header if authenticated
+  if (isHomeRoute) {
+    return isAuthenticated ? <Header /> : null;
+  }
+  
+  // For other routes, show header if not excluded
+  return shouldShowHeader ? <Header /> : null;
 };
 
 // HomePage wrapper that conditionally renders based on authentication status
 const HomePageWrapper = () => {
   const { isAuthenticated, user } = useAuth();
   
-  // If authenticated, show the authenticated homepage
+  // If authenticated, show the authenticated homepage (which includes its own header)
   if (isAuthenticated && user) {
     return <AuthHomePage />;
   }
   
-  // Original unauthenticated homepage
+  // Original unauthenticated homepage (no header)
   return (
     <>
       <main className="main-content">
@@ -96,7 +107,7 @@ function App() {
         <ThemeProvider>
           <EducationProvider>
             <Router>
-              {/* Conditional Header - Now excludes home, education, auth, profile, dashboard, and chat routes */}
+              {/* Conditional Header - Now shows on home when authenticated */}
               <ConditionalHeader />
               
               <Routes>
