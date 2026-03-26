@@ -7,34 +7,36 @@
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
-  backdrop-filter: blur(4px);
-  padding: 20px;
+  z-index: 10000;
+  padding: 16px;
   box-sizing: border-box;
+  cursor: pointer;
 }
 
 .auth-modal-container {
   background: var(--color-card, #ffffff);
-  border-radius: 24px;
-  box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.3);
+  border-radius: 28px;
+  box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.35);
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
   position: relative;
-  padding: 28px;
-  animation: modalFadeIn 0.3s ease-out;
+  padding: 28px 28px 32px;
   margin: auto;
   box-sizing: border-box;
   max-height: 90vh;
   overflow-y: auto;
   overflow-x: hidden;
+  cursor: default;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Custom scrollbar */
+/* Modern Scrollbar */
 .auth-modal-container::-webkit-scrollbar {
-  width: 5px;
+  width: 6px;
 }
 
 .auth-modal-container::-webkit-scrollbar-track {
@@ -43,8 +45,13 @@
 }
 
 .auth-modal-container::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.auth-modal-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .close-button {
@@ -55,29 +62,33 @@
   border: none;
   color: var(--color-text-secondary, #666);
   cursor: pointer;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   z-index: 10;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .close-button:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.12);
   color: var(--color-text, #000);
-  transform: scale(1.05);
+  transform: rotate(90deg);
+}
+
+.close-button:active {
+  transform: scale(0.95);
 }
 
 .auth-modal-tabs {
   display: flex;
   border-bottom: 2px solid var(--color-border, #e5e7eb);
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   gap: 8px;
-  padding-right: 40px;
+  padding-right: 44px;
 }
 
 .auth-tab {
@@ -90,8 +101,8 @@
   font-size: 1rem;
   cursor: pointer;
   position: relative;
-  transition: all 0.2s ease;
-  border-radius: 8px 8px 0 0;
+  transition: all 0.25s ease;
+  border-radius: 12px 12px 0 0;
   text-align: center;
   white-space: nowrap;
 }
@@ -114,27 +125,37 @@
   height: 2px;
   background: var(--color-primary, #2563eb);
   border-radius: 2px;
+  animation: slideUnderline 0.3s ease;
+}
+
+@keyframes slideUnderline {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 .auth-modal-content {
   padding: 0;
   width: 100%;
   overflow: visible;
+  animation: contentFade 0.3s ease;
 }
 
-/* Animation */
-@keyframes modalFadeIn {
+@keyframes contentFade {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
   }
 }
 
-/* Mobile Styles - Fixed Width */
+/* Tablet Styles */
 @media (max-width: 768px) {
   .auth-modal-overlay {
     padding: 12px;
@@ -143,68 +164,145 @@
   .auth-modal-container {
     max-width: 100%;
     width: 100%;
-    padding: 20px;
+    padding: 24px 20px 28px;
     max-height: 85vh;
-    border-radius: 20px;
+    border-radius: 24px;
     overflow-x: hidden;
   }
   
   .close-button {
     top: 16px;
     right: 16px;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
   }
   
   .auth-modal-tabs {
-    margin-bottom: 20px;
-    padding-right: 36px;
+    margin-bottom: 24px;
+    padding-right: 38px;
+    gap: 6px;
   }
   
   .auth-tab {
-    padding: 8px 12px;
-    font-size: 0.9rem;
-    white-space: nowrap;
+    padding: 10px 16px;
+    font-size: 0.95rem;
   }
 }
 
-@media (max-width: 480px) {
-  .auth-modal-overlay {
-    padding: 10px;
-  }
-  
+/* Mobile Landscape & Portrait */
+@media (max-width: 640px) {
   .auth-modal-container {
-    padding: 16px;
-    max-height: 90vh;
+    padding: 20px 16px 24px;
+    border-radius: 20px;
   }
   
   .close-button {
-    top: 12px;
-    right: 12px;
+    top: 14px;
+    right: 14px;
     width: 32px;
     height: 32px;
     font-size: 14px;
   }
   
   .auth-modal-tabs {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
+    padding-right: 34px;
     gap: 4px;
-    padding-right: 32px;
   }
   
   .auth-tab {
-    padding: 6px 8px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Small Mobile Devices */
+@media (max-width: 480px) {
+  .auth-modal-overlay {
+    padding: 8px;
+  }
+  
+  .auth-modal-container {
+    padding: 18px 14px 22px;
+    max-height: 92vh;
+    border-radius: 20px;
+  }
+  
+  .close-button {
+    top: 12px;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+  
+  .auth-modal-tabs {
+    margin-bottom: 18px;
+    padding-right: 30px;
+    gap: 2px;
+  }
+  
+  .auth-tab {
+    padding: 6px 10px;
     font-size: 0.85rem;
   }
 }
 
+/* Extra Small Devices */
 @media (max-width: 360px) {
   .auth-modal-container {
-    padding: 12px;
+    padding: 16px 12px 20px;
   }
   
   .auth-tab {
-    padding: 5px 6px;
+    padding: 5px 8px;
     font-size: 0.8rem;
+  }
+  
+  .close-button {
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* High Resolution Screens */
+@media (min-width: 1920px) {
+  .auth-modal-container {
+    max-width: 520px;
+    padding: 32px 32px 36px;
+  }
+  
+  .auth-tab {
+    font-size: 1.05rem;
+    padding: 14px 24px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .auth-modal-container {
+    background: #1f2937;
+  }
+  
+  .close-button {
+    background: rgba(255, 255, 255, 0.08);
+    color: #9ca3af;
+  }
+  
+  .close-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #f3f4f6;
+  }
+  
+  .auth-tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #f3f4f6;
+  }
+  
+  .auth-tab.active {
+    color: #60a5fa;
   }
 }

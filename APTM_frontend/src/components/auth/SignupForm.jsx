@@ -1,48 +1,116 @@
 // src/components/auth/SignupForm.jsx
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './SignupForm.module.css';
-import OtpModal from './OtpModal.jsx';
+import OtpModal from './OtpModal';
 
 const SignupForm = ({ onSuccess, switchToLogin, onClose }) => {
-  const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState('');
   const [showOtp, setShowOtp] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
+
+  const validateField = useCallback((name, value, allData = formData) => {
+    switch (name) {
+      case 'name':
+        if (!value) return 'Full name is required';
+        if (value.length < 2) return 'Name must be at least 2 characters';
+        return '';
+      case 'username':
+        if (!value) return 'Username is required';
+        if (value.length < 3) return 'Username must be at least 3 characters';
+        if (!/^[a-zA-Z0-9_]+$/.test(value)) return 'Username can only contain letters, numbers, and underscores';
+        return '';
+      case 'email':
+        if (!value) return 'Email is required';
+        if (!/\S+@\S+\.\S+/.test(value)) return 'Please enter a valid email address';
+        return '';
+      case 'password':
+        if (!value) return 'Password is required';
+        if (value.length < 6) return 'Password must be at least 6 characters';
+        if (allData.confirmPassword && value !== allData.confirmPassword) {
+          setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
+        }
+        return '';
+      case 'confirmPassword':
+        if (!value) return 'Please confirm your password';
+        if (value !== allData.password) return 'Passwords do not match';
+        return '';
+      default:
+        return '';
+    }
+  }, [formData]);
+
+  const validateForm = useCallback(() => {
+    const newErrors = {};
+    newErrors.name = validateField('name', formData.name);
+    newErrors.username = validateField('username', formData.username);
+    newErrors.email = validateField('email', formData.email);
+    newErrors.password = validateField('password', formData.password);
+    newErrors.confirmPassword = validateField('confirmPassword', formData.confirmPassword);
+    setErrors(newErrors);
+    return !Object.values(newErrors).some(error => error);
+  }, [formData, validateField]);
+
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (touched[name]) {
+      const error = validateField(name, value);
+      setErrors(prev => ({ ...prev, [name]: error }));
+    }
+    if (serverError) setServerError('');
+  }, [touched, validateField, serverError]);
+
+  const handleBlur = useCallback((e) => {
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    const error = validateField(name, value);
+    setErrors(prev => ({ ...prev, [name]: error }));
+  }, [validateField]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
+    setServerError('');
+    
+    // Mark all fields as touched
+    const allTouched = Object.keys(formData).reduce((acc, key) => ({ ...acc, [key]: true }), {});
+    setTouched(allTouched);
+    
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/signup`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name, username, email, password }),
-});
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${API_URL}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Registration failed');
 
+      setPendingEmail(formData.email);
       setShowOtp(true);
     } catch (err) {
-      setError(err.message);
+      setServerError(err.message);
     } finally {
       setLoading(false);
     }
@@ -57,189 +125,215 @@ const SignupForm = ({ onSuccess, switchToLogin, onClose }) => {
     setShowOtp(false);
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword);
+  const errorVariants = {
+    hidden: { opacity: 0, y: -10, height: 0 },
+    visible: { opacity: 1, y: 0, height: 'auto', transition: { duration: 0.2 } },
+    exit: { opacity: 0, y: -10, height: 0, transition: { duration: 0.15 } }
   };
 
   return (
     <>
       <div className={styles.container}>
-        {onClose && (
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className={styles.closeButton}
-            aria-label="Close signup form"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        )}
-
-        <form onSubmit={handleSubmit} className={styles.form}>
+        <form onSubmit={handleSubmit} className={styles.form} noValidate>
           <div className={styles.header}>
             <h2 className={styles.title}>Create Account</h2>
-            <p className={styles.subtitle}>Join us to get started with your journey</p>
+            <p className={styles.subtitle}>Join our community and start your journey</p>
           </div>
 
-          {error && (
-            <div className={styles.error}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-              {error}
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {serverError && (
+              <motion.div
+                className={styles.serverError}
+                variants={errorVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                role="alert"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{serverError}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
+          {/* Name Field */}
           <div className={styles.formGroup}>
             <label htmlFor="name" className={styles.label}>Full Name</label>
-            <div className={styles.inputContainer}>
-              <svg className={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
+            <div className={`${styles.inputContainer} ${errors.name && touched.name ? styles.error : ''}`}>
+              <svg className={styles.inputIcon} viewBox="0 0 20 20" fill="none">
+                <path d="M10 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 18v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
               <input
                 id="name"
+                name="name"
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                placeholder="Enter your full name"
+                value={formData.name}
+                onChange={handleChange}
+                onBlur={handleBlur}
                 className={styles.input}
+                placeholder="Enter your full name"
                 disabled={loading}
+                autoComplete="name"
               />
             </div>
+            <AnimatePresence>
+              {errors.name && touched.name && (
+                <motion.p className={styles.fieldError} variants={errorVariants} initial="hidden" animate="visible" exit="exit">
+                  {errors.name}
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
+          {/* Username Field */}
           <div className={styles.formGroup}>
             <label htmlFor="username" className={styles.label}>Username</label>
-            <div className={styles.inputContainer}>
-              <svg className={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
+            <div className={`${styles.inputContainer} ${errors.username && touched.username ? styles.error : ''}`}>
+              <svg className={styles.inputIcon} viewBox="0 0 20 20" fill="none">
+                <path d="M10 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 18v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" stroke="currentColor" strokeWidth="1.5"/>
+                <circle cx="10" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
               <input
                 id="username"
+                name="username"
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                placeholder="Choose a username"
+                value={formData.username}
+                onChange={handleChange}
+                onBlur={handleBlur}
                 className={styles.input}
+                placeholder="Choose a username"
                 disabled={loading}
+                autoComplete="username"
               />
             </div>
+            <AnimatePresence>
+              {errors.username && touched.username && (
+                <motion.p className={styles.fieldError} variants={errorVariants} initial="hidden" animate="visible" exit="exit">
+                  {errors.username}
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
+          {/* Email Field */}
           <div className={styles.formGroup}>
-            <label htmlFor="email" className={styles.label}>Email</label>
-            <div className={styles.inputContainer}>
-              <svg className={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                <polyline points="22,6 12,13 2,6"></polyline>
+            <label htmlFor="email" className={styles.label}>Email Address</label>
+            <div className={`${styles.inputContainer} ${errors.email && touched.email ? styles.error : ''}`}>
+              <svg className={styles.inputIcon} viewBox="0 0 20 20" fill="none">
+                <path d="M2.5 6.66667L8.232 10.8987C9.21067 11.624 10.7893 11.624 11.768 10.8987L17.5 6.66667M4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1667V5.83333C17.5 4.91286 16.7538 4.16667 15.8333 4.16667H4.16667C3.24619 4.16667 2.5 4.91286 2.5 5.83333V14.1667C2.5 15.0871 3.24619 15.8333 4.16667 15.8333Z" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
               <input
                 id="email"
+                name="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="Enter your email"
+                value={formData.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
                 className={styles.input}
+                placeholder="Enter your email"
                 disabled={loading}
+                autoComplete="email"
               />
             </div>
+            <AnimatePresence>
+              {errors.email && touched.email && (
+                <motion.p className={styles.fieldError} variants={errorVariants} initial="hidden" animate="visible" exit="exit">
+                  {errors.email}
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
+          {/* Password Field */}
           <div className={styles.formGroup}>
             <label htmlFor="password" className={styles.label}>Password</label>
-            <div className={styles.inputContainer}>
-              <svg className={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            <div className={`${styles.inputContainer} ${errors.password && touched.password ? styles.error : ''}`}>
+              <svg className={styles.inputIcon} viewBox="0 0 20 20" fill="none">
+                <rect x="3" y="11" width="14" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M6 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
               <input
                 id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="Create a password"
-                minLength={6}
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={formData.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
                 className={styles.input}
+                placeholder="Create a password (min. 6 characters)"
                 disabled={loading}
+                autoComplete="new-password"
               />
               <button
                 type="button"
-                onClick={togglePasswordVisibility}
+                onClick={() => setShowPassword(!showPassword)}
                 className={styles.passwordToggle}
-                disabled={loading}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg viewBox="0 0 20 20" fill="none">
                   {showPassword ? (
-                    <>
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                      <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </>
+                    <path d="M2.5 2.5L17.5 17.5M8.703 8.703C8.259 9.147 8 9.75 8 10.417C8 11.75 9.083 12.833 10.417 12.833C11.083 12.833 11.687 12.574 12.13 12.13" stroke="currentColor" strokeWidth="1.5"/>
                   ) : (
-                    <>
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                      <circle cx="12" cy="12" r="3"></circle>
-                    </>
+                    <path d="M2.5 10C2.5 10 5.833 4.167 10 4.167C14.167 4.167 17.5 10 17.5 10C17.5 10 14.167 15.833 10 15.833C5.833 15.833 2.5 10 2.5 10Z" stroke="currentColor" strokeWidth="1.5"/>
                   )}
                 </svg>
               </button>
             </div>
+            <AnimatePresence>
+              {errors.password && touched.password && (
+                <motion.p className={styles.fieldError} variants={errorVariants} initial="hidden" animate="visible" exit="exit">
+                  {errors.password}
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
+          {/* Confirm Password Field */}
           <div className={styles.formGroup}>
             <label htmlFor="confirmPassword" className={styles.label}>Confirm Password</label>
-            <div className={styles.inputContainer}>
-              <svg className={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22,4 12,14.01 9,11.01"></polyline>
+            <div className={`${styles.inputContainer} ${errors.confirmPassword && touched.confirmPassword ? styles.error : ''}`}>
+              <svg className={styles.inputIcon} viewBox="0 0 20 20" fill="none">
+                <path d="M16.5 9.5L9.5 16.5L4 12L11 5L16.5 9.5Z" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M13 8L8 13" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
               <input
                 id="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                placeholder="Confirm your password"
+                name="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                onBlur={handleBlur}
                 className={styles.input}
+                placeholder="Confirm your password"
                 disabled={loading}
+                autoComplete="new-password"
               />
               <button
                 type="button"
-                onClick={toggleConfirmPasswordVisibility}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className={styles.passwordToggle}
-                disabled={loading}
-                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg viewBox="0 0 20 20" fill="none">
                   {showConfirmPassword ? (
-                    <>
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                      <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </>
+                    <path d="M2.5 2.5L17.5 17.5M8.703 8.703C8.259 9.147 8 9.75 8 10.417C8 11.75 9.083 12.833 10.417 12.833C11.083 12.833 11.687 12.574 12.13 12.13" stroke="currentColor" strokeWidth="1.5"/>
                   ) : (
-                    <>
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                      <circle cx="12" cy="12" r="3"></circle>
-                    </>
+                    <path d="M2.5 10C2.5 10 5.833 4.167 10 4.167C14.167 4.167 17.5 10 17.5 10C17.5 10 14.167 15.833 10 15.833C5.833 15.833 2.5 10 2.5 10Z" stroke="currentColor" strokeWidth="1.5"/>
                   )}
                 </svg>
               </button>
             </div>
+            <AnimatePresence>
+              {errors.confirmPassword && touched.confirmPassword && (
+                <motion.p className={styles.fieldError} variants={errorVariants} initial="hidden" animate="visible" exit="exit">
+                  {errors.confirmPassword}
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
           <button 
@@ -249,9 +343,9 @@ const SignupForm = ({ onSuccess, switchToLogin, onClose }) => {
           >
             {loading ? (
               <>
-                <svg className={styles.spinner} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" strokeOpacity="0.3"></circle>
-                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"></path>
+                <svg className={styles.spinner} viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" strokeOpacity="0.3"/>
+                  <path d="M10 2a8 8 0 0 1 8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
                 Creating account...
               </>
@@ -268,7 +362,7 @@ const SignupForm = ({ onSuccess, switchToLogin, onClose }) => {
               className={styles.switchButton}
               disabled={loading}
             >
-              Login
+              Sign in
             </button>
           </div>
         </form>
@@ -276,7 +370,7 @@ const SignupForm = ({ onSuccess, switchToLogin, onClose }) => {
 
       {showOtp && (
         <OtpModal 
-          email={email} 
+          email={pendingEmail} 
           onVerified={handleOtpVerified} 
           onClose={handleOtpClose} 
         />
