@@ -17,8 +17,8 @@
 }
 
 .title {
-  font-size: clamp(1.2rem, 5vw, 1.8rem);
-  margin: 0 0 6px 0;
+  font-size: 1.6rem;
+  margin: 0 0 8px 0;
   font-weight: 700;
   background: linear-gradient(135deg, var(--color-primary, #2563eb), var(--color-accent, #8b5cf6));
   -webkit-background-clip: text;
@@ -28,7 +28,7 @@
 }
 
 .subtitle {
-  font-size: clamp(0.7rem, 3vw, 0.85rem);
+  font-size: 0.85rem;
   color: var(--color-text-secondary, #6b7280);
   margin: 0;
   line-height: 1.4;
@@ -44,7 +44,7 @@
   border-radius: 10px;
   border: 1px solid rgba(239, 68, 68, 0.25);
   font-size: 0.8rem;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   animation: slideDown 0.3s ease-out;
 }
 
@@ -62,23 +62,23 @@
 }
 
 .formGroup {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   width: 100%;
 }
 
 .label {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: var(--color-text, #111827);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .labelContainer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   flex-wrap: wrap;
   gap: 6px;
 }
@@ -87,7 +87,7 @@
   background: none;
   border: none;
   color: var(--color-primary, #2563eb);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   cursor: pointer;
   padding: 2px 0;
   transition: opacity 0.2s;
@@ -102,7 +102,6 @@
   display: flex;
   align-items: center;
   width: 100%;
-  transition: all 0.2s;
 }
 
 .inputContainer.error .input {
@@ -112,12 +111,12 @@
 
 .input {
   width: 100%;
-  padding: 10px 12px 10px 36px;
+  padding: 12px 12px 12px 40px;
   border: 1px solid var(--color-border, #e5e7eb);
   border-radius: 12px;
   background: var(--color-bg, #ffffff);
   color: var(--color-text, #111827);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   transition: all 0.2s ease;
   outline: none;
   font-family: inherit;
@@ -131,26 +130,25 @@
 
 .inputIcon {
   position: absolute;
-  left: 10px;
+  left: 12px;
   color: var(--color-text-secondary, #9ca3af);
   pointer-events: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .passwordToggle {
   position: absolute;
-  right: 10px;
+  right: 12px;
   background: none;
   border: none;
   color: var(--color-text-secondary, #9ca3af);
   cursor: pointer;
-  padding: 5px;
+  padding: 6px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s;
 }
 
 .passwordToggle:hover {
@@ -158,8 +156,8 @@
 }
 
 .passwordToggle svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .submitButton {
@@ -169,7 +167,7 @@
   color: white;
   border: none;
   border-radius: 12px;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s ease;
@@ -177,17 +175,13 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin: 8px 0 16px;
+  margin: 8px 0 20px;
 }
 
 .submitButton:hover:not(:disabled) {
   background: var(--color-primary-dark, #1d4ed8);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-}
-
-.submitButton:active:not(:disabled) {
-  transform: translateY(0);
 }
 
 .submitButton:disabled {
@@ -199,9 +193,9 @@
   display: flex;
   align-items: center;
   text-align: center;
-  margin: 16px 0;
+  margin: 20px 0;
   color: var(--color-text-secondary, #9ca3af);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .divider::before,
@@ -212,7 +206,7 @@
 }
 
 .divider span {
-  padding: 0 10px;
+  padding: 0 12px;
 }
 
 .googleButton {
@@ -222,7 +216,7 @@
   color: var(--color-text, #5f6368);
   border: 1px solid var(--color-border, #dadce0);
   border-radius: 12px;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -230,7 +224,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .googleButton:hover:not(:disabled) {
@@ -247,7 +241,7 @@
 .switchText {
   text-align: center;
   color: var(--color-text-secondary, #6b7280);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   line-height: 1.5;
 }
 
@@ -259,10 +253,9 @@
   font-weight: 600;
   padding: 2px 4px;
   font-size: inherit;
-  transition: opacity 0.2s;
 }
 
-.switchButton:hover:not(:disabled) {
+.switchButton:hover {
   opacity: 0.8;
   text-decoration: underline;
 }
@@ -300,32 +293,86 @@
   }
 }
 
-/* Mobile Specific Styles */
+/* Responsive Styles - Following Hero pattern */
+@media (max-width: 768px) {
+  .header {
+    margin-bottom: 20px;
+  }
+  
+  .title {
+    font-size: 1.4rem;
+  }
+  
+  .subtitle {
+    font-size: 0.8rem;
+  }
+  
+  .formGroup {
+    margin-bottom: 16px;
+  }
+  
+  .input {
+    padding: 11px 12px 11px 38px;
+    font-size: 0.9rem;
+  }
+}
+
 @media (max-width: 480px) {
   .header {
-    margin-bottom: 16px;
+    margin-bottom: 18px;
   }
   
   .title {
     font-size: 1.3rem;
-    margin-bottom: 4px;
   }
   
   .subtitle {
-    font-size: 0.7rem;
-  }
-  
-  .formGroup {
-    margin-bottom: 14px;
+    font-size: 0.75rem;
   }
   
   .label {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
+  }
+  
+  .input {
+    padding: 10px 12px 10px 36px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  .inputIcon {
+    width: 16px;
+    height: 16px;
+    left: 10px;
+  }
+  
+  .passwordToggle svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .submitButton {
+    padding: 11px;
+    font-size: 0.95rem;
+    margin: 4px 0 18px;
+  }
+  
+  .googleButton {
+    padding: 9px;
+    font-size: 0.85rem;
+  }
+  
+  .switchText {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 375px) {
+  .title {
+    font-size: 1.2rem;
   }
   
   .input {
     padding: 9px 12px 9px 34px;
-    font-size: 16px; /* Prevents zoom on iOS */
   }
   
   .inputIcon {
@@ -334,71 +381,10 @@
     left: 10px;
   }
   
-  .passwordToggle svg {
-    width: 14px;
-    height: 14px;
-  }
-  
-  .submitButton {
-    padding: 10px;
-    font-size: 0.9rem;
-    margin: 4px 0 14px;
-  }
-  
-  .googleButton {
-    padding: 9px;
-    font-size: 0.8rem;
-    margin-bottom: 14px;
-  }
-  
-  .googleButton svg {
-    width: 16px;
-    height: 16px;
-  }
-  
-  .switchText {
-    font-size: 0.75rem;
-  }
-  
-  .serverError {
-    padding: 8px 10px;
-    font-size: 0.75rem;
-    margin-bottom: 14px;
-  }
-}
-
-@media (max-width: 375px) {
-  .header {
-    margin-bottom: 12px;
-  }
-  
-  .title {
-    font-size: 1.2rem;
-  }
-  
-  .formGroup {
-    margin-bottom: 12px;
-  }
-  
-  .input {
-    padding: 8px 12px 8px 32px;
-    font-size: 15px;
-  }
-  
-  .inputIcon {
-    left: 8px;
-    width: 13px;
-    height: 13px;
-  }
-  
   .labelContainer {
     flex-direction: column;
     align-items: flex-start;
-    gap: 2px;
-  }
-  
-  .forgotPassword {
-    font-size: 0.65rem;
+    gap: 4px;
   }
 }
 

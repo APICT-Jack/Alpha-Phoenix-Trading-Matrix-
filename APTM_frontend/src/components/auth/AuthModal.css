@@ -1,5 +1,6 @@
 /* src/components/auth/AuthModal.css */
 
+/* Modal Overlay - Fixed positioning like a proper modal */
 .auth-modal-overlay {
   position: fixed;
   top: 0;
@@ -11,11 +12,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
-  padding: 16px;
-  box-sizing: border-box;
+  z-index: 9999;
   cursor: pointer;
   transition: background-color 0.2s ease, backdrop-filter 0.2s ease;
+  will-change: background-color, backdrop-filter;
 }
 
 .auth-modal-overlay.visible {
@@ -28,15 +28,16 @@
   backdrop-filter: blur(0px);
 }
 
+/* Modal Container - Centered with proper dimensions */
 .auth-modal-container {
   background: var(--color-card, #ffffff);
   border-radius: 28px;
   box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.35);
-  width: 100%;
+  width: 90%;
   max-width: 480px;
   position: relative;
   padding: 28px 28px 32px;
-  margin: auto;
+  margin: 0 auto;
   box-sizing: border-box;
   max-height: 90vh;
   overflow-y: auto;
@@ -45,6 +46,7 @@
   opacity: 0;
   transform: scale(0.95) translateY(20px);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
 }
 
 .auth-modal-container.visible {
@@ -57,7 +59,7 @@
   transform: scale(0.95) translateY(20px);
 }
 
-/* Modern Scrollbar */
+/* Custom Scrollbar */
 .auth-modal-container::-webkit-scrollbar {
   width: 6px;
 }
@@ -70,13 +72,13 @@
 .auth-modal-container::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.25);
   border-radius: 10px;
-  transition: background 0.2s;
 }
 
 .auth-modal-container::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.4);
 }
 
+/* Close Button */
 .close-button {
   position: absolute;
   top: 20px;
@@ -102,10 +104,7 @@
   transform: rotate(90deg);
 }
 
-.close-button:active {
-  transform: scale(0.95);
-}
-
+/* Tabs */
 .auth-modal-tabs {
   display: flex;
   border-bottom: 2px solid var(--color-border, #e5e7eb);
@@ -160,6 +159,7 @@
   }
 }
 
+/* Content Area */
 .auth-modal-content {
   padding: 0;
   width: 100%;
@@ -178,20 +178,15 @@
   }
 }
 
-/* ========== FIXED MOBILE RESPONSIVE STYLES ========== */
-/* Tablet Devices */
+/* ========== RESPONSIVE STYLES (Following Hero pattern) ========== */
+
+/* Tablet */
 @media (max-width: 768px) {
-  .auth-modal-overlay {
-    padding: 12px;
-  }
-  
   .auth-modal-container {
-    max-width: 100%;
-    width: 100%;
+    width: 95%;
     padding: 24px 20px 28px;
-    max-height: 85vh;
     border-radius: 24px;
-    overflow-x: hidden;
+    max-height: 85vh;
   }
   
   .close-button {
@@ -214,17 +209,18 @@
   }
 }
 
-/* Mobile Landscape & Portrait - CRITICAL FIX */
+/* Mobile Landscape */
 @media (max-width: 640px) {
   .auth-modal-container {
-    padding: 18px 16px 22px;
+    width: 95%;
+    padding: 20px 16px 24px;
     border-radius: 20px;
     max-height: 85vh;
   }
   
   .close-button {
-    top: 12px;
-    right: 12px;
+    top: 14px;
+    right: 14px;
     width: 32px;
     height: 32px;
     font-size: 14px;
@@ -242,108 +238,103 @@
   }
 }
 
-/* Small Mobile Devices - CRITICAL FIX */
+/* Mobile Portrait - Like Hero section */
 @media (max-width: 480px) {
-  .auth-modal-overlay {
-    padding: 8px;
-    align-items: flex-end;
-  }
-  
   .auth-modal-container {
-    padding: 20px 16px 24px;
-    max-height: 92vh;
-    border-radius: 20px 20px 0 0;
     width: 100%;
-    margin-bottom: 0;
-    animation: slideUpMobile 0.3s ease-out;
+    max-width: 100%;
+    padding: 20px 16px 24px;
+    border-radius: 20px 20px 0 0;
+    max-height: 92vh;
+    margin: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
   .auth-modal-container.visible {
-    animation: slideUpMobile 0.3s ease-out;
+    transform: translateY(0);
   }
   
-  @keyframes slideUpMobile {
-    from {
-      opacity: 0;
-      transform: translateY(100%);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .auth-modal-container.closing {
+    transform: translateY(100%);
+  }
+  
+  .auth-modal-overlay {
+    align-items: flex-end;
   }
   
   .close-button {
     top: 12px;
     right: 12px;
-    width: 30px;
-    height: 30px;
-    font-size: 13px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
   
   .auth-modal-tabs {
-    margin-bottom: 16px;
+    margin-bottom: 18px;
     padding-right: 28px;
     gap: 2px;
   }
   
   .auth-tab {
     padding: 8px 12px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
   
-  /* Ensure content fits without overflow */
   .auth-modal-content {
     max-height: calc(92vh - 100px);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
 /* Extra Small Devices */
-@media (max-width: 380px) {
+@media (max-width: 375px) {
   .auth-modal-container {
-    padding: 16px 12px 20px;
+    padding: 18px 14px 20px;
     max-height: 90vh;
   }
   
   .auth-tab {
     padding: 6px 10px;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
   }
   
   .close-button {
     top: 10px;
     right: 10px;
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
   }
   
   .auth-modal-content {
-    max-height: calc(90vh - 80px);
+    max-height: calc(90vh - 90px);
   }
 }
 
-/* iPhone SE and similar small devices */
-@media (max-width: 375px) {
+/* iPhone SE and similar */
+@media (max-width: 360px) {
   .auth-modal-container {
-    padding: 14px 12px 18px;
+    padding: 16px 12px 18px;
   }
   
   .auth-tab {
     padding: 6px 8px;
-    font-size: 0.75rem;
-  }
-  
-  .auth-modal-tabs {
-    margin-bottom: 14px;
+    font-size: 0.8rem;
   }
 }
 
-/* Landscape mode for mobile */
+/* Landscape mode */
 @media (max-height: 600px) and (orientation: landscape) {
   .auth-modal-container {
     max-height: 90vh;
-    padding: 12px 16px 16px;
+    padding: 16px 20px 20px;
   }
   
   .auth-modal-content {
@@ -373,7 +364,7 @@
   }
 }
 
-/* Dark Mode Support */
+/* Dark Mode */
 @media (prefers-color-scheme: dark) {
   .auth-modal-container {
     background: #1f2937;
