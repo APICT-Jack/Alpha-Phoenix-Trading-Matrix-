@@ -411,3 +411,338 @@
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
 }
+/* Add these styles to AuthHomePage.css */
+
+/* Customize Bar */
+.customize-bar {
+  padding: 16px 0;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.customize-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.customize-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+}
+
+/* Edit Mode Bar */
+.edit-mode-bar {
+  padding: 16px 0;
+  background: var(--color-primary);
+  color: white;
+  position: sticky;
+  top: 60px;
+  z-index: 100;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.edit-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.edit-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.edit-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.add-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.add-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.save-btn {
+  background: #10b981;
+  color: white;
+}
+
+.save-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.cancel-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+/* Add Features Panel */
+.add-features-panel {
+  padding: 32px 0;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  animation: fadeIn 0.3s ease;
+}
+
+.add-features-panel h3 {
+  margin-bottom: 24px;
+  color: var(--color-text);
+}
+
+.available-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.available-feature-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.available-feature-card:hover {
+  transform: translateX(4px);
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.available-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.available-info {
+  flex: 1;
+}
+
+.available-info h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--color-text);
+}
+
+.available-info p {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.add-feature-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.add-feature-btn:hover {
+  transform: scale(1.05);
+  background: var(--color-primary-hover);
+}
+
+/* Feature Card Editing Mode */
+.feature-card.editing-mode {
+  cursor: default;
+}
+
+.card-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+  background: var(--color-card);
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.drag-handle {
+  cursor: move;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+.drag-handle svg {
+  font-size: 14px;
+}
+
+.remove-card-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-card-btn:hover {
+  background: #dc2626;
+  transform: scale(1.05);
+}
+
+.move-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.move-btn {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.move-btn:hover {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+/* Mobile Edit Mode */
+.mobile-feature-item.editing-mode {
+  position: relative;
+  cursor: default;
+}
+
+.mobile-remove-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.mobile-remove-btn:hover {
+  transform: scale(1.1);
+  background: #dc2626;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .edit-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .edit-buttons {
+    justify-content: stretch;
+  }
+  
+  .edit-btn {
+    flex: 1;
+    justify-content: center;
+  }
+  
+  .available-features-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .available-feature-card {
+    padding: 12px;
+  }
+  
+  .card-controls {
+    top: 8px;
+    right: 8px;
+    padding: 2px 6px;
+  }
+  
+  .remove-card-btn,
+  .move-btn {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Remove welcome section styles since we removed it */
+.welcome-section {
+  display: none;
+}
