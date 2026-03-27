@@ -24,6 +24,70 @@ const AuthHomePage = () => {
   const [activeFeatures, setActiveFeatures] = useState([]);
   const [showAddPanel, setShowAddPanel] = useState(false);
 
+  // Advanced tools array - moved inside component
+  const advancedTools = [
+    {
+      icon: <FaChartLine />,
+      title: 'Market Scanner',
+      description: 'AI-powered market scanning for high-probability setups',
+      color: '#3b82f6'
+    },
+    {
+      icon: <FaRobot />,
+      title: 'AI Assistant',
+      description: '24/7 trading assistant with real-time insights',
+      color: '#10b981'
+    },
+    {
+      icon: <FaVideo />,
+      title: 'Live Trading',
+      description: 'Watch professional traders analyze markets',
+      color: '#ef4444'
+    },
+    {
+      icon: <FaPodcast />,
+      title: 'Trading Podcasts',
+      description: 'Expert interviews and market analysis',
+      color: '#8b5cf6'
+    },
+    {
+      icon: <FaNewspaper />,
+      title: 'Market News',
+      description: 'Real-time news and economic calendar',
+      color: '#f59e0b'
+    },
+    {
+      icon: <FaChartPie />,
+      title: 'Portfolio Analytics',
+      description: 'Advanced portfolio performance metrics',
+      color: '#ec489a'
+    },
+    {
+      icon: <FaCalendarAlt />,
+      title: 'Trading Calendar',
+      description: 'Earnings reports and economic events',
+      color: '#14b8a6'
+    },
+    {
+      icon: <FaGlobe />,
+      title: 'Global Markets',
+      description: 'Stocks, forex, crypto, and commodities',
+      color: '#6b7280'
+    },
+    {
+      icon: <FaShieldAlt />,
+      title: 'Risk Management',
+      description: 'Advanced risk analysis and position sizing',
+      color: '#10b981'
+    },
+    {
+      icon: <FaCloudUploadAlt />,
+      title: 'Cloud Sync',
+      description: 'Sync your data across all devices',
+      color: '#3b82f6'
+    }
+  ];
+
   // All available features (including new ones)
   const allFeaturesList = [
     {
@@ -172,17 +236,19 @@ const AuthHomePage = () => {
   useEffect(() => {
     const savedLayout = localStorage.getItem(`user_layout_${user?.id || 'default'}`);
     if (savedLayout) {
-      const parsed = JSON.parse(savedLayout);
-      setActiveFeatures(parsed);
+      try {
+        const parsed = JSON.parse(savedLayout);
+        setActiveFeatures(parsed);
+      } catch (e) {
+        console.error('Error parsing saved layout:', e);
+        const defaultActive = allFeaturesList.filter(f => f.defaultActive);
+        setActiveFeatures(defaultActive);
+      }
     } else {
       // Set default active features
       const defaultActive = allFeaturesList.filter(f => f.defaultActive);
       setActiveFeatures(defaultActive);
     }
-    
-    // Set available features (not active)
-    const activeIds = activeFeatures.map(f => f.id);
-    setAvailableFeatures(allFeaturesList.filter(f => !activeIds.includes(f.id)));
   }, [user?.id]);
 
   // Update available features when active features change
@@ -203,7 +269,12 @@ const AuthHomePage = () => {
     // Reload saved layout
     const savedLayout = localStorage.getItem(`user_layout_${user?.id || 'default'}`);
     if (savedLayout) {
-      setActiveFeatures(JSON.parse(savedLayout));
+      try {
+        setActiveFeatures(JSON.parse(savedLayout));
+      } catch (e) {
+        const defaultActive = allFeaturesList.filter(f => f.defaultActive);
+        setActiveFeatures(defaultActive);
+      }
     } else {
       const defaultActive = allFeaturesList.filter(f => f.defaultActive);
       setActiveFeatures(defaultActive);
@@ -215,16 +286,11 @@ const AuthHomePage = () => {
   // Add feature to active list
   const addFeature = (feature) => {
     setActiveFeatures([...activeFeatures, feature]);
-    setAvailableFeatures(availableFeatures.filter(f => f.id !== feature.id));
   };
 
   // Remove feature from active list
   const removeFeature = (featureId) => {
-    const featureToRemove = activeFeatures.find(f => f.id === featureId);
-    if (featureToRemove) {
-      setActiveFeatures(activeFeatures.filter(f => f.id !== featureId));
-      setAvailableFeatures([...availableFeatures, featureToRemove]);
-    }
+    setActiveFeatures(activeFeatures.filter(f => f.id !== featureId));
   };
 
   // Move feature up/down for sorting
@@ -267,7 +333,7 @@ const AuthHomePage = () => {
             <Container>
               <div className="edit-controls">
                 <span className="edit-title">
-                  <FaEdit /> Editing Mode - Drag to reorder, add or remove features
+                  <FaEdit /> Editing Mode - Add, remove or reorder features
                 </span>
                 <div className="edit-buttons">
                   <button 
@@ -393,7 +459,7 @@ const AuthHomePage = () => {
 
             {/* Mobile View - Large Icons with Labels */}
             <div className="mobile-features-grid">
-              {activeFeatures.map((feature, index) => (
+              {activeFeatures.map((feature) => (
                 <div 
                   key={feature.id}
                   className={`mobile-feature-item ${isEditing ? 'editing-mode' : ''}`}
@@ -487,69 +553,5 @@ const AuthHomePage = () => {
     </div>
   );
 };
-
-// Advanced tools array (keep same as before)
-const advancedTools = [
-  {
-    icon: <FaChartLine />,
-    title: 'Market Scanner',
-    description: 'AI-powered market scanning for high-probability setups',
-    color: '#3b82f6'
-  },
-  {
-    icon: <FaRobot />,
-    title: 'AI Assistant',
-    description: '24/7 trading assistant with real-time insights',
-    color: '#10b981'
-  },
-  {
-    icon: <FaVideo />,
-    title: 'Live Trading',
-    description: 'Watch professional traders analyze markets',
-    color: '#ef4444'
-  },
-  {
-    icon: <FaPodcast />,
-    title: 'Trading Podcasts',
-    description: 'Expert interviews and market analysis',
-    color: '#8b5cf6'
-  },
-  {
-    icon: <FaNewspaper />,
-    title: 'Market News',
-    description: 'Real-time news and economic calendar',
-    color: '#f59e0b'
-  },
-  {
-    icon: <FaChartPie />,
-    title: 'Portfolio Analytics',
-    description: 'Advanced portfolio performance metrics',
-    color: '#ec489a'
-  },
-  {
-    icon: <FaCalendarAlt />,
-    title: 'Trading Calendar',
-    description: 'Earnings reports and economic events',
-    color: '#14b8a6'
-  },
-  {
-    icon: <FaGlobe />,
-    title: 'Global Markets',
-    description: 'Stocks, forex, crypto, and commodities',
-    color: '#6b7280'
-  },
-  {
-    icon: <FaShieldAlt />,
-    title: 'Risk Management',
-    description: 'Advanced risk analysis and position sizing',
-    color: '#10b981'
-  },
-  {
-    icon: <FaCloudUploadAlt />,
-    title: 'Cloud Sync',
-    description: 'Sync your data across all devices',
-    color: '#3b82f6'
-  }
-];
 
 export default AuthHomePage;
