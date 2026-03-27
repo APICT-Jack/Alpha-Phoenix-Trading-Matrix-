@@ -1,15 +1,7 @@
 // src/pages/AuthHomePage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FaUser, FaComments, FaBookOpen, FaGraduationCap, 
-  FaLaptopCode, FaToolbox, FaCog, FaPlus, 
-  FaChartLine, FaRobot, FaVideo, FaPodcast, 
-  FaNewspaper, FaChartPie, FaCalendarAlt, FaGlobe,
-  FaShieldAlt, FaCloudUploadAlt, FaArrowRight, FaTachometerAlt,
-  FaDollarSign, FaCreditCard, FaChartBar, FaRss, FaUserFriends,
-  FaFilm, FaTrash, FaEdit, FaGripVertical, FaSave, FaTimes
-} from 'react-icons/fa';
+import * as Icons from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import Container from '../components/ui/Container';
 import Footer from '../components/layout/Footer';
@@ -24,91 +16,92 @@ const AuthHomePage = () => {
   const [activeFeatures, setActiveFeatures] = useState([]);
   const [showAddPanel, setShowAddPanel] = useState(false);
 
-  // Advanced tools array
+  // Helper function to safely render icons
+  const renderIcon = (IconComponent, size = 24, className = '') => {
+    if (!IconComponent) return null;
+    // Return the icon as a JSX element
+    return React.createElement(IconComponent, { size: size, className: className });
+  };
+
+  // Advanced tools array with proper icon references
   const advancedTools = [
     {
       id: 'scanner',
-      icon: FaChartLine,
+      iconName: 'FaChartLine',
       title: 'Market Scanner',
       description: 'AI-powered market scanning for high-probability setups',
       color: '#3b82f6'
     },
     {
       id: 'ai_assistant',
-      icon: FaRobot,
+      iconName: 'FaRobot',
       title: 'AI Assistant',
       description: '24/7 trading assistant with real-time insights',
       color: '#10b981'
     },
     {
       id: 'live_trading',
-      icon: FaVideo,
+      iconName: 'FaVideo',
       title: 'Live Trading',
       description: 'Watch professional traders analyze markets',
       color: '#ef4444'
     },
     {
       id: 'podcasts',
-      icon: FaPodcast,
+      iconName: 'FaPodcast',
       title: 'Trading Podcasts',
       description: 'Expert interviews and market analysis',
       color: '#8b5cf6'
     },
     {
       id: 'news',
-      icon: FaNewspaper,
+      iconName: 'FaNewspaper',
       title: 'Market News',
       description: 'Real-time news and economic calendar',
       color: '#f59e0b'
     },
     {
       id: 'analytics',
-      icon: FaChartPie,
+      iconName: 'FaChartPie',
       title: 'Portfolio Analytics',
       description: 'Advanced portfolio performance metrics',
       color: '#ec489a'
     },
     {
       id: 'calendar',
-      icon: FaCalendarAlt,
+      iconName: 'FaCalendarAlt',
       title: 'Trading Calendar',
       description: 'Earnings reports and economic events',
       color: '#14b8a6'
     },
     {
       id: 'global_markets',
-      icon: FaGlobe,
+      iconName: 'FaGlobe',
       title: 'Global Markets',
       description: 'Stocks, forex, crypto, and commodities',
       color: '#6b7280'
     },
     {
       id: 'risk_mgmt',
-      icon: FaShieldAlt,
+      iconName: 'FaShieldAlt',
       title: 'Risk Management',
       description: 'Advanced risk analysis and position sizing',
       color: '#10b981'
     },
     {
       id: 'cloud_sync',
-      icon: FaCloudUploadAlt,
+      iconName: 'FaCloudUploadAlt',
       title: 'Cloud Sync',
       description: 'Sync your data across all devices',
       color: '#3b82f6'
     }
   ];
 
-  // Helper function to render icons safely
-  const renderIcon = (IconComponent, size = 24) => {
-    if (!IconComponent) return null;
-    return React.createElement(IconComponent, { size: size });
-  };
-
-  // All available features
+  // All available features with icon names
   const allFeaturesList = [
     {
       id: 'profile',
-      icon: FaUser,
+      iconName: 'FaUser',
       title: 'Profile',
       description: 'View and manage your personal information',
       path: '/profile',
@@ -118,7 +111,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'chat',
-      icon: FaComments,
+      iconName: 'FaComments',
       title: 'Chat',
       description: 'Connect with traders and join discussions',
       path: '/chat',
@@ -128,7 +121,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'library',
-      icon: FaBookOpen,
+      iconName: 'FaBookOpen',
       title: 'Library',
       description: 'Access trading books and research materials',
       path: '/education',
@@ -138,7 +131,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'academy',
-      icon: FaGraduationCap,
+      iconName: 'FaGraduationCap',
       title: 'Academy',
       description: 'Structured courses from beginner to expert',
       path: '/education',
@@ -148,7 +141,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'office',
-      icon: FaLaptopCode,
+      iconName: 'FaLaptopCode',
       title: 'Office',
       description: 'Trading journal and performance analytics',
       path: '/dashboard',
@@ -158,7 +151,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'tools',
-      icon: FaToolbox,
+      iconName: 'FaToolbox',
       title: 'Tools',
       description: 'Advanced trading tools and indicators',
       path: '/tools',
@@ -168,7 +161,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'settings',
-      icon: FaCog,
+      iconName: 'FaCog',
       title: 'Settings',
       description: 'Customize your experience',
       path: '/profile/settings',
@@ -178,7 +171,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'dashboard',
-      icon: FaTachometerAlt,
+      iconName: 'FaTachometerAlt',
       title: 'Dashboard',
       description: 'Real-time portfolio tracking and analytics',
       path: '/dashboard',
@@ -188,7 +181,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'cashier',
-      icon: FaDollarSign,
+      iconName: 'FaDollarSign',
       title: 'Cashier',
       description: 'Manage deposits, withdrawals, and transactions',
       path: '/cashier',
@@ -198,7 +191,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'subscription',
-      icon: FaCreditCard,
+      iconName: 'FaCreditCard',
       title: 'Subscription',
       description: 'Manage your plan and billing',
       path: '/subscription',
@@ -208,7 +201,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'charts',
-      icon: FaChartBar,
+      iconName: 'FaChartBar',
       title: 'Charts',
       description: 'Advanced charting tools and technical analysis',
       path: '/charts',
@@ -218,7 +211,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'news_feed',
-      icon: FaRss,
+      iconName: 'FaRss',
       title: 'News',
       description: 'Latest market news and updates',
       path: '/news',
@@ -228,7 +221,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'friends',
-      icon: FaUserFriends,
+      iconName: 'FaUserFriends',
       title: 'Friends',
       description: 'Connect and follow other traders',
       path: '/friends',
@@ -238,7 +231,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'videos',
-      icon: FaFilm,
+      iconName: 'FaFilm',
       title: 'Videos',
       description: 'Trading tutorials and market analysis videos',
       path: '/videos',
@@ -247,6 +240,11 @@ const AuthHomePage = () => {
       defaultActive: false
     }
   ];
+
+  // Get icon component from icon name
+  const getIconComponent = (iconName) => {
+    return Icons[iconName];
+  };
 
   // Load user's custom layout from localStorage
   useEffect(() => {
@@ -330,7 +328,7 @@ const AuthHomePage = () => {
                 className="customize-btn"
                 onClick={() => setIsEditing(true)}
               >
-                <FaEdit /> Customize Dashboard
+                {renderIcon(Icons.FaEdit, 16)} Customize Dashboard
               </button>
             </Container>
           </div>
@@ -342,26 +340,26 @@ const AuthHomePage = () => {
             <Container>
               <div className="edit-controls">
                 <span className="edit-title">
-                  <FaEdit /> Editing Mode - Add, remove or reorder features
+                  {renderIcon(Icons.FaEdit, 16)} Editing Mode - Add, remove or reorder features
                 </span>
                 <div className="edit-buttons">
                   <button 
                     className="edit-btn add-btn"
                     onClick={() => setShowAddPanel(!showAddPanel)}
                   >
-                    <FaPlus /> Add Features
+                    {renderIcon(Icons.FaPlus, 14)} Add Features
                   </button>
                   <button 
                     className="edit-btn save-btn"
                     onClick={saveLayout}
                   >
-                    <FaSave /> Save Changes
+                    {renderIcon(Icons.FaSave, 14)} Save Changes
                   </button>
                   <button 
                     className="edit-btn cancel-btn"
                     onClick={cancelEditing}
                   >
-                    <FaTimes /> Cancel
+                    {renderIcon(Icons.FaTimes, 14)} Cancel
                   </button>
                 </div>
               </div>
@@ -375,24 +373,27 @@ const AuthHomePage = () => {
             <Container>
               <h3>Add New Features</h3>
               <div className="available-features-grid">
-                {availableFeatures.map((feature) => (
-                  <div 
-                    key={feature.id}
-                    className="available-feature-card"
-                    onClick={() => addFeature(feature)}
-                  >
-                    <div className="available-icon" style={{ color: feature.color }}>
-                      {React.createElement(feature.icon, { size: 28 })}
+                {availableFeatures.map((feature) => {
+                  const IconComponent = getIconComponent(feature.iconName);
+                  return (
+                    <div 
+                      key={feature.id}
+                      className="available-feature-card"
+                      onClick={() => addFeature(feature)}
+                    >
+                      <div className="available-icon" style={{ color: feature.color }}>
+                        {renderIcon(IconComponent, 28)}
+                      </div>
+                      <div className="available-info">
+                        <h4>{feature.title}</h4>
+                        <p>{feature.description}</p>
+                      </div>
+                      <button className="add-feature-btn">
+                        {renderIcon(Icons.FaPlus, 14)}
+                      </button>
                     </div>
-                    <div className="available-info">
-                      <h4>{feature.title}</h4>
-                      <p>{feature.description}</p>
-                    </div>
-                    <button className="add-feature-btn">
-                      <FaPlus />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Container>
           </div>
@@ -403,97 +404,103 @@ const AuthHomePage = () => {
           <Container>
             {/* Desktop View - Feature Cards */}
             <div className="features-grid desktop-features">
-              {activeFeatures.map((feature, index) => (
-                <div 
-                  key={feature.id}
-                  className={`feature-card ${isEditing ? 'editing-mode' : ''}`}
-                  onClick={() => handleCardClick(feature.path)}
-                >
-                  <div className="feature-card-content">
-                    {isEditing && (
-                      <div className="card-controls">
-                        <div className="drag-handle">
-                          <FaGripVertical />
+              {activeFeatures.map((feature, index) => {
+                const IconComponent = getIconComponent(feature.iconName);
+                return (
+                  <div 
+                    key={feature.id}
+                    className={`feature-card ${isEditing ? 'editing-mode' : ''}`}
+                    onClick={() => handleCardClick(feature.path)}
+                  >
+                    <div className="feature-card-content">
+                      {isEditing && (
+                        <div className="card-controls">
+                          <div className="drag-handle">
+                            {renderIcon(Icons.FaGripVertical, 14)}
+                          </div>
+                          <button 
+                            className="remove-card-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFeature(feature.id);
+                            }}
+                          >
+                            {renderIcon(Icons.FaTrash, 12)}
+                          </button>
+                          <div className="move-buttons">
+                            {index > 0 && (
+                              <button 
+                                className="move-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveFeature(index, 'up');
+                                }}
+                              >
+                                ↑
+                              </button>
+                            )}
+                            {index < activeFeatures.length - 1 && (
+                              <button 
+                                className="move-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveFeature(index, 'down');
+                                }}
+                              >
+                                ↓
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <button 
-                          className="remove-card-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeFeature(feature.id);
-                          }}
-                        >
-                          <FaTrash />
-                        </button>
-                        <div className="move-buttons">
-                          {index > 0 && (
-                            <button 
-                              className="move-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                moveFeature(index, 'up');
-                              }}
-                            >
-                              ↑
-                            </button>
-                          )}
-                          {index < activeFeatures.length - 1 && (
-                            <button 
-                              className="move-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                moveFeature(index, 'down');
-                              }}
-                            >
-                              ↓
-                            </button>
-                          )}
-                        </div>
+                      )}
+                      <div 
+                        className="feature-icon-wrapper"
+                        style={{ background: `linear-gradient(135deg, ${feature.color} 0%, ${feature.color}dd 100%)` }}
+                      >
+                        {renderIcon(IconComponent, 28)}
                       </div>
-                    )}
-                    <div 
-                      className="feature-icon-wrapper"
-                      style={{ background: `linear-gradient(135deg, ${feature.color} 0%, ${feature.color}dd 100%)` }}
-                    >
-                      {React.createElement(feature.icon, { size: 28 })}
-                    </div>
-                    <h3 className="feature-title">{feature.title}</h3>
-                    <p className="feature-description">{feature.description}</p>
-                    <div className="feature-link">
-                      Access <FaArrowRight className="link-icon" />
+                      <h3 className="feature-title">{feature.title}</h3>
+                      <p className="feature-description">{feature.description}</p>
+                      <div className="feature-link">
+                        Access {renderIcon(Icons.FaArrowRight, 12, 'link-icon')}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Mobile View - Large Icons with Labels */}
             <div className="mobile-features-grid">
-              {activeFeatures.map((feature) => (
-                <div 
-                  key={feature.id}
-                  className={`mobile-feature-item ${isEditing ? 'editing-mode' : ''}`}
-                  onClick={() => handleCardClick(feature.path)}
-                >
-                  {isEditing && (
-                    <button 
-                      className="mobile-remove-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFeature(feature.id);
-                      }}
-                    >
-                      <FaTrash />
-                    </button>
-                  )}
+              {activeFeatures.map((feature) => {
+                const IconComponent = getIconComponent(feature.iconName);
+                return (
                   <div 
-                    className="mobile-feature-icon"
-                    style={{ background: `linear-gradient(135deg, ${feature.color} 0%, ${feature.color}dd 100%)` }}
+                    key={feature.id}
+                    className={`mobile-feature-item ${isEditing ? 'editing-mode' : ''}`}
+                    onClick={() => handleCardClick(feature.path)}
                   >
-                    {React.createElement(feature.icon, { size: 32 })}
+                    {isEditing && (
+                      <button 
+                        className="mobile-remove-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFeature(feature.id);
+                        }}
+                      >
+                        {renderIcon(Icons.FaTrash, 12)}
+                      </button>
+                    )}
+                    <div 
+                      className="mobile-feature-icon"
+                      style={{ background: `linear-gradient(135deg, ${feature.color} 0%, ${feature.color}dd 100%)` }}
+                    >
+                      {renderIcon(IconComponent, 32)}
+                    </div>
+                    <span className="mobile-feature-label">{feature.title}</span>
                   </div>
-                  <span className="mobile-feature-label">{feature.title}</span>
-                </div>
-              ))}
+                );
+              })}
               
               {/* Add More Button */}
               {isEditing ? (
@@ -502,7 +509,7 @@ const AuthHomePage = () => {
                   onClick={() => setShowAddPanel(!showAddPanel)}
                 >
                   <div className="mobile-feature-icon add-icon">
-                    <FaPlus />
+                    {renderIcon(Icons.FaPlus, 32)}
                   </div>
                   <span className="mobile-feature-label">Add</span>
                 </div>
@@ -512,7 +519,7 @@ const AuthHomePage = () => {
                   onClick={() => setIsEditing(true)}
                 >
                   <div className="mobile-feature-icon add-icon">
-                    <FaEdit />
+                    {renderIcon(Icons.FaEdit, 32)}
                   </div>
                   <span className="mobile-feature-label">Edit</span>
                 </div>
@@ -530,17 +537,20 @@ const AuthHomePage = () => {
             </div>
             
             <div className="tools-grid">
-              {(showMoreFeatures ? advancedTools : advancedTools.slice(0, 6)).map((tool) => (
-                <div key={tool.id} className="tool-card">
-                  <div className="tool-icon" style={{ color: tool.color }}>
-                    {React.createElement(tool.icon, { size: 28 })}
+              {(showMoreFeatures ? advancedTools : advancedTools.slice(0, 6)).map((tool) => {
+                const IconComponent = getIconComponent(tool.iconName);
+                return (
+                  <div key={tool.id} className="tool-card">
+                    <div className="tool-icon" style={{ color: tool.color }}>
+                      {renderIcon(IconComponent, 28)}
+                    </div>
+                    <div className="tool-content">
+                      <h4>{tool.title}</h4>
+                      <p>{tool.description}</p>
+                    </div>
                   </div>
-                  <div className="tool-content">
-                    <h4>{tool.title}</h4>
-                    <p>{tool.description}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {!showMoreFeatures && advancedTools.length > 6 && (
@@ -549,7 +559,7 @@ const AuthHomePage = () => {
                   className="show-more-btn"
                   onClick={() => setShowMoreFeatures(true)}
                 >
-                  <FaPlus /> Show More Tools <FaArrowRight />
+                  {renderIcon(Icons.FaPlus, 14)} Show More Tools {renderIcon(Icons.FaArrowRight, 12)}
                 </button>
               </div>
             )}
