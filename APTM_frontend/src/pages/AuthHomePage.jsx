@@ -1,7 +1,15 @@
 // src/pages/AuthHomePage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as Icons from 'react-icons/fa';
+import { 
+  FaUser, FaComments, FaBookOpen, FaGraduationCap, 
+  FaLaptopCode, FaToolbox, FaCog, FaPlus, 
+  FaChartLine, FaRobot, FaVideo, FaPodcast, 
+  FaNewspaper, FaChartPie, FaCalendarAlt, FaGlobe,
+  FaShieldAlt, FaCloudUploadAlt, FaArrowRight, FaTachometerAlt,
+  FaDollarSign, FaCreditCard, FaChartBar, FaRss, FaUserFriends,
+  FaFilm, FaTrash, FaEdit, FaGripVertical, FaSave, FaTimes
+} from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import Container from '../components/ui/Container';
 import Footer from '../components/layout/Footer';
@@ -16,92 +24,100 @@ const AuthHomePage = () => {
   const [activeFeatures, setActiveFeatures] = useState([]);
   const [showAddPanel, setShowAddPanel] = useState(false);
 
-  // Helper function to safely render icons
-  const renderIcon = (IconComponent, size = 24, className = '') => {
-    if (!IconComponent) return null;
-    // Return the icon as a JSX element
-    return React.createElement(IconComponent, { size: size, className: className });
+  // Icon mapping for dynamic rendering
+  const iconMap = {
+    FaUser, FaComments, FaBookOpen, FaGraduationCap, FaLaptopCode, FaToolbox, FaCog,
+    FaTachometerAlt, FaDollarSign, FaCreditCard, FaChartBar, FaRss, FaUserFriends, FaFilm,
+    FaChartLine, FaRobot, FaVideo, FaPodcast, FaNewspaper, FaChartPie, FaCalendarAlt, 
+    FaGlobe, FaShieldAlt, FaCloudUploadAlt, FaArrowRight, FaTrash, FaEdit, FaGripVertical, 
+    FaSave, FaTimes, FaPlus
   };
 
-  // Advanced tools array with proper icon references
+  // Helper function to render icons
+  const renderIcon = (IconComponent, size = 24) => {
+    if (!IconComponent) return null;
+    return React.createElement(IconComponent, { size: size });
+  };
+
+  // Advanced tools array
   const advancedTools = [
     {
       id: 'scanner',
-      iconName: 'FaChartLine',
+      icon: FaChartLine,
       title: 'Market Scanner',
       description: 'AI-powered market scanning for high-probability setups',
       color: '#3b82f6'
     },
     {
       id: 'ai_assistant',
-      iconName: 'FaRobot',
+      icon: FaRobot,
       title: 'AI Assistant',
       description: '24/7 trading assistant with real-time insights',
       color: '#10b981'
     },
     {
       id: 'live_trading',
-      iconName: 'FaVideo',
+      icon: FaVideo,
       title: 'Live Trading',
       description: 'Watch professional traders analyze markets',
       color: '#ef4444'
     },
     {
       id: 'podcasts',
-      iconName: 'FaPodcast',
+      icon: FaPodcast,
       title: 'Trading Podcasts',
       description: 'Expert interviews and market analysis',
       color: '#8b5cf6'
     },
     {
       id: 'news',
-      iconName: 'FaNewspaper',
+      icon: FaNewspaper,
       title: 'Market News',
       description: 'Real-time news and economic calendar',
       color: '#f59e0b'
     },
     {
       id: 'analytics',
-      iconName: 'FaChartPie',
+      icon: FaChartPie,
       title: 'Portfolio Analytics',
       description: 'Advanced portfolio performance metrics',
       color: '#ec489a'
     },
     {
       id: 'calendar',
-      iconName: 'FaCalendarAlt',
+      icon: FaCalendarAlt,
       title: 'Trading Calendar',
       description: 'Earnings reports and economic events',
       color: '#14b8a6'
     },
     {
       id: 'global_markets',
-      iconName: 'FaGlobe',
+      icon: FaGlobe,
       title: 'Global Markets',
       description: 'Stocks, forex, crypto, and commodities',
       color: '#6b7280'
     },
     {
       id: 'risk_mgmt',
-      iconName: 'FaShieldAlt',
+      icon: FaShieldAlt,
       title: 'Risk Management',
       description: 'Advanced risk analysis and position sizing',
       color: '#10b981'
     },
     {
       id: 'cloud_sync',
-      iconName: 'FaCloudUploadAlt',
+      icon: FaCloudUploadAlt,
       title: 'Cloud Sync',
       description: 'Sync your data across all devices',
       color: '#3b82f6'
     }
   ];
 
-  // All available features with icon names
+  // All available features
   const allFeaturesList = [
     {
       id: 'profile',
-      iconName: 'FaUser',
+      icon: FaUser,
       title: 'Profile',
       description: 'View and manage your personal information',
       path: '/profile',
@@ -111,7 +127,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'chat',
-      iconName: 'FaComments',
+      icon: FaComments,
       title: 'Chat',
       description: 'Connect with traders and join discussions',
       path: '/chat',
@@ -121,7 +137,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'library',
-      iconName: 'FaBookOpen',
+      icon: FaBookOpen,
       title: 'Library',
       description: 'Access trading books and research materials',
       path: '/education',
@@ -131,7 +147,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'academy',
-      iconName: 'FaGraduationCap',
+      icon: FaGraduationCap,
       title: 'Academy',
       description: 'Structured courses from beginner to expert',
       path: '/education',
@@ -141,7 +157,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'office',
-      iconName: 'FaLaptopCode',
+      icon: FaLaptopCode,
       title: 'Office',
       description: 'Trading journal and performance analytics',
       path: '/dashboard',
@@ -151,7 +167,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'tools',
-      iconName: 'FaToolbox',
+      icon: FaToolbox,
       title: 'Tools',
       description: 'Advanced trading tools and indicators',
       path: '/tools',
@@ -161,7 +177,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'settings',
-      iconName: 'FaCog',
+      icon: FaCog,
       title: 'Settings',
       description: 'Customize your experience',
       path: '/profile/settings',
@@ -171,7 +187,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'dashboard',
-      iconName: 'FaTachometerAlt',
+      icon: FaTachometerAlt,
       title: 'Dashboard',
       description: 'Real-time portfolio tracking and analytics',
       path: '/dashboard',
@@ -181,7 +197,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'cashier',
-      iconName: 'FaDollarSign',
+      icon: FaDollarSign,
       title: 'Cashier',
       description: 'Manage deposits, withdrawals, and transactions',
       path: '/cashier',
@@ -191,7 +207,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'subscription',
-      iconName: 'FaCreditCard',
+      icon: FaCreditCard,
       title: 'Subscription',
       description: 'Manage your plan and billing',
       path: '/subscription',
@@ -201,7 +217,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'charts',
-      iconName: 'FaChartBar',
+      icon: FaChartBar,
       title: 'Charts',
       description: 'Advanced charting tools and technical analysis',
       path: '/charts',
@@ -211,7 +227,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'news_feed',
-      iconName: 'FaRss',
+      icon: FaRss,
       title: 'News',
       description: 'Latest market news and updates',
       path: '/news',
@@ -221,7 +237,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'friends',
-      iconName: 'FaUserFriends',
+      icon: FaUserFriends,
       title: 'Friends',
       description: 'Connect and follow other traders',
       path: '/friends',
@@ -231,7 +247,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'videos',
-      iconName: 'FaFilm',
+      icon: FaFilm,
       title: 'Videos',
       description: 'Trading tutorials and market analysis videos',
       path: '/videos',
@@ -240,11 +256,6 @@ const AuthHomePage = () => {
       defaultActive: false
     }
   ];
-
-  // Get icon component from icon name
-  const getIconComponent = (iconName) => {
-    return Icons[iconName];
-  };
 
   // Load user's custom layout from localStorage
   useEffect(() => {
@@ -328,7 +339,7 @@ const AuthHomePage = () => {
                 className="customize-btn"
                 onClick={() => setIsEditing(true)}
               >
-                {renderIcon(Icons.FaEdit, 16)} Customize Dashboard
+                <FaEdit /> Customize Dashboard
               </button>
             </Container>
           </div>
@@ -340,26 +351,26 @@ const AuthHomePage = () => {
             <Container>
               <div className="edit-controls">
                 <span className="edit-title">
-                  {renderIcon(Icons.FaEdit, 16)} Editing Mode - Add, remove or reorder features
+                  <FaEdit /> Editing Mode - Add, remove or reorder features
                 </span>
                 <div className="edit-buttons">
                   <button 
                     className="edit-btn add-btn"
                     onClick={() => setShowAddPanel(!showAddPanel)}
                   >
-                    {renderIcon(Icons.FaPlus, 14)} Add Features
+                    <FaPlus /> Add Features
                   </button>
                   <button 
                     className="edit-btn save-btn"
                     onClick={saveLayout}
                   >
-                    {renderIcon(Icons.FaSave, 14)} Save Changes
+                    <FaSave /> Save Changes
                   </button>
                   <button 
                     className="edit-btn cancel-btn"
                     onClick={cancelEditing}
                   >
-                    {renderIcon(Icons.FaTimes, 14)} Cancel
+                    <FaTimes /> Cancel
                   </button>
                 </div>
               </div>
@@ -374,7 +385,7 @@ const AuthHomePage = () => {
               <h3>Add New Features</h3>
               <div className="available-features-grid">
                 {availableFeatures.map((feature) => {
-                  const IconComponent = getIconComponent(feature.iconName);
+                  const IconComponent = feature.icon;
                   return (
                     <div 
                       key={feature.id}
@@ -382,14 +393,14 @@ const AuthHomePage = () => {
                       onClick={() => addFeature(feature)}
                     >
                       <div className="available-icon" style={{ color: feature.color }}>
-                        {renderIcon(IconComponent, 28)}
+                        {React.createElement(IconComponent, { size: 28 })}
                       </div>
                       <div className="available-info">
                         <h4>{feature.title}</h4>
                         <p>{feature.description}</p>
                       </div>
                       <button className="add-feature-btn">
-                        {renderIcon(Icons.FaPlus, 14)}
+                        <FaPlus />
                       </button>
                     </div>
                   );
@@ -405,7 +416,7 @@ const AuthHomePage = () => {
             {/* Desktop View - Feature Cards */}
             <div className="features-grid desktop-features">
               {activeFeatures.map((feature, index) => {
-                const IconComponent = getIconComponent(feature.iconName);
+                const IconComponent = feature.icon;
                 return (
                   <div 
                     key={feature.id}
@@ -416,7 +427,7 @@ const AuthHomePage = () => {
                       {isEditing && (
                         <div className="card-controls">
                           <div className="drag-handle">
-                            {renderIcon(Icons.FaGripVertical, 14)}
+                            <FaGripVertical />
                           </div>
                           <button 
                             className="remove-card-btn"
@@ -425,7 +436,7 @@ const AuthHomePage = () => {
                               removeFeature(feature.id);
                             }}
                           >
-                            {renderIcon(Icons.FaTrash, 12)}
+                            <FaTrash />
                           </button>
                           <div className="move-buttons">
                             {index > 0 && (
@@ -457,12 +468,12 @@ const AuthHomePage = () => {
                         className="feature-icon-wrapper"
                         style={{ background: `linear-gradient(135deg, ${feature.color} 0%, ${feature.color}dd 100%)` }}
                       >
-                        {renderIcon(IconComponent, 28)}
+                        {React.createElement(IconComponent, { size: 28 })}
                       </div>
                       <h3 className="feature-title">{feature.title}</h3>
                       <p className="feature-description">{feature.description}</p>
                       <div className="feature-link">
-                        Access {renderIcon(Icons.FaArrowRight, 12, 'link-icon')}
+                        Access <FaArrowRight className="link-icon" />
                       </div>
                     </div>
                   </div>
@@ -473,7 +484,7 @@ const AuthHomePage = () => {
             {/* Mobile View - Large Icons with Labels */}
             <div className="mobile-features-grid">
               {activeFeatures.map((feature) => {
-                const IconComponent = getIconComponent(feature.iconName);
+                const IconComponent = feature.icon;
                 return (
                   <div 
                     key={feature.id}
@@ -488,14 +499,14 @@ const AuthHomePage = () => {
                           removeFeature(feature.id);
                         }}
                       >
-                        {renderIcon(Icons.FaTrash, 12)}
+                        <FaTrash />
                       </button>
                     )}
                     <div 
                       className="mobile-feature-icon"
                       style={{ background: `linear-gradient(135deg, ${feature.color} 0%, ${feature.color}dd 100%)` }}
                     >
-                      {renderIcon(IconComponent, 32)}
+                      {React.createElement(IconComponent, { size: 32 })}
                     </div>
                     <span className="mobile-feature-label">{feature.title}</span>
                   </div>
@@ -509,7 +520,7 @@ const AuthHomePage = () => {
                   onClick={() => setShowAddPanel(!showAddPanel)}
                 >
                   <div className="mobile-feature-icon add-icon">
-                    {renderIcon(Icons.FaPlus, 32)}
+                    <FaPlus />
                   </div>
                   <span className="mobile-feature-label">Add</span>
                 </div>
@@ -519,7 +530,7 @@ const AuthHomePage = () => {
                   onClick={() => setIsEditing(true)}
                 >
                   <div className="mobile-feature-icon add-icon">
-                    {renderIcon(Icons.FaEdit, 32)}
+                    <FaEdit />
                   </div>
                   <span className="mobile-feature-label">Edit</span>
                 </div>
@@ -538,11 +549,11 @@ const AuthHomePage = () => {
             
             <div className="tools-grid">
               {(showMoreFeatures ? advancedTools : advancedTools.slice(0, 6)).map((tool) => {
-                const IconComponent = getIconComponent(tool.iconName);
+                const IconComponent = tool.icon;
                 return (
                   <div key={tool.id} className="tool-card">
                     <div className="tool-icon" style={{ color: tool.color }}>
-                      {renderIcon(IconComponent, 28)}
+                      {React.createElement(IconComponent, { size: 28 })}
                     </div>
                     <div className="tool-content">
                       <h4>{tool.title}</h4>
@@ -559,7 +570,7 @@ const AuthHomePage = () => {
                   className="show-more-btn"
                   onClick={() => setShowMoreFeatures(true)}
                 >
-                  {renderIcon(Icons.FaPlus, 14)} Show More Tools {renderIcon(Icons.FaArrowRight, 12)}
+                  <FaPlus /> Show More Tools <FaArrowRight />
                 </button>
               </div>
             )}
