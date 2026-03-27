@@ -24,75 +24,91 @@ const AuthHomePage = () => {
   const [activeFeatures, setActiveFeatures] = useState([]);
   const [showAddPanel, setShowAddPanel] = useState(false);
 
-  // Advanced tools array - moved inside component
+  // Advanced tools array
   const advancedTools = [
     {
-      icon: <FaChartLine />,
+      id: 'scanner',
+      icon: FaChartLine,
       title: 'Market Scanner',
       description: 'AI-powered market scanning for high-probability setups',
       color: '#3b82f6'
     },
     {
-      icon: <FaRobot />,
+      id: 'ai_assistant',
+      icon: FaRobot,
       title: 'AI Assistant',
       description: '24/7 trading assistant with real-time insights',
       color: '#10b981'
     },
     {
-      icon: <FaVideo />,
+      id: 'live_trading',
+      icon: FaVideo,
       title: 'Live Trading',
       description: 'Watch professional traders analyze markets',
       color: '#ef4444'
     },
     {
-      icon: <FaPodcast />,
+      id: 'podcasts',
+      icon: FaPodcast,
       title: 'Trading Podcasts',
       description: 'Expert interviews and market analysis',
       color: '#8b5cf6'
     },
     {
-      icon: <FaNewspaper />,
+      id: 'news',
+      icon: FaNewspaper,
       title: 'Market News',
       description: 'Real-time news and economic calendar',
       color: '#f59e0b'
     },
     {
-      icon: <FaChartPie />,
+      id: 'analytics',
+      icon: FaChartPie,
       title: 'Portfolio Analytics',
       description: 'Advanced portfolio performance metrics',
       color: '#ec489a'
     },
     {
-      icon: <FaCalendarAlt />,
+      id: 'calendar',
+      icon: FaCalendarAlt,
       title: 'Trading Calendar',
       description: 'Earnings reports and economic events',
       color: '#14b8a6'
     },
     {
-      icon: <FaGlobe />,
+      id: 'global_markets',
+      icon: FaGlobe,
       title: 'Global Markets',
       description: 'Stocks, forex, crypto, and commodities',
       color: '#6b7280'
     },
     {
-      icon: <FaShieldAlt />,
+      id: 'risk_mgmt',
+      icon: FaShieldAlt,
       title: 'Risk Management',
       description: 'Advanced risk analysis and position sizing',
       color: '#10b981'
     },
     {
-      icon: <FaCloudUploadAlt />,
+      id: 'cloud_sync',
+      icon: FaCloudUploadAlt,
       title: 'Cloud Sync',
       description: 'Sync your data across all devices',
       color: '#3b82f6'
     }
   ];
 
-  // All available features (including new ones)
+  // Helper function to render icons safely
+  const renderIcon = (IconComponent, size = 24) => {
+    if (!IconComponent) return null;
+    return React.createElement(IconComponent, { size: size });
+  };
+
+  // All available features
   const allFeaturesList = [
     {
       id: 'profile',
-      icon: <FaUser />,
+      icon: FaUser,
       title: 'Profile',
       description: 'View and manage your personal information',
       path: '/profile',
@@ -102,7 +118,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'chat',
-      icon: <FaComments />,
+      icon: FaComments,
       title: 'Chat',
       description: 'Connect with traders and join discussions',
       path: '/chat',
@@ -112,7 +128,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'library',
-      icon: <FaBookOpen />,
+      icon: FaBookOpen,
       title: 'Library',
       description: 'Access trading books and research materials',
       path: '/education',
@@ -122,7 +138,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'academy',
-      icon: <FaGraduationCap />,
+      icon: FaGraduationCap,
       title: 'Academy',
       description: 'Structured courses from beginner to expert',
       path: '/education',
@@ -132,7 +148,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'office',
-      icon: <FaLaptopCode />,
+      icon: FaLaptopCode,
       title: 'Office',
       description: 'Trading journal and performance analytics',
       path: '/dashboard',
@@ -142,7 +158,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'tools',
-      icon: <FaToolbox />,
+      icon: FaToolbox,
       title: 'Tools',
       description: 'Advanced trading tools and indicators',
       path: '/tools',
@@ -152,7 +168,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'settings',
-      icon: <FaCog />,
+      icon: FaCog,
       title: 'Settings',
       description: 'Customize your experience',
       path: '/profile/settings',
@@ -162,7 +178,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'dashboard',
-      icon: <FaTachometerAlt />,
+      icon: FaTachometerAlt,
       title: 'Dashboard',
       description: 'Real-time portfolio tracking and analytics',
       path: '/dashboard',
@@ -172,7 +188,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'cashier',
-      icon: <FaDollarSign />,
+      icon: FaDollarSign,
       title: 'Cashier',
       description: 'Manage deposits, withdrawals, and transactions',
       path: '/cashier',
@@ -182,7 +198,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'subscription',
-      icon: <FaCreditCard />,
+      icon: FaCreditCard,
       title: 'Subscription',
       description: 'Manage your plan and billing',
       path: '/subscription',
@@ -192,7 +208,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'charts',
-      icon: <FaChartBar />,
+      icon: FaChartBar,
       title: 'Charts',
       description: 'Advanced charting tools and technical analysis',
       path: '/charts',
@@ -201,8 +217,8 @@ const AuthHomePage = () => {
       defaultActive: false
     },
     {
-      id: 'news',
-      icon: <FaRss />,
+      id: 'news_feed',
+      icon: FaRss,
       title: 'News',
       description: 'Latest market news and updates',
       path: '/news',
@@ -212,7 +228,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'friends',
-      icon: <FaUserFriends />,
+      icon: FaUserFriends,
       title: 'Friends',
       description: 'Connect and follow other traders',
       path: '/friends',
@@ -222,7 +238,7 @@ const AuthHomePage = () => {
     },
     {
       id: 'videos',
-      icon: <FaFilm />,
+      icon: FaFilm,
       title: 'Videos',
       description: 'Trading tutorials and market analysis videos',
       path: '/videos',
@@ -245,7 +261,6 @@ const AuthHomePage = () => {
         setActiveFeatures(defaultActive);
       }
     } else {
-      // Set default active features
       const defaultActive = allFeaturesList.filter(f => f.defaultActive);
       setActiveFeatures(defaultActive);
     }
@@ -257,16 +272,13 @@ const AuthHomePage = () => {
     setAvailableFeatures(allFeaturesList.filter(f => !activeIds.includes(f.id)));
   }, [activeFeatures]);
 
-  // Save layout to localStorage
   const saveLayout = () => {
     localStorage.setItem(`user_layout_${user?.id || 'default'}`, JSON.stringify(activeFeatures));
     setIsEditing(false);
     setShowAddPanel(false);
   };
 
-  // Cancel editing
   const cancelEditing = () => {
-    // Reload saved layout
     const savedLayout = localStorage.getItem(`user_layout_${user?.id || 'default'}`);
     if (savedLayout) {
       try {
@@ -283,17 +295,14 @@ const AuthHomePage = () => {
     setShowAddPanel(false);
   };
 
-  // Add feature to active list
   const addFeature = (feature) => {
     setActiveFeatures([...activeFeatures, feature]);
   };
 
-  // Remove feature from active list
   const removeFeature = (featureId) => {
     setActiveFeatures(activeFeatures.filter(f => f.id !== featureId));
   };
 
-  // Move feature up/down for sorting
   const moveFeature = (index, direction) => {
     const newFeatures = [...activeFeatures];
     if (direction === 'up' && index > 0) {
@@ -373,7 +382,7 @@ const AuthHomePage = () => {
                     onClick={() => addFeature(feature)}
                   >
                     <div className="available-icon" style={{ color: feature.color }}>
-                      {feature.icon}
+                      {React.createElement(feature.icon, { size: 28 })}
                     </div>
                     <div className="available-info">
                       <h4>{feature.title}</h4>
@@ -445,7 +454,7 @@ const AuthHomePage = () => {
                       className="feature-icon-wrapper"
                       style={{ background: `linear-gradient(135deg, ${feature.color} 0%, ${feature.color}dd 100%)` }}
                     >
-                      {feature.icon}
+                      {React.createElement(feature.icon, { size: 28 })}
                     </div>
                     <h3 className="feature-title">{feature.title}</h3>
                     <p className="feature-description">{feature.description}</p>
@@ -480,13 +489,13 @@ const AuthHomePage = () => {
                     className="mobile-feature-icon"
                     style={{ background: `linear-gradient(135deg, ${feature.color} 0%, ${feature.color}dd 100%)` }}
                   >
-                    {feature.icon}
+                    {React.createElement(feature.icon, { size: 32 })}
                   </div>
                   <span className="mobile-feature-label">{feature.title}</span>
                 </div>
               ))}
               
-              {/* Add More Button - Only show in edit mode or when not editing */}
+              {/* Add More Button */}
               {isEditing ? (
                 <div 
                   className="mobile-feature-item add-more"
@@ -521,10 +530,10 @@ const AuthHomePage = () => {
             </div>
             
             <div className="tools-grid">
-              {(showMoreFeatures ? advancedTools : advancedTools.slice(0, 6)).map((tool, index) => (
-                <div key={index} className="tool-card">
+              {(showMoreFeatures ? advancedTools : advancedTools.slice(0, 6)).map((tool) => (
+                <div key={tool.id} className="tool-card">
                   <div className="tool-icon" style={{ color: tool.color }}>
-                    {tool.icon}
+                    {React.createElement(tool.icon, { size: 28 })}
                   </div>
                   <div className="tool-content">
                     <h4>{tool.title}</h4>
