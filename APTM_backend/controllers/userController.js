@@ -1049,3 +1049,16 @@ export const searchUsers = async (req, res) => {
     });
   }
 };
+// At the bottom of controllers/userController.js
+export {
+  RegisterUser,
+  verifyOTP,
+  resendOTP,
+  loginUser,
+  logoutUser,
+  checkAuth,
+  googleAuth,
+  googleCallback,
+  updatePassword,
+  deleteAccount
+};
