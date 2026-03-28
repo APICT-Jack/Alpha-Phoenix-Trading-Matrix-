@@ -1,4 +1,65 @@
-// utils/avatarUtils.js - COMPLETE FIXED VERSION
+// utils/avatarUtils.js - UPDATED WITH CLOUDINARY SUPPORT
+
+/**
+ * Check if URL is from Cloudinary
+ * @param {string} url - URL to check
+ * @returns {boolean} - Whether URL is from Cloudinary
+ */
+export const isCloudinaryUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  return url.includes('cloudinary') || url.includes('res.cloudinary.com');
+};
+
+/**
+ * Get optimized Cloudinary URL for avatars
+ * @param {string} url - Cloudinary URL
+ * @param {string} size - Size: 'small', 'medium', 'large'
+ * @returns {string} - Optimized Cloudinary URL
+ */
+export const getOptimizedCloudinaryAvatarUrl = (url, size = 'medium') => {
+  if (!url || !isCloudinaryUrl(url)) return url;
+  
+  // Size mapping for avatars
+  const dimensions = {
+    small: { width: 32, height: 32 },
+    medium: { width: 48, height: 48 },
+    large: { width: 96, height: 96 }
+  };
+  
+  const { width, height } = dimensions[size] || dimensions.medium;
+  
+  // Add transformations for Cloudinary
+  const transformations = [
+    `w_${width}`,
+    `h_${height}`,
+    'c_fill',      // Crop to fill
+    'g_face',      // Focus on face
+    'q_auto',      // Auto quality
+    'f_auto'       // Auto format (WebP if supported)
+  ];
+  
+  return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
+};
+
+/**
+ * Get optimized Cloudinary URL for banners
+ * @param {string} url - Cloudinary URL
+ * @returns {string} - Optimized Cloudinary URL
+ */
+export const getOptimizedCloudinaryBannerUrl = (url) => {
+  if (!url || !isCloudinaryUrl(url)) return url;
+  
+  // Banner optimization: 1500x500, fill crop
+  const transformations = [
+    'w_1500',
+    'h_500',
+    'c_fill',
+    'q_auto',
+    'f_auto'
+  ];
+  
+  return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
+};
 
 /**
  * Get the correct base URL based on environment
@@ -77,6 +138,16 @@ export const formatAvatarUrl = (avatarData) => {
     }
 
     console.log('🎨 Formatting avatar URL from:', avatarPath);
+
+    // ============================================
+    // CLOUDINARY SUPPORT
+    // ============================================
+    
+    // If it's a Cloudinary URL, return as is (will be optimized later)
+    if (isCloudinaryUrl(avatarPath)) {
+      console.log('☁️ Avatar is Cloudinary URL:', avatarPath);
+      return avatarPath;
+    }
 
     // If it's a data URL (base64), return as is
     if (avatarPath.startsWith('data:')) {
@@ -164,6 +235,16 @@ export const formatBannerUrl = (bannerData) => {
     }
 
     console.log('🎨 Formatting banner URL from:', bannerPath);
+
+    // ============================================
+    // CLOUDINARY SUPPORT
+    // ============================================
+    
+    // If it's a Cloudinary URL, return as is (will be optimized later)
+    if (isCloudinaryUrl(bannerPath)) {
+      console.log('☁️ Banner is Cloudinary URL:', bannerPath);
+      return bannerPath;
+    }
 
     if (bannerPath.startsWith('data:')) {
       console.log('✅ Banner is data URL');
@@ -260,6 +341,9 @@ export const hasValidAvatar = (avatarData) => {
       return false;
     }
     
+    // Check if it's a Cloudinary URL
+    if (isCloudinaryUrl(avatarPath)) return true;
+    
     // Check if it's a data URL (base64)
     if (avatarPath.startsWith('data:')) return true;
     
@@ -310,6 +394,9 @@ export const hasValidBanner = (bannerData) => {
       return false;
     }
     
+    // Check if it's a Cloudinary URL
+    if (isCloudinaryUrl(bannerPath)) return true;
+    
     if (bannerPath.startsWith('data:')) return true;
     if (bannerPath.startsWith('http')) return true;
     if (bannerPath.includes('/uploads/banners/')) return true;
@@ -349,12 +436,13 @@ export const getAvatarColor = (str) => {
 /**
  * Get avatar props for a user
  * @param {Object} user - User object
- * @returns {Object} - Avatar props (src, initial, color, hasImage)
+ * @returns {Object} - Avatar props (src, initial, color, hasImage, optimizedSrc)
  */
-export const getAvatarProps = (user) => {
+export const getAvatarProps = (user, size = 'medium') => {
   if (!user) {
     return {
       src: null,
+      optimizedSrc: null,
       initial: 'U',
       color: AVATAR_COLORS[0],
       hasImage: false
@@ -366,37 +454,65 @@ export const getAvatarProps = (user) => {
   const color = getAvatarColor(userId || user.name || user.email || '');
   const src = hasValidAvatar(user.avatar) ? formatAvatarUrl(user.avatar) : null;
   
+  // Apply Cloudinary optimization if applicable
+  let optimizedSrc = null;
+  if (src && isCloudinaryUrl(src)) {
+    optimizedSrc = getOptimizedCloudinaryAvatarUrl(src, size);
+  } else {
+    optimizedSrc = src;
+  }
+  
   return {
     src,
+    optimizedSrc,
     initial,
     color,
-    hasImage: !!src
+    hasImage: !!src,
+    isCloudinary: src && isCloudinaryUrl(src)
   };
 };
 
 /**
  * Get banner props for a user
  * @param {Object} user - User object
- * @returns {Object} - Banner props (src, hasImage)
+ * @returns {Object} - Banner props (src, optimizedSrc, hasImage, isCloudinary)
  */
 export const getBannerProps = (user) => {
   if (!user) {
     return {
       src: null,
-      hasImage: false
+      optimizedSrc: null,
+      hasImage: false,
+      isCloudinary: false
     };
   }
   
   const src = hasValidBanner(user.banner) ? formatBannerUrl(user.banner) : null;
   
+  // Apply Cloudinary optimization if applicable
+  let optimizedSrc = null;
+  let isCloudinary = false;
+  
+  if (src && isCloudinaryUrl(src)) {
+    optimizedSrc = getOptimizedCloudinaryBannerUrl(src);
+    isCloudinary = true;
+  } else {
+    optimizedSrc = src;
+  }
+  
   return {
     src,
-    hasImage: !!src
+    optimizedSrc,
+    hasImage: !!src,
+    isCloudinary
   };
 };
 
 // Default export for convenience
 export default {
+  isCloudinaryUrl,
+  getOptimizedCloudinaryAvatarUrl,
+  getOptimizedCloudinaryBannerUrl,
   formatAvatarUrl,
   formatBannerUrl,
   getAvatarInitial,

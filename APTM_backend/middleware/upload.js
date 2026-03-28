@@ -1,9 +1,19 @@
-// middleware/upload.js - COMPREHENSIVE UPDATED VERSION
+// middleware/upload.js - COMPLETE CLOUDINARY VERSION
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { 
+  uploadAvatar, 
+  uploadBanner, 
+  uploadGallery, 
+  uploadDocument, 
+  uploadAddressProof, 
+  uploadPostMedia 
+} from '../services/cloudinaryService.js';
 
-// Ensure all upload directories exist
+// ============================================
+// BACKWARD COMPATIBILITY - Ensure local directories exist (for development)
+// ============================================
 const ensureUploadDirs = () => {
   const dirs = [
     'uploads/avatars',
@@ -11,6 +21,7 @@ const ensureUploadDirs = () => {
     'uploads/documents',
     'uploads/address-proofs',
     'uploads/gallery',
+    'uploads/posts',
     'uploads/temp'
   ];
   
@@ -22,370 +33,53 @@ const ensureUploadDirs = () => {
   });
 };
 
-// Call this when your app starts
-ensureUploadDirs();
+// Only call in development or as fallback
+if (process.env.NODE_ENV !== 'production') {
+  ensureUploadDirs();
+}
 
 // ============================================
-// STORAGE CONFIGURATIONS
-// ============================================
-// Add to existing upload.js - Post Media Storage
-const postMediaStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = 'uploads/posts/';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `post-${Date.now()}-${Math.random().toString(36).substring(7)}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
-
-// Post Media File Filter
-const postMediaFileFilter = (req, file, cb) => {
-  const allowedMimeTypes = [
-    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
-    'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo',
-    'application/pdf'
-  ];
-  
-  const allowedExtensions = /jpeg|jpg|png|gif|webp|pdf|mp4|mpeg|mov|avi/;
-  
-  const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedMimeTypes.includes(file.mimetype);
-  
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Error: Only images, videos, and PDFs are allowed!'));
-  }
-};
-
-// Post Media Upload Middleware (multiple files)
-export const uploadPostMediaMiddleware = multer({
-  storage: postMediaStorage,
-  limits: { 
-    fileSize: 100 * 1024 * 1024, // 100MB
-    files: 10
-  },
-  fileFilter: postMediaFileFilter
-}).array('media', 10);
-
-// Single post media upload
-export const uploadSinglePostMediaMiddleware = multer({
-  storage: postMediaStorage,
-  limits: { 
-    fileSize: 100 * 1024 * 1024,
-    files: 1
-  },
-  fileFilter: postMediaFileFilter
-}).single('media');
-// 1. Avatar Storage
-const avatarStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = 'uploads/avatars/';
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `avatar-${req.user?.id || 'user'}-${Date.now()}${path.extname(file.originalname)}`;
-    console.log('📁 Saving avatar as:', uniqueName);
-    cb(null, uniqueName);
-  }
-});
-
-// 2. Banner Storage
-const bannerStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = 'uploads/banners/';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `banner-${req.user?.id || 'user'}-${Date.now()}${path.extname(file.originalname)}`;
-    console.log('📁 Saving banner as:', uniqueName);
-    cb(null, uniqueName);
-  }
-});
-
-// 3. Document Storage
-const documentStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = 'uploads/documents/';
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `doc-${req.user?.id || 'user'}-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
-
-// 4. Address Proof Storage
-const addressProofStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = 'uploads/address-proofs/';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `address-proof-${req.user?.id || 'user'}-${Date.now()}${path.extname(file.originalname)}`;
-    console.log('📁 Saving address proof as:', uniqueName);
-    cb(null, uniqueName);
-  }
-});
-
-// 5. Gallery Storage
-const galleryStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = 'uploads/gallery/';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `gallery-${req.user?.id || 'user'}-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
-
-// 6. Bulk/Temp Storage
-const tempStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = 'uploads/temp/';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
-
-// ============================================
-// FILE FILTERS
-// ============================================
-
-// 1. Image File Filter
-const imageFileFilter = (req, file, cb) => {
-  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-  const allowedExtensions = /jpeg|jpg|png|gif|webp|svg/;
-  
-  const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedMimeTypes.includes(file.mimetype);
-  
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Error: Only image files are allowed (JPEG, JPG, PNG, GIF, WebP, SVG)!'));
-  }
-};
-
-// 2. Document File Filter
-const documentFileFilter = (req, file, cb) => {
-  const allowedMimeTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'text/plain',
-    'image/jpeg',
-    'image/jpg',
-    'image/png'
-  ];
-  
-  const allowedExtensions = /pdf|doc|docx|txt|jpeg|jpg|png/;
-  
-  const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedMimeTypes.includes(file.mimetype);
-  
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Error: Only PDF, Word, text, or image files are allowed!'));
-  }
-};
-
-// 3. Address Proof File Filter (strict)
-const addressProofFileFilter = (req, file, cb) => {
-  const allowedMimeTypes = [
-    'application/pdf',
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/heic',
-    'image/heif'
-  ];
-  
-  const allowedExtensions = /pdf|jpeg|jpg|png|heic|heif/;
-  
-  const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedMimeTypes.includes(file.mimetype);
-  
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Error: Address proof must be PDF, JPG, PNG, or HEIC file!'));
-  }
-};
-
-// 4. Gallery File Filter (images + videos)
-const galleryFileFilter = (req, file, cb) => {
-  const allowedMimeTypes = [
-    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
-    'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo',
-    'application/pdf'
-  ];
-  
-  const allowedExtensions = /jpeg|jpg|png|gif|webp|pdf|mp4|mpeg|mov|avi/;
-  
-  const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedMimeTypes.includes(file.mimetype);
-  
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Error: Gallery files must be images, videos, or PDFs!'));
-  }
-};
-
-// 5. Video File Filter
-const videoFileFilter = (req, file, cb) => {
-  const allowedMimeTypes = [
-    'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo',
-    'video/webm', 'video/x-matroska'
-  ];
-  
-  const allowedExtensions = /mp4|mpeg|mov|avi|webm|mkv/;
-  
-  const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedMimeTypes.includes(file.mimetype);
-  
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Error: Only video files are allowed (MP4, MOV, AVI, WebM, MKV)!'));
-  }
-};
-
-// 6. Audio File Filter
-const audioFileFilter = (req, file, cb) => {
-  const allowedMimeTypes = [
-    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4',
-    'audio/x-m4a', 'audio/webm'
-  ];
-  
-  const allowedExtensions = /mp3|wav|ogg|m4a|webm/;
-  
-  const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedMimeTypes.includes(file.mimetype);
-  
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Error: Only audio files are allowed (MP3, WAV, OGG, M4A)!'));
-  }
-};
-
-// ============================================
-// MULTER MIDDLEWARE INSTANCES
+// MULTER MIDDLEWARE INSTANCES - USING CLOUDINARY
 // ============================================
 
 // 1. Avatar Upload Middleware
-export const uploadAvatarMiddleware = multer({
-  storage: avatarStorage,
-  limits: { 
-    fileSize: 5 * 1024 * 1024, // 5MB
-    files: 1
-  },
-  fileFilter: imageFileFilter
-}).single('avatar');
+export const uploadAvatarMiddleware = uploadAvatar.single('avatar');
 
 // 2. Banner Upload Middleware
-export const uploadBannerMiddleware = multer({
-  storage: bannerStorage,
-  limits: { 
-    fileSize: 10 * 1024 * 1024, // 10MB
-    files: 1
-  },
-  fileFilter: imageFileFilter
-}).single('banner');
+export const uploadBannerMiddleware = uploadBanner.single('banner');
 
 // 3. Document Upload Middleware
-export const uploadDocumentMiddleware = multer({
-  storage: documentStorage,
-  limits: { 
-    fileSize: 10 * 1024 * 1024, // 10MB
-    files: 1
-  },
-  fileFilter: documentFileFilter
-}).single('document');
+export const uploadDocumentMiddleware = uploadDocument.single('document');
 
 // 4. Address Proof Upload Middleware
-export const uploadAddressProofMiddleware = multer({
-  storage: addressProofStorage,
-  limits: { 
-    fileSize: 5 * 1024 * 1024, // 5MB
-    files: 1
-  },
-  fileFilter: addressProofFileFilter
-}).single('addressProof');
+export const uploadAddressProofMiddleware = uploadAddressProof.single('addressProof');
 
-// 5. Gallery Upload Middleware
-export const uploadGalleryMiddleware = multer({
-  storage: galleryStorage,
-  limits: { 
-    fileSize: 50 * 1024 * 1024, // 50MB for videos
-    files: 10 // Allow multiple files
-  },
-  fileFilter: galleryFileFilter
-}).array('galleryFiles', 10); // Accept up to 10 files
+// 5. Gallery Upload Middleware (multiple files)
+export const uploadGalleryMiddleware = uploadGallery.array('galleryFiles', 10);
 
-// 6. Multiple Images Upload Middleware
-export const uploadMultipleImagesMiddleware = multer({
-  storage: tempStorage,
-  limits: { 
-    fileSize: 5 * 1024 * 1024, // 5MB per image
-    files: 20 // Allow up to 20 images
-  },
-  fileFilter: imageFileFilter
-}).array('images', 20);
+// 6. Post Media Upload Middleware (multiple files)
+export const uploadPostMediaMiddleware = uploadPostMedia.array('media', 10);
 
-// 7. Video Upload Middleware
-export const uploadVideoMiddleware = multer({
-  storage: tempStorage,
-  limits: { 
-    fileSize: 100 * 1024 * 1024, // 100MB
-    files: 1
-  },
-  fileFilter: videoFileFilter
-}).single('video');
+// 7. Single Post Media Upload Middleware
+export const uploadSinglePostMediaMiddleware = uploadPostMedia.single('media');
 
-// 8. Audio Upload Middleware
-export const uploadAudioMiddleware = multer({
-  storage: tempStorage,
-  limits: { 
-    fileSize: 20 * 1024 * 1024, // 20MB
-    files: 1
-  },
-  fileFilter: audioFileFilter
-}).single('audio');
+// 8. Multiple Images Upload Middleware
+export const uploadMultipleImagesMiddleware = uploadGallery.array('images', 20);
 
-// 9. Generic File Upload Middleware
+// 9. Video Upload Middleware
+export const uploadVideoMiddleware = uploadPostMedia.single('video');
+
+// 10. Audio Upload Middleware
+export const uploadAudioMiddleware = uploadPostMedia.single('audio');
+
+// 11. Generic File Upload Middleware
 export const uploadGenericMiddleware = multer({
-  storage: tempStorage,
+  storage: multer.memoryStorage(),
   limits: { 
     fileSize: 50 * 1024 * 1024, // 50MB
     files: 5
   },
   fileFilter: (req, file, cb) => {
-    // Allow common file types
     const allowedTypes = [
       'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
       'application/pdf', 'application/msword', 
@@ -404,14 +98,21 @@ export const uploadGenericMiddleware = multer({
   }
 }).array('files', 5);
 
-// 10. Profile Media Upload (Avatar + Banner together)
+// 12. Profile Media Upload (Avatar + Banner together)
 export const uploadProfileMediaMiddleware = multer({
-  storage: tempStorage,
+  storage: multer.memoryStorage(),
   limits: { 
     fileSize: 15 * 1024 * 1024, // 15MB total
-    files: 2 // Avatar + Banner
+    files: 2
   },
-  fileFilter: imageFileFilter
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
 }).fields([
   { name: 'avatar', maxCount: 1 },
   { name: 'banner', maxCount: 1 }
@@ -421,8 +122,10 @@ export const uploadProfileMediaMiddleware = multer({
 // HELPER FUNCTIONS
 // ============================================
 
-// Clean up temporary files
+// Clean up temporary files (for local development)
 export const cleanupTempFiles = (filePaths) => {
+  if (process.env.NODE_ENV === 'production') return; // Skip in production
+    
   filePaths.forEach(filePath => {
     if (fs.existsSync(filePath)) {
       try {
@@ -454,9 +157,22 @@ export const validateFileSize = (fileSize, maxSizeMB) => {
   return fileSize <= maxSizeBytes;
 };
 
-// Generate file URL
-export const generateFileUrl = (filename, fileType = 'avatar') => {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+// Generate file URL (handles both Cloudinary and local)
+export const generateFileUrl = (fileOrUrl, fileType = 'avatar') => {
+  if (!fileOrUrl) return null;
+  
+  // If it's already a full URL (Cloudinary or absolute)
+  if (typeof fileOrUrl === 'string' && fileOrUrl.startsWith('http')) {
+    return fileOrUrl;
+  }
+  
+  // If it's a Cloudinary file object
+  if (fileOrUrl.path && fileOrUrl.path.startsWith('http')) {
+    return fileOrUrl.path;
+  }
+  
+  // Handle local files (for development/backward compatibility)
+  const baseUrl = process.env.BASE_URL || process.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
   
   const typeToFolder = {
     avatar: 'avatars',
@@ -464,20 +180,31 @@ export const generateFileUrl = (filename, fileType = 'avatar') => {
     document: 'documents',
     addressProof: 'address-proofs',
     gallery: 'gallery',
+    post: 'posts',
     temp: 'temp'
   };
   
   const folder = typeToFolder[fileType] || 'temp';
+  let filename = fileOrUrl;
+  
+  // Extract filename if it contains path
+  if (typeof fileOrUrl === 'string' && fileOrUrl.includes('/')) {
+    filename = fileOrUrl.split('/').pop();
+  }
+  
   return `${baseUrl}/uploads/${folder}/${filename}`;
 };
 
-// Check if file exists
+// Check if file exists (for local development)
 export const fileExists = (filePath) => {
+  if (process.env.NODE_ENV === 'production') return false;
   return fs.existsSync(filePath);
 };
 
-// Delete file
+// Delete file (for local development)
 export const deleteFile = (filePath) => {
+  if (process.env.NODE_ENV === 'production') return false;
+  
   try {
     if (fileExists(filePath)) {
       fs.unlinkSync(filePath);
@@ -490,8 +217,10 @@ export const deleteFile = (filePath) => {
   }
 };
 
-// Move file from temp to permanent location
+// Move file from temp to permanent location (for local development)
 export const moveFile = (sourcePath, destFolder, newFilename) => {
+  if (process.env.NODE_ENV === 'production') return null;
+  
   try {
     const destDir = `uploads/${destFolder}`;
     if (!fs.existsSync(destDir)) {
@@ -564,64 +293,11 @@ export const handleUploadError = (err, req, res, next) => {
 // ============================================
 
 const upload = multer({
-  storage: avatarStorage,
+  storage: multer.memoryStorage(),
   limits: { 
     fileSize: 5 * 1024 * 1024,
     files: 1
-  },
-  fileFilter: imageFileFilter
+  }
 });
 
 export default upload;
-
-// ============================================
-// USAGE EXAMPLES (for reference)
-// ============================================
-
-/*
-// 1. Avatar Upload
-router.post('/avatar', authMiddleware, uploadAvatarMiddleware, (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ success: false, message: 'No file uploaded' });
-  }
-  res.json({ 
-    success: true, 
-    message: 'Avatar uploaded',
-    filename: req.file.filename,
-    url: generateFileUrl(req.file.filename, 'avatar')
-  });
-});
-
-// 2. Banner Upload
-router.post('/banner', authMiddleware, uploadBannerMiddleware, (req, res) => {
-  // Handle banner upload
-});
-
-// 3. Address Proof Upload
-router.post('/address-proof', authMiddleware, uploadAddressProofMiddleware, (req, res) => {
-  // Handle address proof upload
-});
-
-// 4. Multiple Images Upload
-router.post('/gallery', authMiddleware, uploadMultipleImagesMiddleware, (req, res) => {
-  // Handle multiple images
-  const files = req.files;
-  const fileUrls = files.map(file => generateFileUrl(file.filename, 'gallery'));
-  
-  res.json({
-    success: true,
-    message: `${files.length} files uploaded`,
-    files: fileUrls
-  });
-});
-
-// 5. With Error Handling
-router.post('/upload', 
-  authMiddleware,
-  uploadAvatarMiddleware,
-  handleUploadError,
-  (req, res) => {
-    // Your upload logic here
-  }
-);
-*/

@@ -1,4 +1,4 @@
-// controllers/postController.js - COMPLETE UPDATED VERSION WITH CHART SUPPORT
+// controllers/postController.js - COMPLETE CLOUDINARY VERSION
 import Post from '../models/Post.js';
 import Poll from '../models/Poll.js';
 import UserProfile from '../models/UserProfile.js';
@@ -6,55 +6,74 @@ import User from '../models/User.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { deleteFromCloudinary, getPublicIdFromUrl, getResourceType } from '../services/cloudinaryService.js';
+import cloudinary from '../services/cloudinaryService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ============================================
-// MEDIA UPLOAD UTILITY
+// MEDIA UPLOAD UTILITY - CLOUDINARY VERSION
 // ============================================
 const uploadMediaFiles = async (files) => {
   const uploadedMedia = [];
-  const uploadDir = path.join(__dirname, '..', 'uploads', 'posts');
   
-  // Create directory if it doesn't exist
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-    console.log('📁 Created upload directory:', uploadDir);
-  }
-
   for (const file of files) {
     try {
       console.log(`📎 Processing file: ${file.originalname} (${file.mimetype}, ${file.size} bytes)`);
       
-      const fileExtension = path.extname(file.originalname) || '.jpg';
-      const fileName = `post-${Date.now()}-${Math.random().toString(36).substring(7)}${fileExtension}`;
-      const filePath = path.join(uploadDir, fileName);
-      
-      // Write file
-      fs.writeFileSync(filePath, file.buffer);
-      console.log(`✅ File saved: ${fileName}`);
-
       // Determine media type
       let mediaType = 'document';
       if (file.mimetype.startsWith('image/')) mediaType = 'image';
       else if (file.mimetype.startsWith('video/')) mediaType = 'video';
 
+      // Upload to Cloudinary
+      const result = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'trading-app/posts',
+            resource_type: 'auto',
+            transformation: mediaType === 'image' ? [
+              { quality: 'auto' },
+              { fetch_format: 'auto' },
+              { width: 1200, crop: 'limit' }
+            ] : [
+              { quality: 'auto' },
+              { fetch_format: 'auto' }
+            ]
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        
+        // Convert buffer to stream
+        const bufferStream = require('stream').Readable.from(file.buffer);
+        bufferStream.pipe(uploadStream);
+      });
+
       const mediaObject = {
-        url: `/uploads/posts/${fileName}`,
+        url: result.secure_url,
         type: mediaType,
         size: file.size,
-        mimeType: file.mimetype
+        mimeType: file.mimetype,
+        publicId: result.public_id,
+        width: result.width,
+        height: result.height,
+        format: result.format
       };
 
-      // Add thumbnail for videos (placeholder)
+      // Add thumbnail for videos
       if (mediaType === 'video') {
-        mediaObject.thumbnail = `/uploads/posts/thumbnails/${fileName}.jpg`;
+        mediaObject.thumbnail = result.secure_url.replace('/upload/', '/upload/video_thumbnail/');
       }
 
       uploadedMedia.push(mediaObject);
+      console.log(`✅ File uploaded to Cloudinary: ${result.public_id}`);
+      
     } catch (error) {
-      console.error('❌ Error uploading file:', error);
+      console.error('❌ Error uploading file to Cloudinary:', error);
       throw error;
     }
   }
@@ -63,17 +82,33 @@ const uploadMediaFiles = async (files) => {
 };
 
 // ============================================
-// CREATE POST (WITH CHART SUPPORT)
+// DELETE MEDIA FILES FROM CLOUDINARY
+// ============================================
+const deleteMediaFiles = async (mediaArray) => {
+  for (const media of mediaArray) {
+    if (media.publicId && media.type !== 'chart') {
+      try {
+        const resourceType = media.type === 'video' ? 'video' : 
+                            media.mimeType === 'application/pdf' ? 'raw' : 'image';
+        await deleteFromCloudinary(media.publicId, { resource_type: resourceType });
+        console.log(`🗑️ Deleted from Cloudinary: ${media.publicId}`);
+      } catch (error) {
+        console.error(`Error deleting ${media.publicId}:`, error);
+      }
+    }
+  }
+};
+
+// ============================================
+// CREATE POST (WITH CHART SUPPORT) - CLOUDINARY VERSION
 // ============================================
 export const createPost = async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // Log what we received
     console.log('📝 Create post request body:', req.body);
     console.log('📎 Files received:', req.files?.length || 0);
 
-    // Extract fields from body
     const { 
       content, 
       visibility, 
@@ -82,7 +117,7 @@ export const createPost = async (req, res) => {
       scheduledFor,
       repostOf,
       poll,
-      chart  // Added chart field
+      chart
     } = req.body;
 
     // Handle media files if present
@@ -90,7 +125,7 @@ export const createPost = async (req, res) => {
     if (req.files && req.files.length > 0) {
       try {
         media = await uploadMediaFiles(req.files);
-        console.log(`📎 Uploaded ${media.length} media files`);
+        console.log(`📎 Uploaded ${media.length} media files to Cloudinary`);
       } catch (uploadError) {
         console.error('❌ Media upload failed:', uploadError);
         return res.status(400).json({
@@ -100,14 +135,12 @@ export const createPost = async (req, res) => {
       }
     }
 
-    // ===== CHART HANDLING =====
     // Handle chart if present
     if (chart && chart !== 'undefined' && chart !== 'null') {
       try {
         const chartData = typeof chart === 'string' ? JSON.parse(chart) : chart;
         console.log('📊 Adding chart to post:', chartData);
         
-        // Validate chart data
         if (!chartData.symbol) {
           return res.status(400).json({
             success: false,
@@ -115,12 +148,11 @@ export const createPost = async (req, res) => {
           });
         }
 
-        // Create chart media object
         const chartMedia = {
-          url: '/api/charts/widget', // Endpoint for chart widget
+          url: '/api/charts/widget',
           type: 'chart',
           mimeType: 'application/json',
-          size: 0, // Charts don't have physical size
+          size: 0,
           chartData: {
             symbol: chartData.symbol || 'BTCUSDT',
             interval: chartData.interval || '30',
@@ -148,16 +180,13 @@ export const createPost = async (req, res) => {
     const isRepost = !!repostOf && repostOf !== 'null' && repostOf !== 'undefined';
     const hasChart = media.some(m => m.type === 'chart');
     
-    // Check for poll
     let pollData = null;
     let pollId = null;
     
     if (poll && poll !== 'undefined' && poll !== 'null') {
       try {
         pollData = typeof poll === 'string' ? JSON.parse(poll) : poll;
-        console.log('📊 Parsed poll data:', pollData);
         
-        // Validate poll data
         if (!pollData.question || !pollData.options || pollData.options.length < 2) {
           return res.status(400).json({
             success: false,
@@ -175,8 +204,6 @@ export const createPost = async (req, res) => {
 
     const hasPoll = !!pollData;
 
-    console.log('📊 Validation:', { hasContent, hasMedia, isRepost, hasPoll, hasChart });
-
     if (!hasContent && !hasMedia && !isRepost && !hasPoll && !hasChart) {
       return res.status(400).json({
         success: false,
@@ -184,52 +211,37 @@ export const createPost = async (req, res) => {
       });
     }
 
-    // Process hashtags from content
+    // Process hashtags
     const hashtagRegex = /#(\w+)/g;
     const hashtags = hasContent ? (content.match(hashtagRegex) || []).map(tag => tag.slice(1).toLowerCase()) : [];
 
-    // Process mentions from content (@username)
+    // Process mentions
     const mentionRegex = /@(\w+)/g;
     const mentionUsernames = hasContent ? (content.match(mentionRegex) || []).map(tag => tag.slice(1)) : [];
     
-    // Handle mentions from form data
     let mentionIds = [];
     
     if (mentions) {
-      console.log('Processing mentions from form data:', mentions);
-      
       if (Array.isArray(mentions)) {
-        mentionIds = mentions.filter(id => 
-          id && id !== 'undefined' && id !== 'null' && id.trim() !== ''
-        );
+        mentionIds = mentions.filter(id => id && id !== 'undefined' && id !== 'null' && id.trim() !== '');
       } else if (typeof mentions === 'string') {
         mentionIds = mentions.split(',')
           .map(id => id.trim())
           .filter(id => id && id !== 'undefined' && id !== 'null' && id !== '');
       }
-      
-      console.log('Filtered mention IDs from form data:', mentionIds);
     }
     
-    // Add mentions from @username in content
     if (mentionUsernames.length > 0) {
-      console.log('Looking up usernames from content:', mentionUsernames);
       const mentionedUsers = await User.find({ username: { $in: mentionUsernames } }).select('_id');
       const userIdsFromContent = mentionedUsers.map(u => u._id.toString());
-      console.log('Found user IDs from content:', userIdsFromContent);
-      
-      // Combine and remove duplicates
       mentionIds = [...new Set([...mentionIds, ...userIdsFromContent])];
     }
 
-    // Final filter to ensure no invalid values
     mentionIds = mentionIds.filter(id => 
       id && id !== 'undefined' && id !== 'null' && id.match(/^[0-9a-fA-F]{24}$/)
     );
 
-    console.log('Final mention IDs:', mentionIds);
-
-    // Parse location if it's a string
+    // Parse location
     let locationData = null;
     if (location && location !== 'null' && location !== 'undefined') {
       try {
@@ -239,13 +251,11 @@ export const createPost = async (req, res) => {
       }
     }
 
-    // Parse scheduledFor
     let scheduledDate = null;
     if (scheduledFor && scheduledFor !== 'null' && scheduledFor !== 'undefined') {
       scheduledDate = scheduledFor;
     }
 
-    // Parse repostOf
     let repostOfId = null;
     if (repostOf && repostOf !== 'null' && repostOf !== 'undefined') {
       repostOfId = repostOf;
@@ -254,24 +264,13 @@ export const createPost = async (req, res) => {
     // Create poll if it exists
     if (hasPoll) {
       try {
-        // Calculate end date
         const endsAt = new Date(Date.now() + (pollData.endsIn || 86400000));
-        
-        // Create poll options
         const pollOptions = pollData.options.map(optionText => ({
           text: optionText.trim(),
           votes: [],
           voteCount: 0
         }));
 
-        console.log('📊 Creating poll with:', {
-          question: pollData.question.trim(),
-          options: pollOptions,
-          multipleChoice: pollData.multipleChoice || false,
-          endsAt: endsAt
-        });
-
-        // Create poll document
         const newPoll = await Poll.create({
           question: pollData.question.trim(),
           options: pollOptions,
@@ -308,33 +307,19 @@ export const createPost = async (req, res) => {
       pollId: pollId
     };
 
-    console.log('📦 Creating post with data:', {
-      userId: postData.userId,
-      contentLength: postData.content?.length,
-      mediaCount: postData.media.length,
-      chartCount: postData.media.filter(m => m.type === 'chart').length,
-      mentionsCount: postData.mentions.length,
-      hashtagsCount: postData.hashtags.length,
-      hasPoll: !!pollId,
-      pollId: pollId
-    });
-
     const post = new Post(postData);
     await post.save();
     console.log('✅ Post saved with ID:', post._id);
 
-    // Update poll with postId reference
     if (pollId) {
       await Poll.findByIdAndUpdate(pollId, { postId: post._id });
     }
 
-    // Update user's post count
     await UserProfile.findOneAndUpdate(
       { userId },
       { $inc: { 'stats.postsCount': 1 } }
     );
 
-    // Populate fields
     await post.populate([
       { path: 'userId', select: 'name username avatar isVerified' },
       { path: 'mentions', select: 'name username avatar' },
@@ -344,28 +329,22 @@ export const createPost = async (req, res) => {
       }
     ]);
 
-    // If there's a poll, fetch it separately and attach to the response
     let pollDataForResponse = null;
     if (pollId) {
       pollDataForResponse = await Poll.findById(pollId)
         .populate('createdBy', 'name username avatar')
         .lean();
-      
-      console.log('📊 Fetched poll data for response:', pollDataForResponse);
     }
 
-    // Convert post to plain object and attach poll
     const postResponse = post.toObject();
     if (pollDataForResponse) {
       postResponse.poll = pollDataForResponse;
     }
 
-    // Emit real-time event
     const io = req.app.get('io');
     if (io) {
       io.to(`user-${userId}`).emit('post-created', { post: postResponse });
       
-      // Notify mentioned users
       if (mentionIds.length > 0) {
         mentionIds.forEach(mentionedUserId => {
           io.to(`user-${mentionedUserId}`).emit('user-mentioned', {
@@ -376,8 +355,6 @@ export const createPost = async (req, res) => {
         });
       }
     }
-
-    console.log('✅ Post created successfully');
 
     res.status(201).json({
       success: true,
@@ -402,10 +379,6 @@ export const voteOnPoll = async (req, res) => {
     const { optionIndices } = req.body;
     const userId = req.user._id;
 
-    console.log('🗳️ Voting on poll:', pollId);
-    console.log('🗳️ Option indices:', optionIndices);
-    console.log('🗳️ User ID:', userId);
-
     if (!optionIndices || !Array.isArray(optionIndices) || optionIndices.length === 0) {
       return res.status(400).json({
         success: false,
@@ -422,7 +395,6 @@ export const voteOnPoll = async (req, res) => {
       });
     }
 
-    // Check if poll has expired
     if (poll.hasExpired()) {
       return res.status(400).json({
         success: false,
@@ -430,7 +402,6 @@ export const voteOnPoll = async (req, res) => {
       });
     }
 
-    // Check if user has already voted
     const hasVoted = poll.options.some(option => 
       option.votes.some(vote => vote.toString() === userId.toString())
     );
@@ -442,7 +413,6 @@ export const voteOnPoll = async (req, res) => {
       });
     }
 
-    // Check if multiple choice is allowed
     if (!poll.multipleChoice && optionIndices.length > 1) {
       return res.status(400).json({
         success: false,
@@ -450,7 +420,6 @@ export const voteOnPoll = async (req, res) => {
       });
     }
 
-    // Validate option indices
     for (const index of optionIndices) {
       if (index < 0 || index >= poll.options.length) {
         return res.status(400).json({
@@ -460,7 +429,6 @@ export const voteOnPoll = async (req, res) => {
       }
     }
 
-    // Add votes
     optionIndices.forEach(index => {
       if (!poll.options[index].votes.includes(userId)) {
         poll.options[index].votes.push(userId);
@@ -468,7 +436,6 @@ export const voteOnPoll = async (req, res) => {
       }
     });
 
-    // Update total votes (unique users)
     const allVoters = new Set();
     poll.options.forEach(option => {
       option.votes.forEach(voterId => allVoters.add(voterId.toString()));
@@ -477,14 +444,11 @@ export const voteOnPoll = async (req, res) => {
 
     await poll.save();
 
-    // Get updated poll with populated data
     const updatedPoll = await Poll.findById(pollId).populate('createdBy', 'name username avatar');
 
-    // Add user votes to response
     const pollResponse = updatedPoll.toObject();
     pollResponse.userVotes = optionIndices;
 
-    // Emit real-time update
     const io = req.app.get('io');
     if (io) {
       io.to(`poll-${pollId}`).emit('poll-updated', {
@@ -497,8 +461,6 @@ export const voteOnPoll = async (req, res) => {
         totalVotes: updatedPoll.totalVotes
       });
     }
-
-    console.log('✅ Vote recorded successfully');
 
     res.status(200).json({
       success: true,
@@ -531,7 +493,6 @@ export const getPollResults = async (req, res) => {
       });
     }
 
-    // Check if user has voted
     let userVotes = [];
     if (userId) {
       poll.options.forEach((option, index) => {
@@ -576,12 +537,8 @@ export const getUserPosts = async (req, res) => {
     const { page = 1, limit = 10, type = 'all' } = req.query;
     const currentUserId = req.user?._id;
 
-    console.log('📖 Fetching posts for user:', userId);
-
-    // Build query
     let query = { userId };
     
-    // Filter by post type
     if (type === 'posts') {
       query.repostOf = null;
     } else if (type === 'reposts') {
@@ -591,8 +548,6 @@ export const getUserPosts = async (req, res) => {
     } else if (type === 'charts') {
       query['media.type'] = 'chart';
     }
-
-    console.log('🔍 Query:', JSON.stringify(query));
 
     const posts = await Post.find(query)
       .populate('userId', 'name username avatar isVerified')
@@ -608,13 +563,9 @@ export const getUserPosts = async (req, res) => {
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
 
-    console.log(`✅ Found ${posts.length} posts`);
-
-    // Transform posts to include poll data in a consistent format
     const transformedPosts = posts.map(post => {
       const postObj = post.toObject();
       
-      // If there's a poll, format it properly
       if (postObj.pollId) {
         postObj.poll = {
           _id: postObj.pollId._id,
@@ -633,13 +584,11 @@ export const getUserPosts = async (req, res) => {
         delete postObj.pollId;
       }
       
-      // Add interaction status for current user
       if (currentUserId) {
         postObj.isLiked = post.likes?.some(id => id?.toString() === currentUserId.toString());
         postObj.isReposted = post.reposts?.some(r => r.userId?.toString() === currentUserId.toString());
         postObj.isSaved = false;
         
-        // Add comment interaction status
         if (postObj.comments) {
           postObj.comments.forEach(comment => {
             comment.isLiked = comment.likes?.some(id => id?.toString() === currentUserId.toString());
@@ -677,28 +626,22 @@ export const getUserPosts = async (req, res) => {
 };
 
 // ============================================
-// GET FEED (WITH CHART SUPPORT)
+// GET FEED
 // ============================================
 export const getFeed = async (req, res) => {
   try {
     const userId = req.user._id;
     const { page = 1, limit = 20 } = req.query;
 
-    console.log('📖 Fetching feed for user:', userId);
-
-    // Get user's following list
     const userProfile = await UserProfile.findOne({ userId });
     const followingIds = userProfile?.following || [];
 
-    // Get posts from followed users and public posts
     const posts = await Post.getFeedForUser(userId, followingIds, parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
 
-    // Add interaction status
     posts.forEach(post => {
       post._doc.isLiked = post.likes?.some(id => id?.toString() === userId.toString());
       post._doc.isReposted = post.reposts?.some(r => r.userId?.toString() === userId.toString());
       
-      // Add comment interaction status
       if (post.comments) {
         post.comments.forEach(comment => {
           comment._doc.isLiked = comment.likes?.some(id => id?.toString() === userId.toString());
@@ -738,7 +681,7 @@ export const getFeed = async (req, res) => {
 };
 
 // ============================================
-// GET POST BY ID (WITH CHART SUPPORT)
+// GET POST BY ID
 // ============================================
 export const getPostById = async (req, res) => {
   try {
@@ -763,7 +706,6 @@ export const getPostById = async (req, res) => {
       });
     }
 
-    // Add interaction status
     if (userId) {
       post._doc.isLiked = post.likes?.some(id => id?.toString() === userId.toString());
       post._doc.isReposted = post.reposts?.some(r => r.userId?.toString() === userId.toString());
@@ -790,8 +732,6 @@ export const likePost = async (req, res) => {
     const { postId } = req.params;
     const userId = req.user._id;
 
-    console.log('❤️ Processing like for post:', postId);
-
     const post = await Post.findById(postId).populate('userId', 'name username');
 
     if (!post) {
@@ -815,7 +755,6 @@ export const likePost = async (req, res) => {
     const isLiked = !wasLiked;
     const likesCount = post.likes.length;
 
-    // Emit real-time event
     const io = req.app.get('io');
     if (io) {
       io.to(`post-${postId}`).emit('like-updated', {
@@ -827,7 +766,6 @@ export const likePost = async (req, res) => {
       });
     }
 
-    // Create notification if liked (and not own post)
     if (isLiked && post.userId._id.toString() !== userId.toString()) {
       if (io) {
         io.to(`user-${post.userId._id}`).emit('notification', {
@@ -840,8 +778,6 @@ export const likePost = async (req, res) => {
         });
       }
     }
-
-    console.log(`✅ Post ${wasLiked ? 'unliked' : 'liked'} successfully`);
 
     res.status(200).json({
       success: true,
@@ -868,38 +804,21 @@ export const commentOnPost = async (req, res) => {
     const { content } = req.body;
     const userId = req.user._id;
 
-    console.log('='.repeat(50));
-    console.log('💬 COMMENT ON POST - DEBUG');
-    console.log('='.repeat(50));
-    console.log('Post ID:', postId);
-    console.log('User ID:', userId);
-    console.log('Content received:', content);
-    console.log('Content type:', typeof content);
-    console.log('Content length:', content?.length);
-    console.log('Content trimmed:', content?.trim());
-
     if (!content || content.trim() === '') {
-      console.log('❌ Validation failed: content is empty');
       return res.status(400).json({
         success: false,
         message: 'Comment content is required'
       });
     }
 
-    // Find the post
     const post = await Post.findById(postId);
     if (!post) {
-      console.log('❌ Post not found:', postId);
       return res.status(404).json({
         success: false,
         message: 'Post not found'
       });
     }
 
-    console.log('✅ Post found:', post._id);
-    console.log('Current comments count:', post.comments?.length || 0);
-
-    // Create comment object
     const comment = {
       userId,
       content: content.trim(),
@@ -908,46 +827,16 @@ export const commentOnPost = async (req, res) => {
       updatedAt: new Date()
     };
 
-    console.log('📝 Comment object being created:', {
-      userId: comment.userId,
-      content: comment.content,
-      contentLength: comment.content.length,
-      createdAt: comment.createdAt
-    });
-
-    // Add to post
     post.comments.push(comment);
     await post.save();
 
-    console.log('✅ Post saved');
-    console.log('New comments count:', post.comments.length);
-
-    // Get the newly created comment
-    const newComment = post.comments[post.comments.length - 1];
-    
-    console.log('📦 Saved comment data:', {
-      id: newComment._id,
-      userId: newComment.userId,
-      content: newComment.content,
-      contentLength: newComment.content?.length
-    });
-
-    // Populate user data
     await post.populate('comments.userId', 'name username avatar isVerified');
-    const populatedComment = post.comments[post.comments.length - 1];
-    
-    console.log('👤 Populated comment:', {
-      id: populatedComment._id,
-      content: populatedComment.content,
-      user: populatedComment.userId?.name
-    });
-
-    console.log('='.repeat(50));
+    const newComment = post.comments[post.comments.length - 1];
 
     res.status(201).json({
       success: true,
       message: 'Comment added successfully',
-      comment: populatedComment
+      comment: newComment
     });
   } catch (error) {
     console.error('❌ ERROR in commentOnPost:', error);
@@ -967,71 +856,40 @@ export const replyToComment = async (req, res) => {
     const { content, parentReplyId } = req.body;
     const userId = req.user._id;
 
-    console.log('='.repeat(50));
-    console.log('💬 REPLY TO COMMENT - DEBUG');
-    console.log('='.repeat(50));
-    console.log('Post ID:', postId);
-    console.log('Comment ID:', commentId);
-    console.log('User ID:', userId);
-    console.log('Content received:', content);
-    console.log('Content type:', typeof content);
-    console.log('Content length:', content?.length);
-    console.log('Content trimmed:', content?.trim());
-    console.log('Parent Reply ID:', parentReplyId);
-
     if (!content || content.trim() === '') {
-      console.log('❌ Validation failed: content is empty');
       return res.status(400).json({
         success: false,
         message: 'Reply content is required'
       });
     }
 
-    // Find the post
     const post = await Post.findById(postId);
     if (!post) {
-      console.log('❌ Post not found:', postId);
       return res.status(404).json({
         success: false,
         message: 'Post not found'
       });
     }
 
-    console.log('✅ Post found:', post._id);
-    console.log('Post comments count:', post.comments?.length || 0);
-
-    // Find the comment
     const comment = post.comments.id(commentId);
     if (!comment) {
-      console.log('❌ Comment not found:', commentId);
       return res.status(404).json({
         success: false,
         message: 'Comment not found'
       });
     }
 
-    console.log('✅ Comment found:', comment._id);
-    console.log('Comment content:', comment.content);
-    console.log('Comment replies count:', comment.replies?.length || 0);
-
-    // Find parent reply if this is a nested reply
     let parentReply = null;
     let parentReplyUsername = null;
     
     if (parentReplyId) {
-      console.log('Looking for parent reply:', parentReplyId);
       parentReply = comment.replies.id(parentReplyId);
       if (parentReply) {
-        console.log('✅ Parent reply found:', parentReply._id);
         const parentUser = await User.findById(parentReply.userId).select('username');
         parentReplyUsername = parentUser?.username;
-        console.log('Parent username:', parentReplyUsername);
-      } else {
-        console.log('❌ Parent reply not found:', parentReplyId);
       }
     }
 
-    // Create reply object
     const reply = {
       userId,
       content: content.trim(),
@@ -1042,51 +900,16 @@ export const replyToComment = async (req, res) => {
       parentReplyUsername: parentReplyUsername || null
     };
 
-    console.log('📝 Reply object being created:', {
-      userId: reply.userId,
-      content: reply.content,
-      contentLength: reply.content.length,
-      parentReplyId: reply.parentReplyId,
-      parentReplyUsername: reply.parentReplyUsername,
-      createdAt: reply.createdAt
-    });
-
-    // Add reply to comment
     comment.replies.push(reply);
     await post.save();
 
-    console.log('✅ Post saved');
-    console.log('Comment replies count now:', comment.replies.length);
-
-    // Get the newly created reply
-    const newReply = comment.replies[comment.replies.length - 1];
-    
-    console.log('📦 Saved reply data:', {
-      id: newReply._id,
-      userId: newReply.userId,
-      content: newReply.content,
-      contentLength: newReply.content?.length,
-      parentReplyId: newReply.parentReplyId,
-      parentReplyUsername: newReply.parentReplyUsername
-    });
-
-    // Populate user data
     await post.populate('comments.replies.userId', 'name username avatar isVerified');
-    const populatedReply = comment.replies[comment.replies.length - 1];
-    
-    console.log('👤 Populated reply:', {
-      id: populatedReply._id,
-      content: populatedReply.content,
-      user: populatedReply.userId?.name,
-      username: populatedReply.userId?.username
-    });
-
-    console.log('='.repeat(50));
+    const newReply = comment.replies[comment.replies.length - 1];
 
     res.status(201).json({
       success: true,
       message: 'Reply added successfully',
-      reply: populatedReply
+      reply: newReply
     });
   } catch (error) {
     console.error('❌ ERROR in replyToComment:', error);
@@ -1105,10 +928,7 @@ export const likeComment = async (req, res) => {
     const { postId, commentId } = req.params;
     const userId = req.user._id;
 
-    console.log('❤️ Processing like for comment:', commentId);
-
     const post = await Post.findById(postId);
-
     if (!post) {
       return res.status(404).json({
         success: false,
@@ -1138,7 +958,6 @@ export const likeComment = async (req, res) => {
     const isLiked = !wasLiked;
     const likesCount = comment.likes.length;
 
-    // Emit real-time event
     const io = req.app.get('io');
     if (io) {
       io.to(`post-${postId}`).emit('comment-like-updated', {
@@ -1174,10 +993,7 @@ export const likeReply = async (req, res) => {
     const { postId, commentId, replyId } = req.params;
     const userId = req.user._id;
 
-    console.log('❤️ Processing like for reply:', replyId);
-
     const post = await Post.findById(postId);
-
     if (!post) {
       return res.status(404).json({
         success: false,
@@ -1215,7 +1031,6 @@ export const likeReply = async (req, res) => {
     const isLiked = !wasLiked;
     const likesCount = reply.likes.length;
 
-    // Emit real-time event
     const io = req.app.get('io');
     if (io) {
       io.to(`post-${postId}`).emit('reply-like-updated', {
@@ -1253,8 +1068,6 @@ export const repostPost = async (req, res) => {
     const { content, visibility } = req.body;
     const userId = req.user._id;
 
-    console.log('🔄 Reposting post:', postId);
-
     const originalPost = await Post.findById(postId).populate('userId', 'name username');
 
     if (!originalPost) {
@@ -1264,7 +1077,6 @@ export const repostPost = async (req, res) => {
       });
     }
 
-    // Create repost
     const repost = new Post({
       userId,
       content: content?.trim() || '',
@@ -1274,7 +1086,6 @@ export const repostPost = async (req, res) => {
 
     await repost.save();
 
-    // Add to reposts array of original post
     originalPost.reposts.push({
       userId,
       content: content?.trim() || '',
@@ -1283,7 +1094,6 @@ export const repostPost = async (req, res) => {
     });
     await originalPost.save();
 
-    // Populate repost data
     await repost.populate([
       { path: 'userId', select: 'name username avatar isVerified' },
       { 
@@ -1292,7 +1102,6 @@ export const repostPost = async (req, res) => {
       }
     ]);
 
-    // Emit real-time event
     const io = req.app.get('io');
     if (io) {
       io.to(`post-${postId}`).emit('post-reposted', {
@@ -1302,7 +1111,6 @@ export const repostPost = async (req, res) => {
       });
     }
 
-    // Create notification
     if (originalPost.userId._id.toString() !== userId.toString()) {
       if (io) {
         io.to(`user-${originalPost.userId._id}`).emit('notification', {
@@ -1316,8 +1124,6 @@ export const repostPost = async (req, res) => {
         });
       }
     }
-
-    console.log('✅ Repost created successfully');
 
     res.status(201).json({
       success: true,
@@ -1334,14 +1140,12 @@ export const repostPost = async (req, res) => {
 };
 
 // ============================================
-// DELETE POST (WITH CHART SUPPORT)
+// DELETE POST - CLOUDINARY VERSION
 // ============================================
 export const deletePost = async (req, res) => {
   try {
     const { postId } = req.params;
     const userId = req.user._id;
-
-    console.log('🗑️ Deleting post:', postId);
 
     const post = await Post.findOne({ _id: postId, userId });
 
@@ -1352,20 +1156,11 @@ export const deletePost = async (req, res) => {
       });
     }
 
-    // Delete associated media files (skip chart files)
+    // Delete associated media files from Cloudinary
     if (post.media && post.media.length > 0) {
-      post.media.forEach(media => {
-        if (media.url && media.type !== 'chart' && !media.url.includes('/api/')) {
-          const filePath = path.join(__dirname, '..', media.url);
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            console.log(`🗑️ Deleted media: ${media.url}`);
-          }
-        }
-      });
+      await deleteMediaFiles(post.media);
     }
 
-    // If this is a repost, remove from original post's reposts array
     if (post.repostOf) {
       const originalPost = await Post.findById(post.repostOf);
       if (originalPost) {
@@ -1378,19 +1173,15 @@ export const deletePost = async (req, res) => {
 
     await Post.findByIdAndDelete(postId);
 
-    // Update user's post count
     await UserProfile.findOneAndUpdate(
       { userId },
       { $inc: { 'stats.postsCount': -1 } }
     );
 
-    // Emit real-time event
     const io = req.app.get('io');
     if (io) {
       io.to(`post-${postId}`).emit('post-deleted', { postId, userId });
     }
-
-    console.log('✅ Post deleted successfully');
 
     res.status(200).json({
       success: true,
@@ -1414,8 +1205,6 @@ export const updatePost = async (req, res) => {
     const { content, visibility, location, mentions } = req.body;
     const userId = req.user._id;
 
-    console.log('📝 Updating post:', postId);
-
     const post = await Post.findOne({ _id: postId, userId });
 
     if (!post) {
@@ -1425,14 +1214,12 @@ export const updatePost = async (req, res) => {
       });
     }
 
-    // Save edit history
     post.editHistory.push({
       content: post.content,
       media: post.media,
       editedAt: new Date()
     });
 
-    // Update post
     if (content !== undefined) post.content = content.trim();
     if (visibility) post.visibility = visibility;
     if (location) post.location = typeof location === 'string' ? JSON.parse(location) : location;
@@ -1440,26 +1227,21 @@ export const updatePost = async (req, res) => {
     
     post.isEdited = true;
 
-    // Extract hashtags
     if (content) {
       const hashtagRegex = /#(\w+)/g;
       post.hashtags = (content.match(hashtagRegex) || []).map(tag => tag.slice(1).toLowerCase());
     }
 
     await post.save();
-
     await post.populate([
       { path: 'userId', select: 'name username avatar isVerified' },
       { path: 'mentions', select: 'name username avatar' }
     ]);
 
-    // Emit real-time event
     const io = req.app.get('io');
     if (io) {
       io.to(`post-${postId}`).emit('post-updated', { post });
     }
-
-    console.log('✅ Post updated successfully');
 
     res.status(200).json({
       success: true,
@@ -1483,9 +1265,6 @@ export const togglePinPost = async (req, res) => {
     const { postId } = req.params;
     const userId = req.user._id;
 
-    console.log('📌 Toggling pin for post:', postId);
-
-    // First, unpin any other pinned posts if pinning this one
     if (req.body.pin) {
       await Post.updateMany(
         { userId, isPinned: true },
@@ -1529,7 +1308,6 @@ export const togglePinPost = async (req, res) => {
 export const getTrendingHashtags = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
-
     const hashtags = await Post.getTrendingHashtags(parseInt(limit));
 
     res.status(200).json({
@@ -1569,7 +1347,6 @@ export const searchByHashtag = async (req, res) => {
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
 
-    // Add interaction status
     if (userId) {
       posts.forEach(post => {
         post._doc.isLiked = post.likes?.some(id => id?.toString() === userId.toString());
@@ -1641,7 +1418,7 @@ export const getScheduledPosts = async (req, res) => {
 };
 
 // ============================================
-// UPLOAD POST MEDIA
+// UPLOAD POST MEDIA - CLOUDINARY VERSION
 // ============================================
 export const uploadPostMedia = async (req, res) => {
   try {
@@ -1674,7 +1451,6 @@ export const uploadPostMedia = async (req, res) => {
 export const getTrendingCharts = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
-
     const trendingSymbols = await Post.getTrendingChartSymbols(parseInt(limit));
 
     res.status(200).json({

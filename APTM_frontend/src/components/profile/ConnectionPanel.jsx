@@ -1,13 +1,89 @@
-// ConnectionPanel.jsx - COMPLETE WORKING VERSION WITH SAME PATTERN AS CHAT
+// ConnectionPanel.jsx - UPDATED WITH CLOUDINARY SUPPORT
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { userStatusService } from '../../services/userStatusService';
 import styles from './ConnectionPanel.module.css';
-import { formatAvatarUrl, getAvatarInitial, hasValidAvatar } from '../../utils/avatarUtils';
 
-// Import React Icons
+// ============================================
+// Helper functions with Cloudinary support
+// ============================================
+
+// API URL for local development
+const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+// Check if URL is from Cloudinary
+const isCloudinaryUrl = (url) => {
+  return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
+};
+
+// Format avatar URL with Cloudinary support
+const formatAvatarUrl = (avatar) => {
+  if (!avatar) return null;
+  
+  // If it's already a full URL (Cloudinary or other CDN), return as is
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  
+  // If it's a data URL, return as is
+  if (avatar.startsWith('data:')) {
+    return avatar;
+  }
+  
+  // For local development paths
+  let cleanPath = avatar;
+  if (avatar.includes('/')) {
+    cleanPath = avatar.split('/').pop();
+  }
+  
+  return `${API_URL}/uploads/avatars/${cleanPath}`;
+};
+
+// Get optimized Cloudinary URL for avatars
+const getOptimizedCloudinaryUrl = (url, size = 'small') => {
+  if (!url || !isCloudinaryUrl(url)) return url;
+  
+  // Size mapping for avatars in connection panel
+  const dimensions = {
+    small: { width: 32, height: 32 },
+    medium: { width: 48, height: 48 },
+    large: { width: 64, height: 64 }
+  };
+  
+  const { width, height } = dimensions[size] || dimensions.small;
+  
+  // Add transformations for Cloudinary
+  const transformations = [
+    `w_${width}`,
+    `h_${height}`,
+    'c_fill',
+    'g_face',
+    'q_auto',
+    'f_auto'
+  ];
+  
+  return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
+};
+
+// Get avatar initial
+const getAvatarInitial = (user) => {
+  if (!user) return 'U';
+  if (user.name) return user.name.charAt(0).toUpperCase();
+  if (user.firstName) return user.firstName.charAt(0).toUpperCase();
+  if (user.username) return user.username.charAt(0).toUpperCase();
+  if (user.displayName) return user.displayName.charAt(0).toUpperCase();
+  if (user.email) return user.email.charAt(0).toUpperCase();
+  return 'U';
+};
+
+// Check if user has valid avatar
+const hasValidAvatar = (avatar) => {
+  return avatar && !avatar.startsWith('data:');
+};
+
+// Import React Icons (same as before)
 import {
   FaUserFriends, FaSearch, FaCircle, FaRegCircle, 
   FaRegCommentDots, FaComments, FaUserPlus, FaUserCheck,
@@ -49,6 +125,7 @@ const ConnectionPanel = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [avatarErrors, setAvatarErrors] = useState({});
   
   const searchInputRef = useRef(null);
   const panelRef = useRef(null);
@@ -61,7 +138,7 @@ const ConnectionPanel = () => {
     }));
   }, [isCollapsed]);
 
-  // ============ USER STATUS SERVICE SETUP (SAME PATTERN AS CHAT) ============
+  // ============ USER STATUS SERVICE SETUP ============
   useEffect(() => {
     if (!currentUser) {
       console.log('❌ No current user, skipping user status service');
@@ -201,7 +278,7 @@ const ConnectionPanel = () => {
       try {
         setLoading(true);
         
-        const usersResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/users/all`, {
+        const usersResponse = await fetch(`${API_URL}/api/users/all`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
@@ -267,11 +344,11 @@ const ConnectionPanel = () => {
     });
   }, [onlineUsers]);
 
-  // Fetch chat rooms
+  // Fetch chat rooms (same as before)
   useEffect(() => {
     const fetchChatRooms = async () => {
       try {
-        const chatResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/rooms`, {
+        const chatResponse = await fetch(`${API_URL}/api/chat/rooms`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
@@ -284,7 +361,7 @@ const ConnectionPanel = () => {
           const roomsWithDetails = await Promise.all(
             rooms.map(async (room) => {
               try {
-                const membersResponse = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/rooms/${room.id}/members`, {
+                const membersResponse = await fetch(`${API_URL}/api/chat/rooms/${room.id}/members`, {
                   headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                   },
@@ -310,7 +387,7 @@ const ConnectionPanel = () => {
         }
       } catch (error) {
         console.error('Error fetching chat rooms:', error);
-        // Mock data
+        // Mock data (same as before)
         const mockRooms = [
           { 
             id: 'forex-1', 
@@ -415,7 +492,7 @@ const ConnectionPanel = () => {
     return filtered;
   }, [users, searchQuery, activeTab]);
 
-  // Memoized filtered rooms
+  // Memoized filtered rooms (same as before)
   const filteredRoomsMemo = useMemo(() => {
     let filtered = chatRooms;
 
@@ -466,7 +543,7 @@ const ConnectionPanel = () => {
       const isCurrentlyFollowing = followingStatus[userId];
       const action = isCurrentlyFollowing ? 'unfollow' : 'follow';
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/friends/${action}/${userId}`, {
+      const response = await fetch(`${API_URL}/api/friends/${action}/${userId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -508,7 +585,7 @@ const ConnectionPanel = () => {
       const isMember = room?.isMember || false;
       const action = isMember ? 'leave' : 'join';
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/rooms/${roomId}/${action}`, {
+      const response = await fetch(`${API_URL}/api/chat/rooms/${roomId}/${action}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -564,7 +641,7 @@ const ConnectionPanel = () => {
   // Fetch room members
   const fetchRoomMembers = async (roomId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/rooms/${roomId}/members`, {
+      const response = await fetch(`${API_URL}/api/chat/rooms/${roomId}/members`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -619,25 +696,44 @@ const ConnectionPanel = () => {
     searchInputRef.current?.focus();
   };
 
-  // Format user data for display
+  // Handle avatar error
+  const handleAvatarError = (userId) => {
+    setAvatarErrors(prev => ({ ...prev, [userId]: true }));
+  };
+
+  // ============================================
+  // UPDATED: Format user data for display with Cloudinary support
+  // ============================================
   const formatUserForDisplay = (user) => {
-    let avatarData = user.avatar;
+    let rawAvatar = user.avatar;
     
-    if (avatarData && typeof avatarData === 'object') {
-      avatarData = avatarData.url || avatarData.avatarUrl || null;
+    if (rawAvatar && typeof rawAvatar === 'object') {
+      rawAvatar = rawAvatar.url || rawAvatar.avatarUrl || null;
     }
     
     const userId = user.id || user._id;
     const isOnline = user.online || onlineUsers[userId]?.online || false;
+    const hasError = avatarErrors[userId];
+    
+    // Format avatar URL
+    let formattedAvatar = null;
+    if (rawAvatar && !hasError) {
+      formattedAvatar = formatAvatarUrl(rawAvatar);
+      
+      // Apply Cloudinary optimization if it's a Cloudinary URL
+      if (isCloudinaryUrl(formattedAvatar)) {
+        formattedAvatar = getOptimizedCloudinaryUrl(formattedAvatar, 'small');
+      }
+    }
     
     return {
       id: userId,
       name: user.name || user.displayName || 'Unknown User',
       username: user.username || `user${userId}`,
       email: user.email,
-      avatar: formatAvatarUrl(avatarData),
+      avatar: formattedAvatar,
       avatarInitial: getAvatarInitial(user),
-      hasAvatar: hasValidAvatar(avatarData),
+      hasAvatar: hasValidAvatar(rawAvatar) && !hasError,
       online: isOnline,
       followersCount: user.followersCount || user.profile?.followersCount || 0,
       isFollowing: followingStatus[userId] || false,
@@ -1007,16 +1103,8 @@ const ConnectionPanel = () => {
                         <img 
                           src={formattedUser.avatar} 
                           alt={formattedUser.name}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            const parent = e.target.parentNode;
-                            if (parent) {
-                              const initialElement = parent.querySelector(`.${styles.avatarInitial}`);
-                              if (initialElement) {
-                                initialElement.style.display = 'flex';
-                              }
-                            }
-                          }}
+                          onError={() => handleAvatarError(formattedUser.id)}
+                          loading="lazy"
                         />
                       ) : (
                         <span className={styles.avatarInitial}>
@@ -1206,7 +1294,11 @@ const ConnectionPanel = () => {
                             >
                               <div className={styles.memberAvatar}>
                                 {member.avatar ? (
-                                  <img src={member.avatar} alt={member.name} />
+                                  <img 
+                                    src={isCloudinaryUrl(member.avatar) ? getOptimizedCloudinaryUrl(member.avatar, 'small') : formatAvatarUrl(member.avatar)} 
+                                    alt={member.name}
+                                    loading="lazy"
+                                  />
                                 ) : (
                                   <span>{member.name?.charAt(0) || '?'}</span>
                                 )}

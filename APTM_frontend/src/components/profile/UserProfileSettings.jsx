@@ -1,4 +1,4 @@
-// UserProfileSettings.jsx - COMPLETE FIXED VERSION
+// UserProfileSettings.jsx - COMPLETE VERSION WITH CLOUDINARY SUPPORT
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -9,11 +9,13 @@ import styles from './UserProfileSettings.module.css';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
-// Helper function to format image URLs
+// ============================================
+// UPDATED: Helper function to format image URLs with Cloudinary support
+// ============================================
 const formatImageUrl = (imagePath, type = 'avatar') => {
   if (!imagePath) return null;
   
-  // If it's already a full URL, return as is
+  // If it's already a full URL (Cloudinary or other CDN), return as is
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
@@ -23,7 +25,7 @@ const formatImageUrl = (imagePath, type = 'avatar') => {
     return imagePath;
   }
   
-  // Extract just the filename if it contains path
+  // For local development paths (backward compatibility)
   let cleanPath = imagePath;
   if (imagePath.includes('/')) {
     cleanPath = imagePath.split('/').pop();
@@ -32,11 +34,20 @@ const formatImageUrl = (imagePath, type = 'avatar') => {
   const folders = {
     avatar: 'avatars',
     banner: 'banners',
-    addressProof: 'address-proofs'
+    addressProof: 'address-proofs',
+    gallery: 'gallery',
+    post: 'posts'
   };
   
   const folder = folders[type] || type;
   return `${BASE_URL}/uploads/${folder}/${cleanPath}`;
+};
+
+// ============================================
+// NEW: Helper function to check if image is from Cloudinary
+// ============================================
+const isCloudinaryUrl = (url) => {
+  return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
 };
 
 const UserProfileSettings = () => {
@@ -69,7 +80,7 @@ const UserProfileSettings = () => {
     dateOfBirth: '',
     gender: '',
     
-    // Banner Image
+    // Banner Image - now stores Cloudinary URL or filename
     bannerImage: '',
     
     // Trading Profile
@@ -278,7 +289,6 @@ const UserProfileSettings = () => {
           dateOfBirth: profile.dateOfBirth ? profile.dateOfBirth.split('T')[0] : '',
           gender: profile.gender || '',
           
-          // Banner image - store only filename
           bannerImage: profile.bannerImage || '',
           
           tradingExperience: profile.tradingExperience || 'beginner',
@@ -329,8 +339,6 @@ const UserProfileSettings = () => {
         };
 
         setFormData(loadedData);
-        
-        // Load connected accounts
         await loadTradingAccounts();
         
         setMessage('Profile loaded successfully');
@@ -387,7 +395,6 @@ const UserProfileSettings = () => {
   const validateForm = () => {
     const errors = {};
 
-    // Validate main fields
     Object.keys(validationRules).forEach(field => {
       const value = field.includes('.') 
         ? field.split('.').reduce((obj, key) => obj?.[key], formData)
@@ -399,7 +406,6 @@ const UserProfileSettings = () => {
       }
     });
 
-    // Custom validation for date of birth
     if (formData.dateOfBirth) {
       const birthDate = new Date(formData.dateOfBirth);
       const today = new Date();
@@ -418,7 +424,6 @@ const UserProfileSettings = () => {
       }
     }
 
-    // Validate password match
     if (formData.security.newPassword && formData.security.confirmPassword) {
       if (formData.security.newPassword !== formData.security.confirmPassword) {
         errors['security.confirmPassword'] = 'Passwords do not match';
@@ -432,7 +437,6 @@ const UserProfileSettings = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    // Clear validation error for this field
     if (validationErrors[name]) {
       setValidationErrors(prev => ({
         ...prev,
@@ -447,6 +451,7 @@ const UserProfileSettings = () => {
         let current = newData;
         
         for (let i = 0; i < path.length - 1; i++) {
+          if (!current[path[i]]) current[path[i]] = {};
           current = current[path[i]];
         }
         
@@ -457,7 +462,6 @@ const UserProfileSettings = () => {
         return newData;
       });
 
-      // Validate nested field
       const error = validateField(name, type === 'checkbox' ? checked : value);
       if (error) {
         setValidationErrors(prev => ({
@@ -667,10 +671,9 @@ const UserProfileSettings = () => {
         };
         reader.readAsDataURL(file);
         
-        // Store only the filename
         setFormData(prev => ({
           ...prev,
-          bannerImage: result.bannerImage || ''
+          bannerImage: result.bannerUrl || result.bannerImage || ''
         }));
 
         setTimeout(() => setMessage(''), 5000);
@@ -1423,7 +1426,7 @@ const UserProfileSettings = () => {
         {/* Main Content */}
         <div className={styles.settingsContent}>
           <form onSubmit={handleSubmit} className={styles.settingsForm}>
-            {/* Avatar & Banner Section */}
+            {/* Avatar & Banner Section - UPDATED with Cloudinary support */}
             <div className={styles.profileMediaSection}>
               {/* Banner Section */}
               <div className={styles.bannerSection}>
@@ -1811,7 +1814,6 @@ const UserProfileSettings = () => {
                   <h3>Trading Platform Connections</h3>
                   <p>Connect your trading accounts to sync data and track performance.</p>
                   
-                  {/* Connected Accounts Display */}
                   {connectedAccounts.length > 0 && (
                     <div className={styles.connectedAccounts}>
                       <h4>Connected Accounts</h4>
@@ -1869,7 +1871,6 @@ const UserProfileSettings = () => {
                     </div>
                   )}
                   
-                  {/* Platform Connection Forms */}
                   <div className={styles.platformConnections}>
                     {/* MT4 Connection */}
                     <div className={styles.platformConnection}>
@@ -2100,7 +2101,6 @@ const UserProfileSettings = () => {
                     </div>
                   </div>
 
-                  {/* Synthetic Indices */}
                   <div className={styles.formGroup}>
                     <label>Synthetic Indices</label>
                     <p className={styles.fieldDescription}>Select synthetic indices you want to trade:</p>
@@ -2131,7 +2131,6 @@ const UserProfileSettings = () => {
                 <h2>Skills & Interests</h2>
                 <p>Tell us about your skills and areas of interest.</p>
                 
-                {/* Interests Section */}
                 <div className={styles.settingsSection}>
                   <h3>Areas of Interest</h3>
                   <p className={styles.fieldDescription}>Select topics that interest you:</p>
@@ -2153,12 +2152,10 @@ const UserProfileSettings = () => {
                   </div>
                 </div>
 
-                {/* Skills Management Section */}
                 <div className={styles.settingsSection}>
                   <h3>Skills with Levels</h3>
                   <p className={styles.fieldDescription}>Add your skills and specify your proficiency level:</p>
                   
-                  {/* Current Skills */}
                   {formData.skills.length > 0 && (
                     <div className={styles.skillsList}>
                       <h4>Your Skills</h4>
@@ -2192,7 +2189,6 @@ const UserProfileSettings = () => {
                     </div>
                   )}
                   
-                  {/* Add New Skill Form */}
                   <div className={styles.addSkillForm}>
                     <h4>Add New Skill</h4>
                     <div className={styles.formGrid}>
@@ -2264,7 +2260,6 @@ const UserProfileSettings = () => {
                 <h2>Address & Verification</h2>
                 <p>Your physical address for verification and communication.</p>
                 
-                {/* Address Information */}
                 <div className={styles.settingsSection}>
                   <h3>Address Information</h3>
                   <div className={styles.formGrid}>
@@ -2336,12 +2331,10 @@ const UserProfileSettings = () => {
                   </div>
                 </div>
 
-                {/* Address Proof Upload */}
                 <div className={styles.settingsSection}>
                   <h3>Address Verification</h3>
                   <p>Upload a document to verify your address (utility bill, bank statement, etc.)</p>
                   
-                  {/* Current Address Proof Status */}
                   {formData.addressProof.documentUrl && (
                     <div className={styles.addressProofStatus}>
                       <div className={styles.proofCard}>
@@ -2378,7 +2371,6 @@ const UserProfileSettings = () => {
                     </div>
                   )}
                   
-                  {/* Address Proof Upload */}
                   <div className={styles.addressProofUpload}>
                     <div className={styles.uploadArea}>
                       <label htmlFor="address-proof-upload" className={styles.uploadLabel}>
@@ -2502,7 +2494,6 @@ const UserProfileSettings = () => {
                     />
                   </div>
 
-                  {/* WhatsApp Field */}
                   <div className={styles.formGroup}>
                     <label htmlFor="socialLinks.whatsapp">
                       WhatsApp
@@ -2522,7 +2513,6 @@ const UserProfileSettings = () => {
                     <small className={styles.helpText}>Your WhatsApp number for community chats</small>
                   </div>
 
-                  {/* Facebook Field */}
                   <div className={styles.formGroup}>
                     <label htmlFor="socialLinks.facebook">
                       Facebook
@@ -2836,11 +2826,9 @@ const UserProfileSettings = () => {
                 <h2>Security Settings</h2>
                 <p>Manage your account security and update credentials.</p>
                 
-                {/* Password Update Section */}
                 <div className={styles.settingsSection}>
                   <h3>Update Credentials</h3>
                   
-                  {/* Username Update */}
                   <div className={styles.formGroup}>
                     <label htmlFor="username">Username</label>
                     <input
@@ -2859,7 +2847,6 @@ const UserProfileSettings = () => {
                     </small>
                   </div>
                   
-                  {/* Password Update Form */}
                   <div className={styles.formGroup}>
                     <label htmlFor="security.currentPassword">Current Password</label>
                     <input
@@ -2918,7 +2905,6 @@ const UserProfileSettings = () => {
                   </button>
                 </div>
                 
-                {/* Security Settings Section */}
                 <div className={styles.settingsSection}>
                   <h3>Security Features</h3>
                   <div className={styles.checkboxGroup}>

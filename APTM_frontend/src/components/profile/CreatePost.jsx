@@ -1,4 +1,4 @@
-// components/CreatePost.jsx - COMPLETE UPDATED VERSION WITH CHART SUPPORT
+// components/CreatePost.jsx - UPDATED WITH CLOUDINARY SUPPORT
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import AvatarWithFallback from './AvatarWithFallback';
 import ChartWidget from './ChartWidget';
@@ -30,20 +30,72 @@ import {
 
 import EmojiPicker from 'emoji-picker-react';
 
+// API URL
+const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+// ============================================
+// NEW: Helper functions for Cloudinary URLs
+// ============================================
+
+// Check if URL is from Cloudinary
+const isCloudinaryUrl = (url) => {
+  return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
+};
+
+// Format media URL with Cloudinary support
+const formatMediaUrl = (url) => {
+  if (!url) return null;
+  
+  // If it's already a full URL (Cloudinary or other CDN), return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // If it's a data URL, return as is
+  if (url.startsWith('data:')) {
+    return url;
+  }
+  
+  // If it's a path starting with /uploads, clean it up
+  if (url.startsWith('/uploads/')) {
+    if (url.startsWith('/uploads//uploads/')) {
+      url = url.replace('/uploads//uploads/', '/uploads/');
+    }
+    return `${API_URL}${url}`;
+  }
+  
+  // If it's a path starting with uploads (no leading slash)
+  if (url.startsWith('uploads/')) {
+    return `${API_URL}/${url}`;
+  }
+  
+  return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
+// Get optimized Cloudinary URL for previews
+const getOptimizedCloudinaryUrl = (url, options = {}) => {
+  if (!url || !isCloudinaryUrl(url)) return url;
+  
+  const { width = 300, height = 200, quality = 'auto', format = 'auto', crop = 'limit' } = options;
+  
+  const transformations = [];
+  if (width) transformations.push(`w_${width}`);
+  if (height) transformations.push(`h_${height}`);
+  if (crop) transformations.push(`c_${crop}`);
+  if (quality !== 'auto') transformations.push(`q_${quality}`);
+  if (format !== 'auto') transformations.push(`f_${format}`);
+  
+  if (transformations.length === 0) return url;
+  
+  return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
+};
+
 // Simple notification service
 const notificationService = {
-  showSuccess: (title, message) => {
-    console.log(`✅ ${title}: ${message}`);
-  },
-  showError: (title, message) => {
-    console.error(`❌ ${title}: ${message}`);
-  },
-  showWarning: (title, message) => {
-    console.warn(`⚠️ ${title}: ${message}`);
-  },
-  showInfo: (title, message) => {
-    console.log(`ℹ️ ${title}: ${message}`);
-  }
+  showSuccess: (title, message) => console.log(`✅ ${title}: ${message}`),
+  showError: (title, message) => console.error(`❌ ${title}: ${message}`),
+  showWarning: (title, message) => console.warn(`⚠️ ${title}: ${message}`),
+  showInfo: (title, message) => console.log(`ℹ️ ${title}: ${message}`)
 };
 
 const CreatePost = ({ 
@@ -76,14 +128,14 @@ const CreatePost = ({
   const [locations, setLocations] = useState([]);
   const [searchingLocation, setSearchingLocation] = useState(false);
   
-  // Mentions - FIXED
+  // Mentions
   const [mentions, setMentions] = useState([]);
   const [showMentionInput, setShowMentionInput] = useState(false);
   const [mentionText, setMentionText] = useState('');
   const [suggestedUsers, setSuggestedUsers] = useState([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   
-  // Chart state - NEW
+  // Chart state
   const [showChartCreator, setShowChartCreator] = useState(false);
   const [chartData, setChartData] = useState({
     symbol: 'BTCUSDT',
@@ -342,7 +394,7 @@ const CreatePost = ({
     });
   }, []);
   
-  // FIXED: Mention functions with proper debouncing
+  // Mention functions
   const searchUsers = useCallback(async (query) => {
     if (query.length < 2) {
       setSuggestedUsers([]);
@@ -352,7 +404,7 @@ const CreatePost = ({
     setSearchingUsers(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/users/search?q=${encodeURIComponent(query)}&limit=5`, {
+      const response = await fetch(`${API_URL}/api/users/search?q=${encodeURIComponent(query)}&limit=5`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -374,12 +426,10 @@ const CreatePost = ({
     const value = e.target.value;
     setMentionText(value);
     
-    // Clear previous timeout
     if (mentionTimeoutRef.current) {
       clearTimeout(mentionTimeoutRef.current);
     }
     
-    // Debounce search
     mentionTimeoutRef.current = setTimeout(() => {
       searchUsers(value);
     }, 300);
@@ -388,12 +438,10 @@ const CreatePost = ({
   const addMention = useCallback((user) => {
     if (!user || !user._id) return;
     
-    // Add to mentions array
     if (!mentions.some(id => id === user._id)) {
       setMentions(prev => [...prev, user._id]);
     }
     
-    // Replace the @mention text in content
     const mentionRegex = new RegExp(`@${mentionText}$`);
     if (mentionRegex.test(newPostContent)) {
       const newContent = newPostContent.replace(mentionRegex, `@${user.username} `);
@@ -402,12 +450,10 @@ const CreatePost = ({
       setNewPostContent(prev => prev + `@${user.username} `);
     }
     
-    // Close mention input
     setShowMentionInput(false);
     setMentionText('');
     setSuggestedUsers([]);
     
-    // Focus back on content input
     contentInputRef.current?.focus();
   }, [mentions, mentionText, newPostContent]);
   
@@ -415,12 +461,10 @@ const CreatePost = ({
     const value = e.target.value;
     setNewPostContent(value);
     
-    // Check for @ symbol to show mention input
     const lastChar = value[value.length - 1];
     if (lastChar === '@') {
       setShowMentionInput(true);
       setMentionText('');
-      // Focus mention input after a short delay
       setTimeout(() => {
         mentionInputRef.current?.focus();
       }, 100);
@@ -458,6 +502,7 @@ const CreatePost = ({
     });
   }, []);
   
+  // Location functions
   const searchLocations = useCallback(async (query) => {
     if (!query.trim()) {
       setLocations([]);
@@ -588,7 +633,9 @@ const CreatePost = ({
     return errors.length === 0;
   }, [newPostContent, mediaFiles.length, showPollCreator, pollData, scheduledDate, maxLength, chartPreview]);
   
-  // Main post creation handler with chart support
+  // ============================================
+  // UPDATED: Main post creation handler with Cloudinary support
+  // ============================================
   const handleCreatePost = useCallback(async () => {
     if (!validatePost() || isSubmitting) return;
     
@@ -622,7 +669,7 @@ const CreatePost = ({
         formData.append('scheduledFor', scheduledDate);
       }
       
-      // Add media files
+      // Add media files (will be uploaded to Cloudinary by the server)
       if (mediaFiles.length > 0) {
         mediaFiles.forEach(file => {
           formData.append('media', file);
@@ -674,7 +721,7 @@ const CreatePost = ({
       
       // Make API call
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/posts`, {
+      const response = await fetch(`${API_URL}/api/posts`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -745,7 +792,83 @@ const CreatePost = ({
     }
   }, [visibility]);
   
-  // ============ RENDER FUNCTIONS ============
+  // ============================================
+  // UPDATED: Media preview rendering with Cloudinary optimization
+  // ============================================
+  const renderMediaPreviews = () => (
+    <div className={styles.mediaPreviews}>
+      {mediaPreviews.map((preview, index) => {
+        // For data URLs (local previews), use as is
+        // For Cloudinary URLs (if we had them), we'd optimize
+        const previewUrl = preview.url;
+        const isDataUrl = preview.url && preview.url.startsWith('data:');
+        
+        return (
+          <div key={preview.id || index} className={styles.mediaPreviewItem}>
+            {preview.type === 'image' ? (
+              <img 
+                src={previewUrl} 
+                alt={`Preview ${index}`}
+                loading="lazy"
+              />
+            ) : preview.type === 'video' ? (
+              <video src={previewUrl} controls />
+            ) : (
+              <div className={styles.documentPreview}>
+                <FaFileAlt />
+                <span>{preview.name}</span>
+              </div>
+            )}
+            
+            {uploadProgress[index] !== undefined && uploadProgress[index] < 100 && (
+              <div className={styles.uploadProgress}>
+                <div 
+                  className={styles.progressBar}
+                  style={{ width: `${uploadProgress[index]}%` }}
+                />
+                <span>{uploadProgress[index]}%</span>
+              </div>
+            )}
+            
+            {uploadErrors[index] && (
+              <div className={styles.uploadError}>
+                <FaExclamationCircle />
+                <div className={styles.errorTooltip}>
+                  {uploadErrors[index].map((err, i) => (
+                    <div key={i}>{err}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <button 
+              className={styles.removeMediaBtn}
+              onClick={() => removeMedia(index)}
+              disabled={isSubmitting}
+            >
+              <FaTimes />
+            </button>
+          </div>
+        );
+      })}
+      
+      {chartPreview && (
+        <div className={styles.chartPreviewItem}>
+          <ChartWidget 
+            chartData={chartPreview.chartData}
+            isExpanded={false}
+          />
+          <button 
+            className={styles.removeChartBtn}
+            onClick={removeChart}
+            disabled={isSubmitting}
+          >
+            <FaTimes />
+          </button>
+        </div>
+      )}
+    </div>
+  );
   
   const renderChartCreator = () => (
     <div className={styles.chartCreator}>
@@ -814,70 +937,6 @@ const CreatePost = ({
           </button>
         </div>
       </div>
-    </div>
-  );
-  
-  const renderMediaPreviews = () => (
-    <div className={styles.mediaPreviews}>
-      {mediaPreviews.map((preview, index) => (
-        <div key={preview.id || index} className={styles.mediaPreviewItem}>
-          {preview.type === 'image' ? (
-            <img src={preview.url} alt={`Preview ${index}`} />
-          ) : preview.type === 'video' ? (
-            <video src={preview.url} controls />
-          ) : (
-            <div className={styles.documentPreview}>
-              <FaFileAlt />
-              <span>{preview.name}</span>
-            </div>
-          )}
-          
-          {uploadProgress[index] !== undefined && uploadProgress[index] < 100 && (
-            <div className={styles.uploadProgress}>
-              <div 
-                className={styles.progressBar}
-                style={{ width: `${uploadProgress[index]}%` }}
-              />
-              <span>{uploadProgress[index]}%</span>
-            </div>
-          )}
-          
-          {uploadErrors[index] && (
-            <div className={styles.uploadError}>
-              <FaExclamationCircle />
-              <div className={styles.errorTooltip}>
-                {uploadErrors[index].map((err, i) => (
-                  <div key={i}>{err}</div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          <button 
-            className={styles.removeMediaBtn}
-            onClick={() => removeMedia(index)}
-            disabled={isSubmitting}
-          >
-            <FaTimes />
-          </button>
-        </div>
-      ))}
-      
-      {chartPreview && (
-        <div className={styles.chartPreviewItem}>
-          <ChartWidget 
-            chartData={chartPreview.chartData}
-            isExpanded={false}
-          />
-          <button 
-            className={styles.removeChartBtn}
-            onClick={removeChart}
-            disabled={isSubmitting}
-          >
-            <FaTimes />
-          </button>
-        </div>
-      )}
     </div>
   );
   

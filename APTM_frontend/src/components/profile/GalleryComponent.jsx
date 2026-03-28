@@ -15,11 +15,13 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
-// Helper function to format image/video URLs
+// ============================================
+// UPDATED: Helper function to format image/video URLs with Cloudinary support
+// ============================================
 const formatMediaUrl = (url) => {
   if (!url) return null;
   
-  // If it's already a full URL, return as is
+  // If it's already a full URL (Cloudinary or other CDN), return as is
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
@@ -50,6 +52,39 @@ const formatMediaUrl = (url) => {
   
   // Default case - just append to API_URL
   return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
+// ============================================
+// NEW: Helper function to check if URL is from Cloudinary
+// ============================================
+const isCloudinaryUrl = (url) => {
+  return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
+};
+
+// ============================================
+// NEW: Helper function to get optimized Cloudinary URL
+// ============================================
+const getOptimizedCloudinaryUrl = (url, options = {}) => {
+  if (!url || !isCloudinaryUrl(url)) return url;
+  
+  const { width, height, quality = 'auto', format = 'auto', crop = 'limit' } = options;
+  
+  if (!width && !height && quality === 'auto' && format === 'auto') {
+    return url;
+  }
+  
+  // Build transformations
+  const transformations = [];
+  if (width) transformations.push(`w_${width}`);
+  if (height) transformations.push(`h_${height}`);
+  if (crop) transformations.push(`c_${crop}`);
+  if (quality !== 'auto') transformations.push(`q_${quality}`);
+  if (format !== 'auto') transformations.push(`f_${format}`);
+  
+  if (transformations.length === 0) return url;
+  
+  // Insert transformations after '/upload/'
+  return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
 };
 
 const GalleryComponent = ({ 
@@ -270,6 +305,144 @@ const GalleryComponent = ({
 
   const currentItem = currentFolderItems[currentItemIndex] || null;
 
+  // ============================================
+  // NEW: Helper function to render media with Cloudinary optimization
+  // ============================================
+  const renderMediaItem = (item, index, folderId) => {
+    const mediaUrl = formatMediaUrl(item.url);
+    const hasError = imageErrors[item._id];
+    const isCloudinary = isCloudinaryUrl(mediaUrl);
+    
+    // Optimize image URLs if they're from Cloudinary
+    const optimizedUrl = isCloudinary && item.type?.startsWith('image/') 
+      ? getOptimizedCloudinaryUrl(mediaUrl, { width: 400, height: 300, crop: 'fill', quality: 'auto' })
+      : mediaUrl;
+    
+    return (
+      <div 
+        key={item._id || index} 
+        className={styles.galleryItem}
+        onClick={() => openViewer(folderId, index)}
+      >
+        {item.type?.startsWith('video/') ? (
+          <video 
+            src={mediaUrl} 
+            className={styles.galleryImage}
+            muted
+            onMouseOver={e => e.currentTarget.play()}
+            onMouseOut={e => e.currentTarget.pause()}
+            onError={() => handleImageError(item._id)}
+          />
+        ) : (
+          <img 
+            src={optimizedUrl} 
+            alt={item.description || 'Gallery item'}
+            className={styles.galleryImage}
+            loading="lazy"
+            onError={() => handleImageError(item._id)}
+            style={{ display: hasError ? 'none' : 'block' }}
+          />
+        )}
+        
+        {hasError && (
+          <div className={styles.imageErrorPlaceholder}>
+            <FaImages size={24} />
+            <span>Failed to load</span>
+          </div>
+        )}
+        
+        {/* Reaction preview */}
+        {item.reactions && item.reactions.length > 0 && (
+          <div className={styles.reactionPreview}>
+            <FaHeart className={styles.reactionPreviewIcon} />
+            <span>{item.reactions.length}</span>
+          </div>
+        )}
+        
+        <div className={styles.galleryItemOverlay}>
+          <p>{item.description || 'No description'}</p>
+          {isOwnProfile && (
+            <button 
+              className={styles.deleteGalleryItem}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm('Are you sure you want to delete this item?')) {
+                  onDeleteItem(item._id);
+                }
+              }}
+            >
+              <FaTrash />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ============================================
+  // NEW: Helper function to render viewer content with Cloudinary optimization
+  // ============================================
+  const renderViewerContent = (item) => {
+    const mediaUrl = formatMediaUrl(item.url);
+    const isCloudinary = isCloudinaryUrl(mediaUrl);
+    
+    // For viewer, use higher quality images
+    const optimizedUrl = isCloudinary && item.type?.startsWith('image/')
+      ? getOptimizedCloudinaryUrl(mediaUrl, { width: 1200, quality: 'auto', format: 'auto' })
+      : mediaUrl;
+    
+    if (item.type?.startsWith('video/')) {
+      return (
+        <video 
+          src={mediaUrl} 
+          controls
+          autoPlay
+          className={styles.viewerImage}
+          onError={() => handleImageError(item._id)}
+        />
+      );
+    }
+    
+    return (
+      <img 
+        src={optimizedUrl} 
+        alt={item.description || 'Gallery item'}
+        className={styles.viewerImage}
+        onError={() => handleImageError(item._id)}
+      />
+    );
+  };
+
+  // ============================================
+  // NEW: Helper function to render thumbnail with optimization
+  // ============================================
+  const renderThumbnail = (item, idx) => {
+    const mediaUrl = formatMediaUrl(item.url);
+    const isCloudinary = isCloudinaryUrl(mediaUrl);
+    
+    const optimizedUrl = isCloudinary && item.type?.startsWith('image/')
+      ? getOptimizedCloudinaryUrl(mediaUrl, { width: 80, height: 80, crop: 'fill', quality: 'auto' })
+      : mediaUrl;
+    
+    if (item.type?.startsWith('video/')) {
+      return (
+        <video 
+          src={mediaUrl} 
+          className={styles.thumbnailImage}
+          muted
+        />
+      );
+    }
+    
+    return (
+      <img 
+        src={optimizedUrl} 
+        alt={item.description || 'Thumbnail'}
+        className={styles.thumbnailImage}
+      />
+    );
+  };
+
   return (
     <div className={styles.galleryTab}>
       <div className={styles.galleryHeader}>
@@ -320,70 +493,8 @@ const GalleryComponent = ({
       </div>
       
       <div className={styles.galleryGrid}>
-        {currentFolder?.items.map((item, index) => {
-          const mediaUrl = formatMediaUrl(item.url);
-          const hasError = imageErrors[item._id];
-          
-          return (
-            <div 
-              key={item._id || index} 
-              className={styles.galleryItem}
-              onClick={() => openViewer(currentFolder._id, index)}
-            >
-              {item.type?.startsWith('video/') ? (
-                <video 
-                  src={mediaUrl} 
-                  className={styles.galleryImage}
-                  muted
-                  onMouseOver={e => e.currentTarget.play()}
-                  onMouseOut={e => e.currentTarget.pause()}
-                  onError={() => handleImageError(item._id)}
-                />
-              ) : (
-                <img 
-                  src={mediaUrl} 
-                  alt={item.description || 'Gallery item'}
-                  className={styles.galleryImage}
-                  loading="lazy"
-                  onError={() => handleImageError(item._id)}
-                  style={{ display: hasError ? 'none' : 'block' }}
-                />
-              )}
-              
-              {hasError && (
-                <div className={styles.imageErrorPlaceholder}>
-                  <FaImages size={24} />
-                  <span>Failed to load</span>
-                </div>
-              )}
-              
-              {/* Reaction preview */}
-              {item.reactions && item.reactions.length > 0 && (
-                <div className={styles.reactionPreview}>
-                  <FaHeart className={styles.reactionPreviewIcon} />
-                  <span>{item.reactions.length}</span>
-                </div>
-              )}
-              
-              <div className={styles.galleryItemOverlay}>
-                <p>{item.description || 'No description'}</p>
-                {isOwnProfile && (
-                  <button 
-                    className={styles.deleteGalleryItem}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm('Are you sure you want to delete this item?')) {
-                        onDeleteItem(item._id);
-                      }
-                    }}
-                  >
-                    <FaTrash />
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {currentFolder?.items.map((item, index) => renderMediaItem(item, index, currentFolder._id))}
+        
         {(!currentFolder || currentFolder.items.length === 0) && (
           <div className={styles.emptyGallery}>
             <FaImages size={48} />
@@ -400,7 +511,7 @@ const GalleryComponent = ({
         )}
       </div>
 
-      {/* Image Viewer Modal */}
+      {/* Image Viewer Modal - UPDATED with optimized rendering */}
       {viewerOpen && currentItem && (
         <div className={styles.viewerOverlay} onClick={closeViewer}>
           <div className={styles.viewerContent} onClick={(e) => e.stopPropagation()}>
@@ -431,22 +542,7 @@ const GalleryComponent = ({
             
             {/* Image container */}
             <div className={styles.viewerImageContainer}>
-              {currentItem.type?.startsWith('video/') ? (
-                <video 
-                  src={formatMediaUrl(currentItem.url)} 
-                  controls
-                  autoPlay
-                  className={styles.viewerImage}
-                  onError={() => handleImageError(currentItem._id)}
-                />
-              ) : (
-                <img 
-                  src={formatMediaUrl(currentItem.url)} 
-                  alt={currentItem.description || 'Gallery item'}
-                  className={styles.viewerImage}
-                  onError={() => handleImageError(currentItem._id)}
-                />
-              )}
+              {renderViewerContent(currentItem)}
               
               {/* Image info and reactions */}
               <div className={styles.viewerInfo}>
@@ -489,7 +585,7 @@ const GalleryComponent = ({
               </div>
             </div>
             
-            {/* Thumbnail strip */}
+            {/* Thumbnail strip - UPDATED with optimized rendering */}
             {currentFolderItems.length > 1 && (
               <div className={styles.viewerThumbnails}>
                 {currentFolderItems.map((item, idx) => (
@@ -498,19 +594,7 @@ const GalleryComponent = ({
                     className={`${styles.thumbnailItem} ${idx === currentItemIndex ? styles.thumbnailActive : ''}`}
                     onClick={() => setCurrentItemIndex(idx)}
                   >
-                    {item.type?.startsWith('video/') ? (
-                      <video 
-                        src={formatMediaUrl(item.url)} 
-                        className={styles.thumbnailImage}
-                        muted
-                      />
-                    ) : (
-                      <img 
-                        src={formatMediaUrl(item.url)} 
-                        alt={item.description || 'Thumbnail'}
-                        className={styles.thumbnailImage}
-                      />
-                    )}
+                    {renderThumbnail(item, idx)}
                   </div>
                 ))}
               </div>
@@ -519,7 +603,7 @@ const GalleryComponent = ({
         </div>
       )}
 
-      {/* Upload Modal */}
+      {/* Upload Modal - unchanged */}
       {showUploadModal && (
         <div className={styles.modalOverlay} onClick={() => setShowUploadModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -612,7 +696,7 @@ const GalleryComponent = ({
         </div>
       )}
 
-      {/* Create Folder Modal */}
+      {/* Create Folder Modal - unchanged */}
       {showCreateFolderModal && (
         <div className={styles.modalOverlay} onClick={() => setShowCreateFolderModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>

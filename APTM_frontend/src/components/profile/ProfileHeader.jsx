@@ -1,4 +1,4 @@
-// ProfileHeader.jsx - CLEAN VERSION WITH NO ONLINE INDICATORS
+// ProfileHeader.jsx - UPDATED WITH CLOUDINARY SUPPORT
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -21,7 +21,58 @@ import {
   FaInstagram
 } from 'react-icons/fa';
 
-import { getAvatarInitial } from '../../utils/avatarUtils';
+// ============================================
+// Helper functions with Cloudinary support
+// ============================================
+
+// Check if URL is from Cloudinary
+const isCloudinaryUrl = (url) => {
+  return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
+};
+
+// Get optimized Cloudinary URL for avatar
+const getOptimizedAvatarUrl = (url) => {
+  if (!url || !isCloudinaryUrl(url)) return url;
+  
+  // Avatar optimization: 96x96, face focus, auto quality
+  const transformations = [
+    'w_96',
+    'h_96',
+    'c_fill',
+    'g_face',
+    'q_auto',
+    'f_auto'
+  ];
+  
+  return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
+};
+
+// Get optimized Cloudinary URL for banner
+const getOptimizedBannerUrl = (url) => {
+  if (!url || !isCloudinaryUrl(url)) return url;
+  
+  // Banner optimization: 1500x500, auto quality, auto format
+  const transformations = [
+    'w_1500',
+    'h_500',
+    'c_fill',
+    'q_auto',
+    'f_auto'
+  ];
+  
+  return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
+};
+
+// Get avatar initial
+const getAvatarInitial = (user) => {
+  if (!user) return 'U';
+  if (user.name) return user.name.charAt(0).toUpperCase();
+  if (user.firstName) return user.firstName.charAt(0).toUpperCase();
+  if (user.username) return user.username.charAt(0).toUpperCase();
+  if (user.displayName) return user.displayName.charAt(0).toUpperCase();
+  if (user.email) return user.email.charAt(0).toUpperCase();
+  return 'U';
+};
 
 const socialIcons = {
   twitter: FaTwitter,
@@ -121,25 +172,54 @@ const ProfileHeader = ({
            '0';
   };
 
-  // Use the already formatted URLs from profileUser
-  const formattedAvatar = profileUser?.avatar;
-  const formattedBanner = bannerUrl || profileUser?.banner;
+  // ============================================
+  // Process avatar and banner URLs with Cloudinary optimization
+  // ============================================
+  
+  // Get raw avatar URL from profile
+  const rawAvatar = profileUser?.avatar;
+  
+  // Apply Cloudinary optimization if applicable
+  let optimizedAvatar = null;
+  if (rawAvatar && !avatarError) {
+    if (isCloudinaryUrl(rawAvatar)) {
+      optimizedAvatar = getOptimizedAvatarUrl(rawAvatar);
+      console.log(`☁️ Using Cloudinary avatar: ${optimizedAvatar}`);
+    } else {
+      optimizedAvatar = rawAvatar;
+    }
+  }
+  
+  // Get raw banner URL
+  const rawBanner = bannerUrl || profileUser?.banner;
+  
+  // Apply Cloudinary optimization if applicable
+  let optimizedBanner = null;
+  if ((hasBanner || rawBanner) && !bannerError) {
+    if (rawBanner && isCloudinaryUrl(rawBanner)) {
+      optimizedBanner = getOptimizedBannerUrl(rawBanner);
+      console.log(`☁️ Using Cloudinary banner: ${optimizedBanner}`);
+    } else {
+      optimizedBanner = rawBanner;
+    }
+  }
 
   return (
     <div className={styles.profileHeader}>
       {/* Banner Section */}
       <div className={styles.bannerSection}>
         <div className={styles.bannerWrapper}>
-          {(hasBanner || formattedBanner) && !bannerError ? (
+          {(hasBanner || optimizedBanner) && !bannerError ? (
             <img 
-              src={formattedBanner} 
+              src={optimizedBanner} 
               alt={`${profileUser?.name || 'User'}'s banner`}
               className={styles.bannerImage}
               onError={() => {
-                console.log('❌ Banner failed to load:', formattedBanner);
+                console.log('❌ Banner failed to load:', optimizedBanner);
                 setBannerError(true);
               }}
-              onLoad={() => console.log('✅ Banner loaded successfully:', formattedBanner)}
+              onLoad={() => console.log('✅ Banner loaded successfully')}
+              loading="lazy"
             />
           ) : (
             <div className={styles.bannerPlaceholder}>
@@ -163,19 +243,20 @@ const ProfileHeader = ({
         )}
       </div>
 
-      {/* Avatar - NO ONLINE INDICATOR */}
+      {/* Avatar Section */}
       <div className={styles.avatarContainer}>
         <div className={styles.avatarWrapper} onClick={onAvatarClick}>
-          {formattedAvatar && !avatarError ? (
+          {optimizedAvatar && !avatarError ? (
             <img 
-              src={formattedAvatar} 
+              src={optimizedAvatar} 
               alt={profileUser?.name || 'User'}
               className={styles.avatarImage}
               onError={() => {
-                console.log('❌ Avatar failed to load:', formattedAvatar);
+                console.log('❌ Avatar failed to load:', optimizedAvatar);
                 setAvatarError(true);
               }}
-              onLoad={() => console.log('✅ Avatar loaded successfully:', formattedAvatar)}
+              onLoad={() => console.log('✅ Avatar loaded successfully')}
+              loading="lazy"
             />
           ) : (
             <div className={styles.avatarInitial}>
@@ -183,7 +264,6 @@ const ProfileHeader = ({
             </div>
           )}
         </div>
-        {/* ONLINE INDICATOR REMOVED - Will be shown in navigation bar */}
       </div>
 
       {/* Header Content */}
@@ -198,7 +278,7 @@ const ProfileHeader = ({
             <p className={styles.userBio}>{profileUser.bio}</p>
           )}
 
-          {/* User Details - NO ONLINE STATUS HERE */}
+          {/* User Details */}
           <div className={styles.userDetails}>
             {profileUser?.location && profileUser.location !== 'Not specified' && (
               <div className={styles.detailItem}>

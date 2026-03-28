@@ -1,4 +1,4 @@
-// controllers/userProfileController.js - COMPLETE FIXED VERSION
+// controllers/userProfileController.js - COMPLETE CLOUDINARY VERSION
 
 import mongoose from 'mongoose';
 import User from '../models/User.js';
@@ -9,12 +9,13 @@ import Follow from '../models/Follow.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { deleteFromCloudinary, getPublicIdFromUrl, getResourceType } from '../services/cloudinaryService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ============================================
-// HELPER FUNCTION FOR URLS - ADD THIS AT THE TOP
+// HELPER FUNCTION FOR URLS
 // ============================================
 const getBaseUrl = () => {
   return process.env.VITE_API_URL?.replace('/api', '') || 
@@ -23,7 +24,7 @@ const getBaseUrl = () => {
 };
 
 // ============================================
-// PUBLIC PROFILE (NO AUTH REQUIRED) - FIXED WITH POSTS COUNT
+// PUBLIC PROFILE (NO AUTH REQUIRED)
 // ============================================
 export const getPublicProfile = async (req, res) => {
   try {
@@ -72,22 +73,19 @@ export const getPublicProfile = async (req, res) => {
     // Get following count
     const followingCount = await Follow.countDocuments({ follower: user._id });
 
-    // ========== FIXED: Get actual posts count from Post model ==========
+    // Get actual posts count from Post model
     let postsCount = 0;
     try {
-      // Import Post model dynamically to avoid circular dependencies
       const Post = (await import('../models/Post.js')).default;
       postsCount = await Post.countDocuments({ userId: user._id });
       console.log(`📊 Found ${postsCount} posts for user ${user._id}`);
     } catch (error) {
       console.log('Could not get posts count:', error.message);
-      // If Post model doesn't exist yet, default to 0
       postsCount = 0;
     }
 
     // Check privacy settings
     if (profile.privacy?.profileVisibility === 'private') {
-      // Only return minimal info for private profiles
       return res.status(200).json({
         success: true,
         profile: {
@@ -104,35 +102,20 @@ export const getPublicProfile = async (req, res) => {
 
     const BASE_URL = getBaseUrl();
 
-    // Format banner URL properly
+    // Format banner URL properly (handles both Cloudinary and local)
     let bannerUrl = null;
     if (profile.bannerImage) {
-      // If it's already a full URL, use it
       if (profile.bannerImage.startsWith('http')) {
         bannerUrl = profile.bannerImage;
-      } 
-      // If it's a path starting with /uploads
-      else if (profile.bannerImage.startsWith('/uploads/')) {
+      } else if (profile.bannerImage.startsWith('/uploads/')) {
         bannerUrl = `${BASE_URL}${profile.bannerImage}`;
-      }
-      // If it's just a filename
-      else {
+      } else {
         bannerUrl = `${BASE_URL}/uploads/banners/${profile.bannerImage}`;
       }
     }
 
-    // Format social links - ensure they're properly extracted
     const socialLinks = profile.socialLinks || {};
 
-    console.log('🖼️ Banner for public profile:', {
-      rawBanner: profile.bannerImage,
-      formattedBanner: bannerUrl,
-      hasBanner: !!bannerUrl
-    });
-
-    console.log('🔗 Social links for public profile:', socialLinks);
-
-    // Format the response with CORRECT postsCount
     const profileData = {
       id: user._id,
       _id: user._id,
@@ -142,30 +125,26 @@ export const getPublicProfile = async (req, res) => {
       avatar: user.avatarUrl,
       avatarInitial: user.avatarInitial,
       
-      // Profile data
       bio: profile.bio || '',
       country: profile.country || '',
       location: profile.country || 'Not specified',
       tradingExperience: profile.tradingExperience || 'beginner',
       joinDate: profile.stats?.joinDate || user.createdAt,
       
-      // Banner - FIXED
       bannerImage: bannerUrl,
       banner: bannerUrl,
       hasBanner: !!bannerUrl,
       
-      // Social Links - FIXED
       socialLinks: socialLinks,
       
-      // Stats with correct counts
       followers: followersCount,
       following: followingCount,
-      postsCount: postsCount, // Now this is the actual count!
+      postsCount: postsCount,
       
       stats: {
         followers: followersCount,
         following: followingCount,
-        posts: postsCount, // Now this is the actual count!
+        posts: postsCount,
         tradesCompleted: profile.stats?.tradesCompleted || 0,
         successRate: profile.stats?.successRate || 0,
         lastActive: profile.stats?.lastActive || user.lastLogin || new Date()
@@ -175,7 +154,7 @@ export const getPublicProfile = async (req, res) => {
         ...profile.toObject(),
         followers: followersCount,
         following: followingCount,
-        postsCount: postsCount // Now this is the actual count!
+        postsCount: postsCount
       }
     };
 
@@ -198,46 +177,27 @@ export const getPublicProfile = async (req, res) => {
 };
 
 // ============================================
-// GET COMPLETE PROFILE (AUTH REQUIRED) - FIXED WITH POSTS COUNT
-// ============================================
-// ============================================
-// GET COMPLETE PROFILE (AUTH REQUIRED) - WITH DETAILED DEBUG LOGGING
+// GET COMPLETE PROFILE (AUTH REQUIRED)
 // ============================================
 export const getCompleteProfile = async (req, res) => {
   try {
     console.log('='.repeat(50));
     console.log('📡 FETCHING COMPLETE PROFILE');
     console.log('='.repeat(50));
-    console.log('👤 User ID from request:', req.user?._id);
-    console.log('👤 Full req.user object:', JSON.stringify(req.user, null, 2));
 
-    // Step 1: Get user
-    console.log('\n📌 STEP 1: Finding user...');
     const user = await User.findById(req.user._id)
       .select('-password -otpCode -loginAttempts -lockUntil');
       
     if (!user) {
-      console.log('❌ User not found with ID:', req.user._id);
       return res.status(404).json({ 
         success: false, 
         message: 'User not found' 
       });
     }
-    console.log('✅ User found:', { 
-      id: user._id, 
-      name: user.name, 
-      username: user.username,
-      email: user.email,
-      avatar: user.avatarUrl 
-    });
 
-    // Step 2: Get or create profile
-    console.log('\n📌 STEP 2: Getting/creating profile...');
     let profile = await UserProfile.findOne({ userId: user._id });
-    console.log('📋 Profile found?', profile ? 'YES' : 'NO');
     
     if (!profile) {
-      console.log('📝 Creating new profile for user:', user._id);
       profile = new UserProfile({ 
         userId: user._id,
         firstName: user.name?.split(' ')[0] || '',
@@ -245,87 +205,40 @@ export const getCompleteProfile = async (req, res) => {
         username: user.username
       });
       await profile.save();
-      console.log('✅ Profile created with ID:', profile._id);
-    } else {
-      console.log('✅ Existing profile found:', profile._id);
     }
 
-    // Step 3: Get settings
-    console.log('\n📌 STEP 3: Getting settings...');
     let settings = await UserSettings.findOne({ userId: user._id });
-    console.log('⚙️ Settings found?', settings ? 'YES' : 'NO');
-    
     if (!settings) {
-      console.log('📝 Creating new settings for user:', user._id);
       settings = await UserSettings.create({ userId: user._id });
-      console.log('✅ Settings created');
     }
 
-    // Step 4: Get subscription
-    console.log('\n📌 STEP 4: Getting subscription...');
     const subscription = await Subscription.findOne({ userId: user._id });
-    console.log('💳 Subscription found?', subscription ? 'YES' : 'NO');
-
-    // Step 5: Get followers count
-    console.log('\n📌 STEP 5: Getting followers count...');
     const followersCount = await Follow.countDocuments({ following: user._id });
-    console.log('👥 Followers count:', followersCount);
-
-    // Step 6: Get following count
-    console.log('\n📌 STEP 6: Getting following count...');
     const followingCount = await Follow.countDocuments({ follower: user._id });
-    console.log('👥 Following count:', followingCount);
 
-    // Step 7: Get posts count
-    console.log('\n📌 STEP 7: Getting posts count...');
     let postsCount = 0;
     try {
-      console.log('📦 Dynamically importing Post model...');
       const Post = (await import('../models/Post.js')).default;
-      console.log('✅ Post model imported successfully');
-      
       postsCount = await Post.countDocuments({ userId: user._id });
-      console.log(`📊 Posts count: ${postsCount}`);
     } catch (error) {
-      console.log('❌ Could not get posts count:', error.message);
-      console.log('❌ Error stack:', error.stack);
       postsCount = 0;
     }
 
-    // Step 8: Get base URL
-    console.log('\n📌 STEP 8: Getting base URL...');
     const BASE_URL = getBaseUrl();
-    console.log('🔗 Base URL:', BASE_URL);
 
-    // Step 9: Format banner URL
-    console.log('\n📌 STEP 9: Formatting banner URL...');
     let bannerUrl = null;
     if (profile.bannerImage) {
-      console.log('🖼️ Raw banner image:', profile.bannerImage);
-      try {
-        if (profile.bannerImage.startsWith('http')) {
-          bannerUrl = profile.bannerImage;
-        } else if (profile.bannerImage.startsWith('/uploads/')) {
-          bannerUrl = `${BASE_URL}${profile.bannerImage}`;
-        } else {
-          bannerUrl = `${BASE_URL}/uploads/banners/${profile.bannerImage}`;
-        }
-        console.log('✅ Formatted banner URL:', bannerUrl);
-      } catch (bannerError) {
-        console.log('❌ Error formatting banner:', bannerError.message);
-        bannerUrl = null;
+      if (profile.bannerImage.startsWith('http')) {
+        bannerUrl = profile.bannerImage;
+      } else if (profile.bannerImage.startsWith('/uploads/')) {
+        bannerUrl = `${BASE_URL}${profile.bannerImage}`;
+      } else {
+        bannerUrl = `${BASE_URL}/uploads/banners/${profile.bannerImage}`;
       }
-    } else {
-      console.log('ℹ️ No banner image found');
     }
 
-    // Step 10: Format social links
-    console.log('\n📌 STEP 10: Formatting social links...');
     const socialLinks = profile.socialLinks || {};
-    console.log('🔗 Social links found:', Object.keys(socialLinks).length);
 
-    // Step 11: Build response object
-    console.log('\n📌 STEP 11: Building response object...');
     const userData = {
       id: user._id,
       _id: user._id,
@@ -336,22 +249,18 @@ export const getCompleteProfile = async (req, res) => {
       avatarInitial: user.avatarInitial,
       createdAt: user.createdAt,
       
-      // Profile data
       bio: profile.bio || '',
       country: profile.country || '',
       location: profile.country || 'Not specified',
       tradingExperience: profile.tradingExperience || 'beginner',
       joinDate: profile.stats?.joinDate || user.createdAt,
       
-      // Banner
       bannerImage: bannerUrl,
       banner: bannerUrl,
       hasBanner: !!bannerUrl,
       
-      // Social Links
       socialLinks: socialLinks,
       
-      // Stats
       followers: followersCount,
       following: followingCount,
       postsCount: postsCount,
@@ -379,16 +288,6 @@ export const getCompleteProfile = async (req, res) => {
       subscription: subscription || { plan: 'free', status: 'active' }
     };
 
-    console.log('\n✅ Complete profile built successfully');
-    console.log('📊 Final data:', {
-      userId: userData.id,
-      name: userData.name,
-      postsCount: userData.postsCount,
-      followers: userData.followers,
-      hasBanner: userData.hasBanner,
-      socialLinksCount: Object.keys(userData.socialLinks).length
-    });
-
     return res.json({
       success: true,
       user: userData,
@@ -396,177 +295,17 @@ export const getCompleteProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('\n❌❌❌ ERROR IN getCompleteProfile ❌❌❌');
-    console.error('Error name:', error.name);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    
+    console.error('❌ Error in getCompleteProfile:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Server error',
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: error.message
     });
   }
 };
 
 // ============================================
-// UPLOAD BANNER - FIXED
-// ============================================
-export const uploadBanner = async (req, res) => {
-  try {
-    console.log('📤 Upload banner request received');
-    console.log('📁 File details:', req.file);
-    console.log('👤 User ID:', req.user._id);
-
-    if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No file uploaded' 
-      });
-    }
-
-    // Find or create user profile
-    let profile = await UserProfile.findOne({ userId: req.user._id });
-    
-    if (!profile) {
-      profile = new UserProfile({ userId: req.user._id });
-    }
-
-    // Delete old banner if exists
-    if (profile.bannerImage) {
-      let oldFilename = profile.bannerImage;
-      if (oldFilename.includes('/')) {
-        oldFilename = oldFilename.split('/').pop();
-      }
-      const oldBannerPath = path.join(process.cwd(), 'uploads', 'banners', oldFilename);
-      if (fs.existsSync(oldBannerPath)) {
-        fs.unlinkSync(oldBannerPath);
-        console.log('🗑️ Deleted old banner:', oldFilename);
-      }
-    }
-
-    // Update banner with just the filename
-    const bannerFilename = req.file.filename;
-    profile.bannerImage = bannerFilename;
-    await profile.save();
-
-    const BASE_URL = getBaseUrl();
-
-    // Generate full banner URL
-    const bannerUrl = `${BASE_URL}/uploads/banners/${bannerFilename}`;
-
-    console.log('✅ Banner uploaded successfully:', {
-      filename: bannerFilename,
-      url: bannerUrl
-    });
-
-    // Get updated user data
-    const user = await User.findById(req.user._id).select('-password -otpCode');
-    
-    return res.json({
-      success: true,
-      message: 'Banner uploaded successfully',
-      bannerImage: bannerFilename,
-      bannerUrl: bannerUrl,
-      user: {
-        id: user._id,
-        name: user.name,
-        username: user.username,
-        avatar: user.avatarUrl,
-        banner: bannerUrl,
-        hasBanner: true
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Error uploading banner:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Server error: ' + error.message,
-      error: error.message 
-    });
-  }
-};
-
-// ============================================
-// REMOVE BANNER
-// ============================================
-export const removeBanner = async (req, res) => {
-  try {
-    const profile = await UserProfile.findOne({ userId: req.user._id });
-    if (!profile) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Profile not found' 
-      });
-    }
-
-    // Delete banner file if exists
-    if (profile.bannerImage) {
-      let filename = profile.bannerImage;
-      if (filename.includes('/')) {
-        filename = filename.split('/').pop();
-      }
-      const bannerPath = path.join(process.cwd(), 'uploads', 'banners', filename);
-      if (fs.existsSync(bannerPath)) {
-        fs.unlinkSync(bannerPath);
-        console.log('🗑️ Deleted banner:', filename);
-      }
-      profile.bannerImage = null;
-      await profile.save();
-    }
-
-    return res.json({
-      success: true,
-      message: 'Banner removed successfully'
-    });
-
-  } catch (error) {
-    console.error('❌ Error removing banner:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Server error: ' + error.message 
-    });
-  }
-};
-
-// ============================================
-// TEST BANNER UPLOAD
-// ============================================
-export const testBannerUpload = async (req, res) => {
-  try {
-    console.log('🧪 Test banner upload received');
-    console.log('File:', req.file);
-    
-    if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No file uploaded' 
-      });
-    }
-
-    const BASE_URL = getBaseUrl();
-    const bannerUrl = `${BASE_URL}/uploads/banners/${req.file.filename}`;
-
-    return res.json({
-      success: true,
-      message: 'Test upload successful',
-      file: req.file,
-      url: bannerUrl
-    });
-
-  } catch (error) {
-    console.error('❌ Test upload error:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Server error: ' + error.message 
-    });
-  }
-};
-
-// ============================================
-// UPLOAD AVATAR - FIXED
+// UPLOAD AVATAR - CLOUDINARY VERSION
 // ============================================
 export const uploadAvatar = async (req, res) => {
   try {
@@ -588,27 +327,33 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    // Delete old avatar if exists
-    if (user.avatar && !user.avatar.startsWith('http')) {
+    // Delete old avatar from Cloudinary if exists
+    if (user.avatar && user.avatar.includes('cloudinary')) {
+      const publicId = getPublicIdFromUrl(user.avatar);
+      if (publicId) {
+        await deleteFromCloudinary(publicId, { resource_type: 'image' });
+        console.log('🗑️ Deleted old avatar from Cloudinary:', publicId);
+      }
+    }
+    // Handle local files for backward compatibility
+    else if (user.avatar && !user.avatar.startsWith('http')) {
       const oldFilename = user.avatar.split('/').pop();
       const oldAvatarPath = path.join(process.cwd(), 'uploads', 'avatars', oldFilename);
       if (fs.existsSync(oldAvatarPath)) {
         fs.unlinkSync(oldAvatarPath);
-        console.log('🗑️ Deleted old avatar:', oldFilename);
+        console.log('🗑️ Deleted old local avatar:', oldFilename);
       }
     }
 
-    // Save new avatar
-    const avatarPath = `/uploads/avatars/${req.file.filename}`;
-    user.avatar = avatarPath;
+    // Save new avatar URL from Cloudinary
+    const avatarUrl = req.file.path;
+    user.avatar = avatarUrl;
+    user.avatarUrl = avatarUrl;
     await user.save();
 
-    const BASE_URL = getBaseUrl();
-    const avatarUrl = `${BASE_URL}${avatarPath}`;
-
-    console.log('✅ Avatar uploaded successfully:', {
-      filename: req.file.filename,
-      url: avatarUrl
+    console.log('✅ Avatar uploaded successfully to Cloudinary:', {
+      url: avatarUrl,
+      publicId: req.file.public_id
     });
 
     res.status(200).json({
@@ -633,7 +378,7 @@ export const uploadAvatar = async (req, res) => {
 };
 
 // ============================================
-// DELETE AVATAR
+// DELETE AVATAR - CLOUDINARY VERSION
 // ============================================
 export const deleteAvatar = async (req, res) => {
   try {
@@ -645,19 +390,26 @@ export const deleteAvatar = async (req, res) => {
       });
     }
 
-    // Remove avatar file if exists
-    if (user.avatar && !user.avatar.startsWith('http')) {
+    // Delete avatar from Cloudinary if exists
+    if (user.avatar && user.avatar.includes('cloudinary')) {
+      const publicId = getPublicIdFromUrl(user.avatar);
+      if (publicId) {
+        await deleteFromCloudinary(publicId, { resource_type: 'image' });
+        console.log('🗑️ Deleted avatar from Cloudinary:', publicId);
+      }
+    }
+    // Handle local files for backward compatibility
+    else if (user.avatar && !user.avatar.startsWith('http')) {
       const filename = user.avatar.split('/').pop();
       const filePath = path.join(process.cwd(), 'uploads', 'avatars', filename);
-      
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log('🗑️ Deleted avatar:', filename);
+        console.log('🗑️ Deleted local avatar:', filename);
       }
     }
 
-    // Remove avatar from user
     user.avatar = null;
+    user.avatarUrl = null;
     await user.save();
 
     res.status(200).json({
@@ -669,6 +421,313 @@ export const deleteAvatar = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server Error: " + error.message
+    });
+  }
+};
+
+// ============================================
+// UPLOAD BANNER - CLOUDINARY VERSION
+// ============================================
+export const uploadBanner = async (req, res) => {
+  try {
+    console.log('📤 Upload banner request received');
+    console.log('📁 File details:', req.file);
+
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+
+    let profile = await UserProfile.findOne({ userId: req.user._id });
+    
+    if (!profile) {
+      profile = new UserProfile({ userId: req.user._id });
+    }
+
+    // Delete old banner from Cloudinary if exists
+    if (profile.bannerImage && profile.bannerImage.includes('cloudinary')) {
+      const publicId = getPublicIdFromUrl(profile.bannerImage);
+      if (publicId) {
+        await deleteFromCloudinary(publicId, { resource_type: 'image' });
+        console.log('🗑️ Deleted old banner from Cloudinary:', publicId);
+      }
+    }
+    // Handle local files for backward compatibility
+    else if (profile.bannerImage && !profile.bannerImage.startsWith('http')) {
+      let oldFilename = profile.bannerImage;
+      if (oldFilename.includes('/')) {
+        oldFilename = oldFilename.split('/').pop();
+      }
+      const oldBannerPath = path.join(process.cwd(), 'uploads', 'banners', oldFilename);
+      if (fs.existsSync(oldBannerPath)) {
+        fs.unlinkSync(oldBannerPath);
+        console.log('🗑️ Deleted old local banner:', oldFilename);
+      }
+    }
+
+    // Update banner with Cloudinary URL
+    const bannerUrl = req.file.path;
+    profile.bannerImage = bannerUrl;
+    await profile.save();
+
+    console.log('✅ Banner uploaded successfully to Cloudinary:', {
+      url: bannerUrl,
+      publicId: req.file.public_id
+    });
+
+    const user = await User.findById(req.user._id).select('-password -otpCode');
+    
+    return res.json({
+      success: true,
+      message: 'Banner uploaded successfully',
+      bannerImage: bannerUrl,
+      bannerUrl: bannerUrl,
+      user: {
+        id: user._id,
+        name: user.name,
+        username: user.username,
+        avatar: user.avatarUrl,
+        banner: bannerUrl,
+        hasBanner: true
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error uploading banner:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+};
+
+// ============================================
+// REMOVE BANNER - CLOUDINARY VERSION
+// ============================================
+export const removeBanner = async (req, res) => {
+  try {
+    const profile = await UserProfile.findOne({ userId: req.user._id });
+    if (!profile) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Profile not found' 
+      });
+    }
+
+    // Delete banner from Cloudinary if exists
+    if (profile.bannerImage && profile.bannerImage.includes('cloudinary')) {
+      const publicId = getPublicIdFromUrl(profile.bannerImage);
+      if (publicId) {
+        await deleteFromCloudinary(publicId, { resource_type: 'image' });
+        console.log('🗑️ Deleted banner from Cloudinary:', publicId);
+      }
+    }
+    // Handle local files for backward compatibility
+    else if (profile.bannerImage && !profile.bannerImage.startsWith('http')) {
+      let filename = profile.bannerImage;
+      if (filename.includes('/')) {
+        filename = filename.split('/').pop();
+      }
+      const bannerPath = path.join(process.cwd(), 'uploads', 'banners', filename);
+      if (fs.existsSync(bannerPath)) {
+        fs.unlinkSync(bannerPath);
+        console.log('🗑️ Deleted local banner:', filename);
+      }
+    }
+    
+    profile.bannerImage = null;
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: 'Banner removed successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error removing banner:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
+    });
+  }
+};
+
+// ============================================
+// UPLOAD ADDRESS PROOF - CLOUDINARY VERSION
+// ============================================
+export const uploadAddressProof = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+
+    const { documentType } = req.body;
+    const allowedTypes = ['utility_bill', 'bank_statement', 'government_letter', 
+                         'tax_document', 'lease_agreement', 'drivers_license', 'id_card'];
+    
+    if (!allowedTypes.includes(documentType)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid document type' 
+      });
+    }
+
+    const profile = await UserProfile.findOne({ userId: req.user._id });
+    
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found"
+      });
+    }
+
+    // Delete old address proof from Cloudinary if exists
+    if (profile.addressProof?.documentUrl && profile.addressProof.documentUrl.includes('cloudinary')) {
+      const publicId = getPublicIdFromUrl(profile.addressProof.documentUrl);
+      if (publicId) {
+        const resourceType = getResourceType(profile.addressProof.documentUrl, null);
+        await deleteFromCloudinary(publicId, { resource_type: resourceType });
+        console.log('🗑️ Deleted old address proof from Cloudinary:', publicId);
+      }
+    }
+
+    // Update address proof with Cloudinary URL
+    profile.addressProof = {
+      documentUrl: req.file.path,
+      documentType,
+      verified: false,
+      uploadedAt: new Date(),
+      publicId: req.file.public_id
+    };
+
+    await profile.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Address proof uploaded successfully',
+      documentUrl: req.file.path,
+      documentType,
+      uploadedAt: profile.addressProof.uploadedAt
+    });
+  } catch (error) {
+    console.error('Error uploading address proof:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server Error: ' + error.message 
+    });
+  }
+};
+
+// ============================================
+// UPLOAD DOCUMENT - CLOUDINARY VERSION
+// ============================================
+export const uploadDocument = async (req, res) => {
+  try {
+    const { documentType } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+
+    if (!['idCopy', 'bankStatement', 'proofOfResidence'].includes(documentType)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid document type' 
+      });
+    }
+
+    const profile = await UserProfile.findOne({ userId: req.user._id });
+    
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found"
+      });
+    }
+
+    // Delete old document from Cloudinary if exists
+    const oldDocument = profile.documents?.[documentType];
+    if (oldDocument?.url && oldDocument.url.includes('cloudinary')) {
+      const publicId = getPublicIdFromUrl(oldDocument.url);
+      if (publicId) {
+        const resourceType = getResourceType(oldDocument.url, null);
+        await deleteFromCloudinary(publicId, { resource_type: resourceType });
+        console.log('🗑️ Deleted old document from Cloudinary:', publicId);
+      }
+    }
+
+    const documentData = {
+      url: req.file.path,
+      publicId: req.file.public_id,
+      uploadedAt: new Date(),
+      verified: false
+    };
+
+    const updateField = `documents.${documentType}`;
+    
+    const updatedProfile = await UserProfile.findOneAndUpdate(
+      { userId: req.user._id },
+      { $set: { [updateField]: documentData } },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Document uploaded successfully',
+      documentType,
+      document: updatedProfile.documents[documentType]
+    });
+  } catch (error) {
+    console.error('Error in uploadDocument:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server Error: ' + error.message 
+    });
+  }
+};
+
+// ============================================
+// TEST BANNER UPLOAD (for testing)
+// ============================================
+export const testBannerUpload = async (req, res) => {
+  try {
+    console.log('🧪 Test banner upload received');
+    console.log('File:', req.file);
+    
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Test upload successful',
+      file: {
+        filename: req.file.filename,
+        path: req.file.path,
+        public_id: req.file.public_id,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      },
+      url: req.file.path
+    });
+
+  } catch (error) {
+    console.error('❌ Test upload error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message 
     });
   }
 };
@@ -738,7 +797,6 @@ export const updateCompleteProfile = async (req, res) => {
       notifications, trading, security, data
     } = req.body;
 
-    // Update User basic info
     if (username) {
       const existingUser = await User.findOne({ 
         username, 
@@ -760,7 +818,6 @@ export const updateCompleteProfile = async (req, res) => {
       );
     }
 
-    // Update name if first/last name provided
     if (firstName || lastName) {
       const name = `${firstName || ''} ${lastName || ''}`.trim();
       await User.findByIdAndUpdate(
@@ -770,7 +827,6 @@ export const updateCompleteProfile = async (req, res) => {
       );
     }
 
-    // Update UserProfile
     const profileUpdate = {};
     const profileFields = [
       'firstName', 'lastName', 'username', 'bio', 'phone', 'country', 'timezone',
@@ -791,7 +847,6 @@ export const updateCompleteProfile = async (req, res) => {
       { new: true, upsert: true, session }
     );
 
-    // Update UserSettings
     const settingsUpdate = {};
     const settingsFields = ['notifications', 'trading', 'security', 'data'];
     
@@ -809,7 +864,6 @@ export const updateCompleteProfile = async (req, res) => {
 
     await session.commitTransaction();
 
-    // Fetch updated user data
     const updatedUser = await User.findById(req.user._id)
       .select('-password -otpCode');
 
@@ -859,7 +913,6 @@ export const updateProfile = async (req, res) => {
     session.startTransaction();
 
     try {
-      // Update user basic info
       if (name || username) {
         const updateData = {};
         if (name) updateData.name = name;
@@ -880,7 +933,6 @@ export const updateProfile = async (req, res) => {
         await User.findByIdAndUpdate(req.user._id, updateData, { session });
       }
 
-      // Build profile update object
       const profileUpdate = {};
       
       if (name) {
@@ -913,7 +965,6 @@ export const updateProfile = async (req, res) => {
 
       await session.commitTransaction();
 
-      // Fetch updated user data
       const updatedUser = await User.findById(req.user._id).select('-password -otpCode');
 
       res.status(200).json({
@@ -943,57 +994,6 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: "Server Error: " + error.message 
-    });
-  }
-};
-
-// ============================================
-// UPLOAD DOCUMENT
-// ============================================
-export const uploadDocument = async (req, res) => {
-  try {
-    const { documentType } = req.body;
-    
-    if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No file uploaded' 
-      });
-    }
-
-    if (!['idCopy', 'bankStatement', 'proofOfResidence'].includes(documentType)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid document type' 
-      });
-    }
-
-    const documentData = {
-      url: `/uploads/documents/${req.file.filename}`,
-      publicId: req.file.filename,
-      uploadedAt: new Date(),
-      verified: false
-    };
-
-    const updateField = `documents.${documentType}`;
-    
-    const updatedProfile = await UserProfile.findOneAndUpdate(
-      { userId: req.user._id },
-      { $set: { [updateField]: documentData } },
-      { new: true, upsert: true }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Document uploaded successfully',
-      documentType,
-      document: updatedProfile.documents[documentType]
-    });
-  } catch (error) {
-    console.error('Error in uploadDocument:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server Error: ' + error.message 
     });
   }
 };
@@ -1099,65 +1099,6 @@ export const getSubscription = async (req, res) => {
 };
 
 // ============================================
-// UPLOAD ADDRESS PROOF
-// ============================================
-export const uploadAddressProof = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No file uploaded' 
-      });
-    }
-
-    const { documentType } = req.body;
-    const allowedTypes = ['utility_bill', 'bank_statement', 'government_letter', 
-                         'tax_document', 'lease_agreement', 'drivers_license', 'id_card'];
-    
-    if (!allowedTypes.includes(documentType)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid document type' 
-      });
-    }
-
-    const documentPath = `/uploads/address-proofs/${req.file.filename}`;
-    const profile = await UserProfile.findOne({ userId: req.user._id });
-    
-    if (!profile) {
-      return res.status(404).json({
-        success: false,
-        message: "Profile not found"
-      });
-    }
-
-    // Update address proof
-    profile.addressProof = {
-      documentUrl: documentPath,
-      documentType,
-      verified: false,
-      uploadedAt: new Date()
-    };
-
-    await profile.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Address proof uploaded successfully',
-      documentUrl: documentPath,
-      documentType,
-      uploadedAt: profile.addressProof.uploadedAt
-    });
-  } catch (error) {
-    console.error('Error uploading address proof:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server Error: ' + error.message 
-    });
-  }
-};
-
-// ============================================
 // CONNECT TRADING PLATFORM
 // ============================================
 export const connectTradingPlatform = async (req, res) => {
@@ -1179,7 +1120,6 @@ export const connectTradingPlatform = async (req, res) => {
       });
     }
 
-    // Update platform connection
     if (platform === 'mt4' || platform === 'mt5') {
       profile.tradingPlatforms[platform] = {
         connected: true,
@@ -1235,7 +1175,6 @@ export const disconnectTradingPlatform = async (req, res) => {
       });
     }
 
-    // Update platform connection
     if (profile.tradingPlatforms[platform]) {
       profile.tradingPlatforms[platform].connected = false;
       await profile.save();
