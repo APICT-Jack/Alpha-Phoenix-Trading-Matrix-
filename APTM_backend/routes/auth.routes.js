@@ -31,14 +31,13 @@ router.post("/logout", authMiddleware, logoutUser);
 router.put("/password", authMiddleware, updatePassword);
 router.delete("/account", authMiddleware, deleteAccount);
 
-// Change password route (POST version)
+// Change password route
 router.post('/change-password', authMiddleware, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     
     const user = await User.findById(req.user._id);
     
-    // Verify current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
       return res.status(400).json({
@@ -47,7 +46,6 @@ router.post('/change-password', authMiddleware, async (req, res) => {
       });
     }
     
-    // Update password
     user.password = newPassword;
     await user.save();
     

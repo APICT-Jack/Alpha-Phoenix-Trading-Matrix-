@@ -1,21 +1,33 @@
+// routes/user.Routes.js
 import express from 'express';
-import { 
-  getAllUsers,
-  getUserById,
-  searchUsers,
-  uploadAvatar,
-  getProfile
-} from '../controllers/userController.js';
 import authMiddleware from '../middleware/auth.js';
 import uploadMiddleware from '../middleware/upload.js';
+import { 
+  getProfile, 
+  updateProfile, 
+  uploadAvatar, 
+  deleteAvatar,
+  getAllUsers,
+  getUserById,
+  searchUsers
+} from '../controllers/userController.js';
 
 const router = express.Router();
 
-// All user routes require authentication
-router.get('/all', authMiddleware, getAllUsers);
-router.get('/search', authMiddleware, searchUsers);
-router.get('/:userId', authMiddleware, getUserById);
-router.get('/me', authMiddleware, getProfile);
-router.post('/avatar', authMiddleware, uploadMiddleware.single('avatar'), uploadAvatar);
+// Protected routes (require authentication)
+router.use(authMiddleware);
+
+// Profile routes
+router.get('/profile', getProfile);
+router.put('/profile', updateProfile);
+
+// Avatar routes - use the named export directly
+router.post('/avatar', uploadMiddleware.uploadAvatar, uploadAvatar);
+router.delete('/avatar', deleteAvatar);
+
+// User discovery routes
+router.get('/all', getAllUsers);
+router.get('/search', searchUsers);
+router.get('/:userId', getUserById);
 
 export default router;

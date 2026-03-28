@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { uploadGallery, uploadAvatar, uploadBanner } from '../services/cloudinaryService.js';
 
-// Ensure directories exist (Windows compatible)
+// Ensure directories exist
 const ensureDir = (dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -52,12 +52,16 @@ const addressProofFilter = (req, file, cb) => {
   allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error('Address proof must be PDF or image'));
 };
 
-// Cloudinary uploads
+// ============================================
+// CLOUDINARY UPLOADS
+// ============================================
 export const uploadGalleryMiddleware = uploadGallery.array('galleryFiles', 10);
 export const uploadAvatarMiddleware = uploadAvatar.single('avatar');
 export const uploadBannerMiddleware = uploadBanner.single('banner');
 
-// Local uploads
+// ============================================
+// LOCAL UPLOADS
+// ============================================
 export const uploadDocumentMiddleware = multer({ 
   storage: documentStorage, 
   limits: { fileSize: 10 * 1024 * 1024 }, 
@@ -70,6 +74,14 @@ export const uploadAddressProofMiddleware = multer({
   fileFilter: addressProofFilter 
 }).single('addressProof');
 
+// ============================================
+// SIMPLE SINGLE UPLOAD FOR AVATAR (for user.Routes.js)
+// ============================================
+export const uploadSingle = uploadAvatar.single('avatar');
+
+// ============================================
+// ERROR HANDLER
+// ============================================
 export const handleUploadError = (err, req, res, next) => {
   if (err) {
     console.error('Upload error:', err);
@@ -78,10 +90,26 @@ export const handleUploadError = (err, req, res, next) => {
   next();
 };
 
-export default { 
-  uploadGalleryMiddleware, 
-  uploadAvatarMiddleware, 
-  uploadBannerMiddleware, 
-  uploadDocumentMiddleware, 
-  uploadAddressProofMiddleware 
+// ============================================
+// DEFAULT EXPORT
+// ============================================
+const uploadMiddleware = {
+  single: (field) => {
+    if (field === 'avatar') return uploadAvatarMiddleware;
+    if (field === 'banner') return uploadBannerMiddleware;
+    if (field === 'document') return uploadDocumentMiddleware;
+    if (field === 'addressProof') return uploadAddressProofMiddleware;
+    return uploadSingle;
+  },
+  array: (field, maxCount) => {
+    if (field === 'galleryFiles') return uploadGalleryMiddleware;
+    return multer().array(field, maxCount);
+  },
+  uploadAvatar: uploadAvatarMiddleware,
+  uploadBanner: uploadBannerMiddleware,
+  uploadGallery: uploadGalleryMiddleware,
+  uploadDocument: uploadDocumentMiddleware,
+  uploadAddressProof: uploadAddressProofMiddleware
 };
+
+export default uploadMiddleware;
