@@ -24,6 +24,12 @@ import {
   getTradingAccounts,
   testBannerUpload  // Add this import
 } from '../controllers/userProfileController.js';
+import { 
+  uploadAvatarMiddleware, 
+  uploadDocumentMiddleware,
+  uploadBannerMiddleware,
+  uploadAddressProofMiddleware 
+} from '../middleware/upload.js';
 import authMiddleware from '../middleware/auth.js';
 import { 
   uploadAvatarMiddleware, 
