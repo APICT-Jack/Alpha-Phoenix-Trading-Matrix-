@@ -1,5 +1,8 @@
+// routes/gallery.routes.js
 import express from 'express';
-import {
+import { authMiddleware } from '../middleware/auth.js';
+import { uploadGalleryMiddleware } from '../middleware/upload.js';
+import { 
   getGallery,
   uploadToGallery,
   createGalleryFolder,
@@ -7,33 +10,18 @@ import {
   deleteGalleryItem,
   updateGalleryItem
 } from '../controllers/galleryController.js';
-import authMiddleware from '../middleware/auth.js';
-import { uploadGalleryMiddleware } from '../middleware/upload.js';
 
 const router = express.Router();
 
+// All routes require authentication
 router.use(authMiddleware);
 
+// Gallery routes
 router.get('/:userId', getGallery);
 router.post('/upload', uploadGalleryMiddleware, uploadToGallery);
 router.post('/folders', createGalleryFolder);
 router.delete('/folders/:folderId', deleteGalleryFolder);
 router.delete('/items/:itemId', deleteGalleryItem);
 router.put('/items/:itemId', updateGalleryItem);
-router.get('/test-upload/:type/:filename', (req, res) => {
-  const { type, filename } = req.params;
-  const filePath = path.join(process.cwd(), 'uploads', type, filename);
-  
-  console.log('🔍 Testing file access:', filePath);
-  
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404).json({ 
-      success: false, 
-      message: 'File not found',
-      path: filePath 
-    });
-  }
-});
+
 export default router;

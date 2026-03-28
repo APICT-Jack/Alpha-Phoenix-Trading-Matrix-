@@ -21,40 +21,17 @@ const galleryStorage = new CloudinaryStorage({
   }
 });
 
-// Create storage for avatars
-const avatarStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'trading-app/avatars',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-    resource_type: 'image',
-    transformation: [{ width: 200, height: 200, crop: 'fill', quality: 'auto' }]
-  }
-});
-
-// Create storage for banners
-const bannerStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'trading-app/banners',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-    resource_type: 'image',
-    transformation: [{ width: 1500, height: 500, crop: 'fill', quality: 'auto' }]
-  }
-});
-
 // Multer instances
 export const uploadGallery = multer({ storage: galleryStorage });
-export const uploadAvatar = multer({ storage: avatarStorage });
-export const uploadBanner = multer({ storage: bannerStorage });
 
 // Helper functions
 export const deleteFromCloudinary = async (publicId) => {
-  if (!publicId) return;
+  if (!publicId) return null;
   try {
     return await cloudinary.uploader.destroy(publicId);
   } catch (error) {
     console.error('Error deleting from Cloudinary:', error);
+    return null;
   }
 };
 

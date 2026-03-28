@@ -133,7 +133,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/users", userRoutes);
 app.use('/api/friends', followRoutes);
 app.use('/api/chat', chatRoutes);
-
+app.use('/api/gallery', galleryRoutes);
 // ==================== CREATE UPLOAD DIRECTORIES ====================
 const createUploadDirectories = () => {
   const uploadDirs = [
