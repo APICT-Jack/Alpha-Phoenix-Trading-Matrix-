@@ -1,102 +1,42 @@
+// GalleryComponent.jsx - Simplified Working Version
 import React, { useState, useRef, useEffect } from 'react';
 import styles from './UserProfileView.module.css';
 import { 
-  FaPlus, 
-  FaFolderPlus, 
-  FaTrash, 
-  FaImages, 
-  FaTimes, 
-  FaChevronLeft, 
-  FaChevronRight, 
-  FaHeart, 
-  FaRegHeart, 
-  FaComment 
+  FaPlus, FaFolderPlus, FaTrash, FaImages, FaTimes, 
+  FaChevronLeft, FaChevronRight, FaHeart, FaRegHeart, FaComment 
 } from 'react-icons/fa';
 
-// ============================================
-// FIXED: Get API URL with proper protocol handling
-// ============================================
+// Get API URL - FIXED
 const getApiUrl = () => {
-  // In production, use the current origin (will be https://...)
   if (import.meta.env.PROD) {
     return window.location.origin;
   }
-  // In development, use localhost
   return import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 };
 
 const API_URL = getApiUrl();
 
-// ============================================
-// Helper function to format image/video URLs with Cloudinary support
-// ============================================
+// Format media URL - handles both Cloudinary and local
 const formatMediaUrl = (url) => {
   if (!url) return null;
   
-  // If it's already a full URL (Cloudinary or other CDN), return as is
+  // Already a full URL (Cloudinary)
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
   
-  // If it's a data URL, return as is
+  // Data URL
   if (url.startsWith('data:')) {
     return url;
   }
   
-  // If it's a path starting with /uploads, clean it up
+  // Local path
   if (url.startsWith('/uploads/')) {
-    // Remove duplicate /uploads if present
-    if (url.startsWith('/uploads//uploads/')) {
-      url = url.replace('/uploads//uploads/', '/uploads/');
-    }
     return `${API_URL}${url}`;
   }
   
-  // If it's a path starting with uploads (no leading slash)
-  if (url.startsWith('uploads/')) {
-    return `${API_URL}/${url}`;
-  }
-  
-  // If it's just a filename, assume it's in the gallery folder
-  if (url.includes('gallery-') || url.includes('.jpg') || url.includes('.png') || url.includes('.jpeg') || url.includes('.gif') || url.includes('.webp') || url.includes('.mp4')) {
-    return `${API_URL}/uploads/gallery/${url}`;
-  }
-  
-  // Default case - just append to API_URL
-  return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`;
-};
-
-// ============================================
-// Helper function to check if URL is from Cloudinary
-// ============================================
-const isCloudinaryUrl = (url) => {
-  return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
-};
-
-// ============================================
-// Helper function to get optimized Cloudinary URL
-// ============================================
-const getOptimizedCloudinaryUrl = (url, options = {}) => {
-  if (!url || !isCloudinaryUrl(url)) return url;
-  
-  const { width, height, quality = 'auto', format = 'auto', crop = 'limit' } = options;
-  
-  if (!width && !height && quality === 'auto' && format === 'auto') {
-    return url;
-  }
-  
-  // Build transformations
-  const transformations = [];
-  if (width) transformations.push(`w_${width}`);
-  if (height) transformations.push(`h_${height}`);
-  if (crop) transformations.push(`c_${crop}`);
-  if (quality !== 'auto') transformations.push(`q_${quality}`);
-  if (format !== 'auto') transformations.push(`f_${format}`);
-  
-  if (transformations.length === 0) return url;
-  
-  // Insert transformations after '/upload/'
-  return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
+  // Just a filename
+  return `${API_URL}/uploads/gallery/${url}`;
 };
 
 const GalleryComponent = ({ 
@@ -105,8 +45,7 @@ const GalleryComponent = ({
   onUpload, 
   onCreateFolder, 
   onDeleteItem, 
-  onDeleteFolder, 
-  onReactToItem 
+  onDeleteFolder 
 }) => {
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -117,20 +56,14 @@ const GalleryComponent = ({
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadError, setUploadError] = useState(null);
   
-  // Add file input ref
-  const fileInputRef = useRef(null);
-  
   // Viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [currentFolderItems, setCurrentFolderItems] = useState([]);
-  const [reactionLoading, setReactionLoading] = useState(false);
-  const [reactionError, setReactionError] = useState(null);
-  
-  // Track image load errors
   const [imageErrors, setImageErrors] = useState({});
+  
+  const fileInputRef = useRef(null);
 
-  // Reset file input when modal closes
   useEffect(() => {
     if (!showUploadModal && fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -140,27 +73,20 @@ const GalleryComponent = ({
     }
   }, [showUploadModal]);
 
-  // Handle file selection
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);
-    
-    // Filter files by type
     const validFiles = files.filter(file => {
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'application/pdf'];
       return validTypes.includes(file.type);
     });
 
     if (validFiles.length !== files.length) {
-      alert('Some files were skipped due to invalid format. Please upload images, videos, or PDFs only.');
+      alert('Some files were skipped. Please upload images, videos, or PDFs only.');
     }
-    
     setSelectedFiles(validFiles);
     setUploadError(null);
   };
 
-  // ============================================
-  // FIXED: Handle file upload with better error handling
-  // ============================================
   const handleFileUpload = async () => {
     if (selectedFiles.length === 0) return;
     
@@ -168,61 +94,17 @@ const GalleryComponent = ({
     setUploadError(null);
     
     try {
-      // Log the files for debugging
-      console.log('📤 Uploading files:', selectedFiles.map(f => ({
-        name: f.name,
-        type: f.type,
-        size: f.size,
-        isFile: f instanceof File
-      })));
-      
-      console.log('📤 API URL:', API_URL);
-      console.log('📤 Selected folder:', selectedFolder);
-      
-      // Pass all files at once to the parent's upload function
       await onUpload(selectedFiles, selectedFolder, uploadDescription);
-      
-      // Reset state on success
       setShowUploadModal(false);
       setUploadDescription('');
       setSelectedFiles([]);
-      setUploadError(null);
-      
       alert(`${selectedFiles.length} file(s) uploaded successfully!`);
-      
     } catch (error) {
-      console.error('❌ Upload failed:', error);
-      
-      // Provide more specific error messages based on error type
-      let errorMessage = 'Upload failed: ';
-      
-      if (error.message?.includes('SSL') || error.message?.includes('certificate')) {
-        errorMessage += 'SSL connection error. Please check your internet connection and try again.';
-      } else if (error.message?.includes('fetch') || error.message?.includes('network')) {
-        errorMessage += 'Network error. Please check your connection and try again.';
-      } else if (error.message?.includes('413')) {
-        errorMessage += 'File size too large. Maximum size is 50MB.';
-      } else if (error.message?.includes('401')) {
-        errorMessage += 'Authentication error. Please log in again.';
-      } else if (error.message?.includes('403')) {
-        errorMessage += 'You do not have permission to upload files.';
-      } else if (error.message?.includes('500')) {
-        errorMessage += 'Server error. Please try again later.';
-      } else {
-        errorMessage += error.message || 'Unknown error occurred';
-      }
-      
-      setUploadError(errorMessage);
-      alert(errorMessage);
+      console.error('Upload failed:', error);
+      setUploadError(error.message || 'Upload failed');
+      alert('Upload failed: ' + (error.message || 'Please try again'));
     } finally {
       setUploading(false);
-    }
-  };
-
-  // Trigger file input click
-  const handleUploadButtonClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
     }
   };
 
@@ -234,14 +116,12 @@ const GalleryComponent = ({
     }
   };
 
-  // Image viewer functions
   const openViewer = (folderId, itemIndex) => {
     const folder = gallery.folders.find(f => f._id === folderId);
     if (folder && folder.items.length > 0) {
       setCurrentFolderItems(folder.items);
       setCurrentItemIndex(itemIndex);
       setViewerOpen(true);
-      // Prevent body scrolling when viewer is open
       document.body.style.overflow = 'hidden';
     }
   };
@@ -250,96 +130,29 @@ const GalleryComponent = ({
     setViewerOpen(false);
     setCurrentItemIndex(0);
     setCurrentFolderItems([]);
-    // Restore body scrolling
     document.body.style.overflow = 'unset';
   };
 
   const navigatePrevious = () => {
-    if (currentItemIndex > 0) {
-      setCurrentItemIndex(currentItemIndex - 1);
-    } else {
-      setCurrentItemIndex(currentFolderItems.length - 1);
-    }
+    setCurrentItemIndex(prev => prev > 0 ? prev - 1 : currentFolderItems.length - 1);
   };
 
   const navigateNext = () => {
-    if (currentItemIndex < currentFolderItems.length - 1) {
-      setCurrentItemIndex(currentItemIndex + 1);
-    } else {
-      setCurrentItemIndex(0);
-    }
+    setCurrentItemIndex(prev => prev < currentFolderItems.length - 1 ? prev + 1 : 0);
   };
 
-  // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!viewerOpen) return;
-      
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        navigatePrevious();
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        navigateNext();
-      } else if (e.key === 'Escape') {
-        closeViewer();
-      }
+      if (e.key === 'ArrowLeft') navigatePrevious();
+      if (e.key === 'ArrowRight') navigateNext();
+      if (e.key === 'Escape') closeViewer();
     };
-
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [viewerOpen, currentItemIndex, currentFolderItems]);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewerOpen]);
 
-  // Handle reaction
-  const handleReaction = async (itemId, reactionType) => {
-    if (reactionLoading) return;
-    
-    setReactionLoading(true);
-    setReactionError(null);
-    
-    try {
-      await onReactToItem(itemId, reactionType);
-      
-      // Update local state to reflect reaction
-      const updatedItems = currentFolderItems.map(item => {
-        if (item._id === itemId) {
-          const userReaction = item.userReaction === reactionType ? null : reactionType;
-          const updatedReactions = [...(item.reactions || [])];
-          
-          if (userReaction) {
-            // Add reaction
-            updatedReactions.push({ type: reactionType, userId: 'current-user' });
-          } else {
-            // Remove reaction
-            const index = updatedReactions.findIndex(r => r.type === reactionType);
-            if (index !== -1) updatedReactions.splice(index, 1);
-          }
-          
-          return {
-            ...item,
-            userReaction,
-            reactions: updatedReactions
-          };
-        }
-        return item;
-      });
-      
-      setCurrentFolderItems(updatedItems);
-      
-    } catch (error) {
-      console.error('Failed to react:', error);
-      setReactionError(error.message);
-    } finally {
-      setReactionLoading(false);
-    }
-  };
-
-  // Handle image error
   const handleImageError = (itemId) => {
-    console.log('Image failed to load for item:', itemId);
     setImageErrors(prev => ({ ...prev, [itemId]: true }));
   };
 
@@ -347,157 +160,16 @@ const GalleryComponent = ({
     ? gallery.folders.find(f => f._id === selectedFolder)
     : gallery.folders[0];
 
-  const currentItem = currentFolderItems[currentItemIndex] || null;
-
-  // Render media item with Cloudinary optimization
-  const renderMediaItem = (item, index, folderId) => {
-    const mediaUrl = formatMediaUrl(item.url);
-    const hasError = imageErrors[item._id];
-    const isCloudinary = isCloudinaryUrl(mediaUrl);
-    
-    // Optimize image URLs if they're from Cloudinary
-    const optimizedUrl = isCloudinary && item.type?.startsWith('image/') 
-      ? getOptimizedCloudinaryUrl(mediaUrl, { width: 400, height: 300, crop: 'fill', quality: 'auto' })
-      : mediaUrl;
-    
-    return (
-      <div 
-        key={item._id || index} 
-        className={styles.galleryItem}
-        onClick={() => openViewer(folderId, index)}
-      >
-        {item.type?.startsWith('video/') ? (
-          <video 
-            src={mediaUrl} 
-            className={styles.galleryImage}
-            muted
-            onMouseOver={e => e.currentTarget.play()}
-            onMouseOut={e => e.currentTarget.pause()}
-            onError={() => handleImageError(item._id)}
-          />
-        ) : (
-          <img 
-            src={optimizedUrl} 
-            alt={item.description || 'Gallery item'}
-            className={styles.galleryImage}
-            loading="lazy"
-            onError={() => handleImageError(item._id)}
-            style={{ display: hasError ? 'none' : 'block' }}
-          />
-        )}
-        
-        {hasError && (
-          <div className={styles.imageErrorPlaceholder}>
-            <FaImages size={24} />
-            <span>Failed to load</span>
-          </div>
-        )}
-        
-        {/* Reaction preview */}
-        {item.reactions && item.reactions.length > 0 && (
-          <div className={styles.reactionPreview}>
-            <FaHeart className={styles.reactionPreviewIcon} />
-            <span>{item.reactions.length}</span>
-          </div>
-        )}
-        
-        <div className={styles.galleryItemOverlay}>
-          <p>{item.description || 'No description'}</p>
-          {isOwnProfile && (
-            <button 
-              className={styles.deleteGalleryItem}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (window.confirm('Are you sure you want to delete this item?')) {
-                  onDeleteItem(item._id);
-                }
-              }}
-            >
-              <FaTrash />
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Render viewer content with Cloudinary optimization
-  const renderViewerContent = (item) => {
-    const mediaUrl = formatMediaUrl(item.url);
-    const isCloudinary = isCloudinaryUrl(mediaUrl);
-    
-    // For viewer, use higher quality images
-    const optimizedUrl = isCloudinary && item.type?.startsWith('image/')
-      ? getOptimizedCloudinaryUrl(mediaUrl, { width: 1200, quality: 'auto', format: 'auto' })
-      : mediaUrl;
-    
-    if (item.type?.startsWith('video/')) {
-      return (
-        <video 
-          src={mediaUrl} 
-          controls
-          autoPlay
-          className={styles.viewerImage}
-          onError={() => handleImageError(item._id)}
-        />
-      );
-    }
-    
-    return (
-      <img 
-        src={optimizedUrl} 
-        alt={item.description || 'Gallery item'}
-        className={styles.viewerImage}
-        onError={() => handleImageError(item._id)}
-      />
-    );
-  };
-
-  // Render thumbnail with optimization
-  const renderThumbnail = (item, idx) => {
-    const mediaUrl = formatMediaUrl(item.url);
-    const isCloudinary = isCloudinaryUrl(mediaUrl);
-    
-    const optimizedUrl = isCloudinary && item.type?.startsWith('image/')
-      ? getOptimizedCloudinaryUrl(mediaUrl, { width: 80, height: 80, crop: 'fill', quality: 'auto' })
-      : mediaUrl;
-    
-    if (item.type?.startsWith('video/')) {
-      return (
-        <video 
-          src={mediaUrl} 
-          className={styles.thumbnailImage}
-          muted
-        />
-      );
-    }
-    
-    return (
-      <img 
-        src={optimizedUrl} 
-        alt={item.description || 'Thumbnail'}
-        className={styles.thumbnailImage}
-      />
-    );
-  };
-
   return (
     <div className={styles.galleryTab}>
       <div className={styles.galleryHeader}>
         <div className={styles.galleryActions}>
           {isOwnProfile && (
             <>
-              <button 
-                className={styles.galleryButton}
-                onClick={() => setShowUploadModal(true)}
-                disabled={uploading}
-              >
+              <button className={styles.galleryButton} onClick={() => setShowUploadModal(true)} disabled={uploading}>
                 <FaPlus /> Upload
               </button>
-              <button 
-                className={styles.galleryButton}
-                onClick={() => setShowCreateFolderModal(true)}
-              >
+              <button className={styles.galleryButton} onClick={() => setShowCreateFolderModal(true)}>
                 <FaFolderPlus /> New Folder
               </button>
             </>
@@ -518,7 +190,7 @@ const GalleryComponent = ({
                 className={styles.deleteFolder}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (window.confirm('Are you sure you want to delete this folder?')) {
+                  if (window.confirm('Delete this folder and all its contents?')) {
                     onDeleteFolder(folder._id);
                   }
                 }}
@@ -531,17 +203,58 @@ const GalleryComponent = ({
       </div>
       
       <div className={styles.galleryGrid}>
-        {currentFolder?.items.map((item, index) => renderMediaItem(item, index, currentFolder._id))}
+        {currentFolder?.items.map((item, index) => {
+          const mediaUrl = formatMediaUrl(item.url);
+          const hasError = imageErrors[item._id];
+          
+          return (
+            <div key={item._id || index} className={styles.galleryItem} onClick={() => openViewer(currentFolder._id, index)}>
+              {item.mimetype?.startsWith('video/') ? (
+                <video src={mediaUrl} className={styles.galleryImage} muted />
+              ) : (
+                <img 
+                  src={mediaUrl} 
+                  alt={item.description || 'Gallery item'}
+                  className={styles.galleryImage}
+                  loading="lazy"
+                  onError={() => handleImageError(item._id)}
+                  style={{ display: hasError ? 'none' : 'block' }}
+                />
+              )}
+              
+              {hasError && (
+                <div className={styles.imageErrorPlaceholder}>
+                  <FaImages size={24} />
+                  <span>Failed to load</span>
+                </div>
+              )}
+              
+              <div className={styles.galleryItemOverlay}>
+                <p>{item.description || 'No description'}</p>
+                {isOwnProfile && (
+                  <button 
+                    className={styles.deleteGalleryItem}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm('Delete this item?')) {
+                        onDeleteItem(item._id);
+                      }
+                    }}
+                  >
+                    <FaTrash />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
         
         {(!currentFolder || currentFolder.items.length === 0) && (
           <div className={styles.emptyGallery}>
             <FaImages size={48} />
             <p>No items in this folder</p>
             {isOwnProfile && (
-              <button 
-                className={styles.galleryButton}
-                onClick={() => setShowUploadModal(true)}
-              >
+              <button className={styles.galleryButton} onClick={() => setShowUploadModal(true)}>
                 Upload your first item
               </button>
             )}
@@ -550,107 +263,45 @@ const GalleryComponent = ({
       </div>
 
       {/* Image Viewer Modal */}
-      {viewerOpen && currentItem && (
+      {viewerOpen && currentFolderItems[currentItemIndex] && (
         <div className={styles.viewerOverlay} onClick={closeViewer}>
           <div className={styles.viewerContent} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.viewerClose} onClick={closeViewer}><FaTimes /></button>
             
-            {/* Close button */}
-            <button className={styles.viewerClose} onClick={closeViewer}>
-              <FaTimes />
-            </button>
-            
-            {/* Navigation buttons */}
             {currentFolderItems.length > 1 && (
               <>
-                <button 
-                  className={`${styles.viewerNav} ${styles.viewerNavLeft}`} 
-                  onClick={navigatePrevious}
-                >
-                  <FaChevronLeft />
-                </button>
-                
-                <button 
-                  className={`${styles.viewerNav} ${styles.viewerNavRight}`} 
-                  onClick={navigateNext}
-                >
-                  <FaChevronRight />
-                </button>
+                <button className={`${styles.viewerNav} ${styles.viewerNavLeft}`} onClick={navigatePrevious}><FaChevronLeft /></button>
+                <button className={`${styles.viewerNav} ${styles.viewerNavRight}`} onClick={navigateNext}><FaChevronRight /></button>
               </>
             )}
             
-            {/* Image container */}
             <div className={styles.viewerImageContainer}>
-              {renderViewerContent(currentItem)}
+              {currentFolderItems[currentItemIndex].mimetype?.startsWith('video/') ? (
+                <video src={formatMediaUrl(currentFolderItems[currentItemIndex].url)} controls autoPlay className={styles.viewerImage} />
+              ) : (
+                <img src={formatMediaUrl(currentFolderItems[currentItemIndex].url)} alt="Gallery item" className={styles.viewerImage} />
+              )}
               
-              {/* Image info and reactions */}
               <div className={styles.viewerInfo}>
                 <div className={styles.viewerDescription}>
-                  <p>{currentItem.description || 'No description'}</p>
-                  <span className={styles.viewerCounter}>
-                    {currentItemIndex + 1} / {currentFolderItems.length}
-                  </span>
+                  <p>{currentFolderItems[currentItemIndex].description || 'No description'}</p>
+                  <span className={styles.viewerCounter}>{currentItemIndex + 1} / {currentFolderItems.length}</span>
                 </div>
-                
-                <div className={styles.viewerReactions}>
-                  {/* Like button */}
-                  <button 
-                    className={`${styles.reactionButton} ${currentItem.userReaction === 'like' ? styles.reactionActive : ''}`}
-                    onClick={() => handleReaction(currentItem._id, 'like')}
-                    disabled={reactionLoading}
-                  >
-                    {currentItem.userReaction === 'like' ? <FaHeart /> : <FaRegHeart />}
-                    <span>{currentItem.reactions?.filter(r => r?.type === 'like').length || 0}</span>
-                  </button>
-                  
-                  {/* Comments button */}
-                  <button 
-                    className={styles.reactionButton}
-                    onClick={() => {
-                      console.log('Open comments for item:', currentItem._id);
-                    }}
-                  >
-                    <FaComment />
-                    <span>{currentItem.comments?.length || 0}</span>
-                  </button>
-                </div>
-
-                {reactionError && (
-                  <div className={styles.reactionError}>
-                    {reactionError}
-                  </div>
-                )}
               </div>
             </div>
-            
-            {/* Thumbnail strip */}
-            {currentFolderItems.length > 1 && (
-              <div className={styles.viewerThumbnails}>
-                {currentFolderItems.map((item, idx) => (
-                  <div 
-                    key={item._id || idx}
-                    className={`${styles.thumbnailItem} ${idx === currentItemIndex ? styles.thumbnailActive : ''}`}
-                    onClick={() => setCurrentItemIndex(idx)}
-                  >
-                    {renderThumbnail(item, idx)}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* Upload Modal - with error display */}
+      {/* Upload Modal */}
       {showUploadModal && (
         <div className={styles.modalOverlay} onClick={() => setShowUploadModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h3>Upload to Gallery</h3>
             
-            {/* Error message display */}
             {uploadError && (
-              <div className={styles.uploadErrorDisplay}>
-                <FaTimes />
-                <span>{uploadError}</span>
+              <div className={styles.errorMessage} style={{ color: 'red', marginBottom: '10px' }}>
+                {uploadError}
               </div>
             )}
             
@@ -663,7 +314,6 @@ const GalleryComponent = ({
               disabled={uploading}
             />
             
-            {/* Hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -672,17 +322,8 @@ const GalleryComponent = ({
               multiple
               accept="image/*,video/*,application/pdf"
               disabled={uploading}
+              style={{ display: 'block', margin: '10px 0' }}
             />
-            
-            {/* Custom file select button */}
-            <button 
-              type="button"
-              onClick={handleUploadButtonClick}
-              className={styles.fileSelectButton}
-              disabled={uploading}
-            >
-              <FaImages /> Select Files
-            </button>
             
             {selectedFiles.length > 0 && (
               <div className={styles.selectedFiles}>
@@ -697,47 +338,23 @@ const GalleryComponent = ({
               </div>
             )}
             
-            {/* Folder selection (if multiple folders exist) */}
             {gallery.folders.length > 1 && (
               <div className={styles.folderSelect}>
                 <label>Select folder:</label>
-                <select 
-                  value={selectedFolder || ''} 
-                  onChange={(e) => setSelectedFolder(e.target.value)}
-                  disabled={uploading}
-                >
+                <select value={selectedFolder || ''} onChange={(e) => setSelectedFolder(e.target.value)} disabled={uploading}>
                   {gallery.folders.map(folder => (
-                    <option key={folder._id} value={folder._id}>
-                      {folder.name}
-                    </option>
+                    <option key={folder._id} value={folder._id}>{folder.name}</option>
                   ))}
                 </select>
               </div>
             )}
             
             <div className={styles.modalActions}>
-              <button 
-                onClick={() => setShowUploadModal(false)}
-                disabled={uploading}
-                className={styles.cancelButton}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleFileUpload}
-                disabled={selectedFiles.length === 0 || uploading}
-                className={styles.uploadButton}
-              >
+              <button onClick={() => setShowUploadModal(false)} disabled={uploading}>Cancel</button>
+              <button onClick={handleFileUpload} disabled={selectedFiles.length === 0 || uploading}>
                 {uploading ? 'Uploading...' : `Upload ${selectedFiles.length} file(s)`}
               </button>
             </div>
-
-            {uploading && (
-              <div className={styles.uploadProgress}>
-                <div className={styles.progressSpinner}></div>
-                <span>Uploading... Please wait</span>
-              </div>
-            )}
           </div>
         </div>
       )}
