@@ -1,9 +1,7 @@
 // services/cloudinaryService.js
 import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
-import multerStorageCloudinary from 'multer-storage-cloudinary';
-
-const { CloudinaryStorage } = multerStorageCloudinary;
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -17,17 +15,6 @@ const galleryStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'trading-app/gallery',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi', 'pdf'],
-    resource_type: 'auto',
-    transformation: [{ quality: 'auto' }, { fetch_format: 'auto' }]
-  }
-});
-
-// Create storage for posts
-const postStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'trading-app/posts',
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi', 'pdf'],
     resource_type: 'auto',
     transformation: [{ quality: 'auto' }, { fetch_format: 'auto' }]
@@ -58,11 +45,10 @@ const bannerStorage = new CloudinaryStorage({
 
 // Multer instances
 export const uploadGallery = multer({ storage: galleryStorage });
-export const uploadPost = multer({ storage: postStorage });
 export const uploadAvatar = multer({ storage: avatarStorage });
 export const uploadBanner = multer({ storage: bannerStorage });
 
-// Helper function to delete from Cloudinary
+// Helper functions
 export const deleteFromCloudinary = async (publicId, options = {}) => {
   if (!publicId) return null;
   try {
@@ -78,7 +64,6 @@ export const deleteFromCloudinary = async (publicId, options = {}) => {
   }
 };
 
-// Helper function to get public ID from Cloudinary URL
 export const getPublicIdFromUrl = (url) => {
   if (!url || !url.includes('cloudinary')) return null;
   try {
@@ -94,66 +79,20 @@ export const getPublicIdFromUrl = (url) => {
   }
 };
 
-// Helper function to determine resource type from URL or mimetype
 export const getResourceType = (url, mimetype) => {
-  // First try from mimetype
   if (mimetype) {
     if (mimetype.startsWith('image/')) return 'image';
     if (mimetype.startsWith('video/')) return 'video';
     if (mimetype === 'application/pdf') return 'raw';
   }
   
-  // Then try from URL
   if (url) {
     if (url.includes('/image/')) return 'image';
     if (url.includes('/video/')) return 'video';
     if (url.includes('/raw/')) return 'raw';
-    if (url.includes('.jpg') || url.includes('.png') || url.includes('.jpeg') || url.includes('.gif') || url.includes('.webp')) {
-      return 'image';
-    }
-    if (url.includes('.mp4') || url.includes('.mov') || url.includes('.avi') || url.includes('.webm')) {
-      return 'video';
-    }
-    if (url.includes('.pdf')) return 'raw';
   }
   
   return 'auto';
-};
-
-// Helper function to delete multiple files
-export const deleteMultipleFromCloudinary = async (publicIds, resourceType = 'auto') => {
-  const results = [];
-  for (const publicId of publicIds) {
-    if (publicId) {
-      const result = await deleteFromCloudinary(publicId, { resource_type: resourceType });
-      results.push(result);
-    }
-  }
-  return results;
-};
-
-// Helper function to get optimized URL
-export const getOptimizedUrl = (publicId, options = {}) => {
-  if (!publicId) return null;
-  return cloudinary.url(publicId, {
-    secure: true,
-    quality: 'auto',
-    fetch_format: 'auto',
-    ...options
-  });
-};
-
-// Helper function to get thumbnail URL
-export const getThumbnailUrl = (publicId, width = 300, height = 300) => {
-  if (!publicId) return null;
-  return cloudinary.url(publicId, {
-    secure: true,
-    width: width,
-    height: height,
-    crop: 'fill',
-    quality: 'auto',
-    fetch_format: 'auto'
-  });
 };
 
 export default cloudinary;
