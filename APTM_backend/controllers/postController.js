@@ -6,8 +6,7 @@ import User from '../models/User.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { deleteFromCloudinary, getPublicIdFromUrl, getResourceType } from '../services/cloudinaryService.js';
-import cloudinary from '../services/cloudinaryService.js';
+import { deleteFromCloudinary, getPublicIdFromUrl, getResourceType } from '../services/cloudinaryService.js';import cloudinary from '../services/cloudinaryService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

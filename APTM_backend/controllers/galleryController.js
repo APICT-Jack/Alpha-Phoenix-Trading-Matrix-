@@ -1,6 +1,7 @@
 // controllers/galleryController.js - COMPLETE VERSION
 import Gallery from '../models/Gallery.js';
-import { deleteFromCloudinary, getPublicIdFromUrl } from '../services/cloudinaryService.js';
+// controllers/postController.js - At the top
+import { deleteFromCloudinary, getPublicIdFromUrl, getResourceType } from '../services/cloudinaryService.js';
 
 // Get user gallery
 export const getGallery = async (req, res) => {
