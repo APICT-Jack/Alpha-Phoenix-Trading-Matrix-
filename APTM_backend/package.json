@@ -5,14 +5,11 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "cleanup-chat": "node scripts/cleanupChat.js",
-    "fix-chat": "node scripts/fixChatIndexes.js",
-    "postinstall": "mkdir -p uploads/avatars uploads/banners uploads/gallery uploads/posts",
-    "migrate:images": "node scripts/migrateImageUrls.js"
+    "postinstall": "mkdir -p uploads/avatars uploads/banners uploads/gallery uploads/posts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "cloudinary": "^2.9.0",
+    "cloudinary": "^1.41.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",

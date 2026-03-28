@@ -21,6 +21,17 @@ const galleryStorage = new CloudinaryStorage({
   }
 });
 
+// Create storage for posts
+const postStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'trading-app/posts',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi', 'pdf'],
+    resource_type: 'auto',
+    transformation: [{ quality: 'auto' }, { fetch_format: 'auto' }]
+  }
+});
+
 // Create storage for avatars
 const avatarStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -45,10 +56,11 @@ const bannerStorage = new CloudinaryStorage({
 
 // Multer instances
 export const uploadGallery = multer({ storage: galleryStorage });
+export const uploadPost = multer({ storage: postStorage });
 export const uploadAvatar = multer({ storage: avatarStorage });
 export const uploadBanner = multer({ storage: bannerStorage });
 
-// Helper functions
+// Helper function to delete from Cloudinary
 export const deleteFromCloudinary = async (publicId, options = {}) => {
   if (!publicId) return null;
   try {
@@ -64,6 +76,7 @@ export const deleteFromCloudinary = async (publicId, options = {}) => {
   }
 };
 
+// Helper function to get public ID from Cloudinary URL
 export const getPublicIdFromUrl = (url) => {
   if (!url || !url.includes('cloudinary')) return null;
   try {
@@ -79,19 +92,18 @@ export const getPublicIdFromUrl = (url) => {
   }
 };
 
+// Helper function to determine resource type
 export const getResourceType = (url, mimetype) => {
   if (mimetype) {
     if (mimetype.startsWith('image/')) return 'image';
     if (mimetype.startsWith('video/')) return 'video';
     if (mimetype === 'application/pdf') return 'raw';
   }
-  
   if (url) {
-    if (url.includes('/image/')) return 'image';
-    if (url.includes('/video/')) return 'video';
-    if (url.includes('/raw/')) return 'raw';
+    if (url.includes('.jpg') || url.includes('.png') || url.includes('.jpeg')) return 'image';
+    if (url.includes('.mp4') || url.includes('.mov')) return 'video';
+    if (url.includes('.pdf')) return 'raw';
   }
-  
   return 'auto';
 };
 
