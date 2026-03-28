@@ -1,8 +1,7 @@
-// routes/profile.routes.js - COMPLETE WORKING VERSION
+// routes/profile.routes.js - CLEAN VERSION
 import express from 'express';
 import path from 'path';
 import {
-  // Existing functions
   getProfile,
   updateProfile,
   uploadAvatar,
@@ -14,29 +13,16 @@ import {
   getCompleteProfile,
   updateCompleteProfile,
   deleteAvatar,
-  
-  // NEW functions
   uploadBanner,
   removeBanner,
   uploadAddressProof,
   connectTradingPlatform,
   disconnectTradingPlatform,
   getTradingAccounts,
-  testBannerUpload  // Add this import
+  testBannerUpload
 } from '../controllers/userProfileController.js';
-import { 
-  uploadAvatarMiddleware, 
-  uploadDocumentMiddleware,
-  uploadBannerMiddleware,
-  uploadAddressProofMiddleware 
-} from '../middleware/upload.js';
 import authMiddleware from '../middleware/auth.js';
-import { 
-  uploadAvatarMiddleware, 
-  uploadDocumentMiddleware,
-  uploadBannerMiddleware,
-  uploadAddressProofMiddleware 
-} from '../middleware/upload.js';
+import uploadMiddleware from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -55,20 +41,20 @@ router.put("/complete", authMiddleware, updateCompleteProfile);
 // ============================================
 // AVATAR ROUTES
 // ============================================
-router.post("/avatar", authMiddleware, uploadAvatarMiddleware, uploadAvatar);
+router.post("/avatar", authMiddleware, uploadMiddleware.uploadAvatar, uploadAvatar);
 router.delete("/avatar", authMiddleware, deleteAvatar);
 
 // ============================================
-// BANNER ROUTES (NEW)
+// BANNER ROUTES
 // ============================================
-router.post("/banner", authMiddleware, uploadBannerMiddleware, uploadBanner);
+router.post("/banner", authMiddleware, uploadMiddleware.uploadBanner, uploadBanner);
 router.delete("/banner", authMiddleware, removeBanner);
 
 // ============================================
 // DOCUMENT ROUTES
 // ============================================
-router.post("/documents", authMiddleware, uploadDocumentMiddleware, uploadDocument);
-router.post("/address-proof", authMiddleware, uploadAddressProofMiddleware, uploadAddressProof);
+router.post("/documents", authMiddleware, uploadMiddleware.uploadDocument, uploadDocument);
+router.post("/address-proof", authMiddleware, uploadMiddleware.uploadAddressProof, uploadAddressProof);
 
 // ============================================
 // SETTINGS ROUTES
@@ -82,7 +68,7 @@ router.put('/settings', authMiddleware, updateUserSettings);
 router.get('/subscription', authMiddleware, getSubscription);
 
 // ============================================
-// TRADING PLATFORM ROUTES (NEW)
+// TRADING PLATFORM ROUTES
 // ============================================
 router.post('/connect/platform', authMiddleware, connectTradingPlatform);
 router.delete('/disconnect/:accountId', authMiddleware, disconnectTradingPlatform);
@@ -96,15 +82,14 @@ router.get('/public/:username', getPublicProfile);
 // ============================================
 // TEST ROUTES (for debugging)
 // ============================================
-router.post("/test-banner-upload", authMiddleware, uploadBannerMiddleware, testBannerUpload);
+router.post("/test-banner-upload", authMiddleware, uploadMiddleware.uploadBanner, testBannerUpload);
 
+// File serving test routes
 router.get("/test-avatar/:filename", (req, res) => {
   const { filename } = req.params;
   const filePath = path.join(process.cwd(), 'uploads', 'avatars', filename);
   
   console.log('🔍 Testing avatar file:', filename);
-  console.log('📁 Full path:', filePath);
-  
   res.sendFile(filePath, (err) => {
     if (err) {
       console.error('❌ Error serving file:', err);
@@ -118,14 +103,11 @@ router.get("/test-avatar/:filename", (req, res) => {
   });
 });
 
-// banner file serving route
 router.get("/test-banner/:filename", (req, res) => {
   const { filename } = req.params;
   const filePath = path.join(process.cwd(), 'uploads', 'banners', filename);
   
   console.log('🔍 Testing banner file:', filename);
-  console.log('📁 Full path:', filePath);
-  
   res.sendFile(filePath, (err) => {
     if (err) {
       console.error('❌ Error serving banner file:', err);
@@ -139,13 +121,11 @@ router.get("/test-banner/:filename", (req, res) => {
   });
 });
 
-// Add address proof file serving route
 router.get("/test-address-proof/:filename", (req, res) => {
   const { filename } = req.params;
   const filePath = path.join(process.cwd(), 'uploads', 'address-proofs', filename);
   
   console.log('🔍 Testing address proof file:', filename);
-  
   res.sendFile(filePath, (err) => {
     if (err) {
       console.error('❌ Error serving address proof file:', err);
