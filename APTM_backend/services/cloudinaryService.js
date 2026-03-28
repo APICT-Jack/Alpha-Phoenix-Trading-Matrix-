@@ -1,7 +1,10 @@
 // services/cloudinaryService.js
 import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import multer from 'multer';
+
+// Import CommonJS module correctly
+import pkg from 'multer-storage-cloudinary';
+const { CloudinaryStorage } = pkg;
 
 // Configure Cloudinary
 cloudinary.config({
@@ -21,8 +24,32 @@ const galleryStorage = new CloudinaryStorage({
   }
 });
 
+// Create storage for avatars
+const avatarStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'trading-app/avatars',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    resource_type: 'image',
+    transformation: [{ width: 200, height: 200, crop: 'fill', quality: 'auto' }]
+  }
+});
+
+// Create storage for banners
+const bannerStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'trading-app/banners',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    resource_type: 'image',
+    transformation: [{ width: 1500, height: 500, crop: 'fill', quality: 'auto' }]
+  }
+});
+
 // Multer instances
 export const uploadGallery = multer({ storage: galleryStorage });
+export const uploadAvatar = multer({ storage: avatarStorage });
+export const uploadBanner = multer({ storage: bannerStorage });
 
 // Helper functions
 export const deleteFromCloudinary = async (publicId) => {
@@ -37,12 +64,31 @@ export const deleteFromCloudinary = async (publicId) => {
 
 export const getPublicIdFromUrl = (url) => {
   if (!url || !url.includes('cloudinary')) return null;
-  const parts = url.split('/');
-  const uploadIndex = parts.indexOf('upload');
-  if (uploadIndex === -1) return null;
-  const relevantParts = parts.slice(uploadIndex + 2);
-  const publicIdWithExt = relevantParts.join('/');
-  return publicIdWithExt.replace(/\.[^/.]+$/, '');
+  try {
+    const parts = url.split('/');
+    const uploadIndex = parts.indexOf('upload');
+    if (uploadIndex === -1) return null;
+    const relevantParts = parts.slice(uploadIndex + 2);
+    const publicIdWithExt = relevantParts.join('/');
+    return publicIdWithExt.replace(/\.[^/.]+$/, '');
+  } catch (error) {
+    console.error('Error getting public ID from URL:', error);
+    return null;
+  }
+};
+
+export const getResourceType = (url, mimetype) => {
+  if (mimetype) {
+    if (mimetype.startsWith('image/')) return 'image';
+    if (mimetype.startsWith('video/')) return 'video';
+    if (mimetype === 'application/pdf') return 'raw';
+  }
+  if (url) {
+    if (url.includes('/image/')) return 'image';
+    if (url.includes('/video/')) return 'video';
+    if (url.includes('/raw/')) return 'raw';
+  }
+  return 'auto';
 };
 
 export default cloudinary;
