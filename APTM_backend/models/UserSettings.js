@@ -1,5 +1,7 @@
-// models/UserSettings.js - COMPLETE VERSION
+// models/UserSettings.js - FIXED VERSION
+
 import mongoose from 'mongoose';
+import crypto from 'crypto'; // Import crypto at the top
 
 const userSettingsSchema = new mongoose.Schema({
   userId: {
@@ -101,7 +103,6 @@ const userSettingsSchema = new mongoose.Schema({
       marketUpdates: { type: Boolean, default: true }
     },
     
-    // Digest settings
     digest: {
       enabled: { type: Boolean, default: true },
       frequency: {
@@ -113,7 +114,7 @@ const userSettingsSchema = new mongoose.Schema({
         type: Number,
         min: 0,
         max: 6,
-        default: 1 // Monday
+        default: 1
       },
       timeOfDay: {
         type: String,
@@ -171,7 +172,6 @@ const userSettingsSchema = new mongoose.Schema({
     defaultOrderSize: { type: Number, default: 0.01 },
     riskPerTrade: { type: Number, default: 1, min: 0.1, max: 100 },
     
-    // Order defaults
     orderDefaults: {
       type: {
         type: String,
@@ -191,7 +191,6 @@ const userSettingsSchema = new mongoose.Schema({
       }
     },
     
-    // Position management
     positionManagement: {
       autoTakeProfit: { type: Boolean, default: false },
       defaultTakeProfit: { type: Number, default: 2 },
@@ -370,7 +369,7 @@ const userSettingsSchema = new mongoose.Schema({
     },
     
     autoDeleteOldData: { type: Boolean, default: false },
-    deleteDataAfter: { type: Number, default: 36 } // months
+    deleteDataAfter: { type: Number, default: 36 }
   },
   
   // Accessibility Settings
@@ -514,9 +513,11 @@ userSettingsSchema.methods.containsMutedWords = function(content) {
   return this.mutedWords.some(muted => lowerContent.includes(muted.word));
 };
 
-// Generate new API key
+// ============================================
+// FIXED: Generate new API key - removed await import()
+// ============================================
 userSettingsSchema.methods.generateApiKey = function(name, permissions = ['read']) {
-  const crypto = await import('crypto');
+  // crypto is already imported at the top of the file
   const apiKey = crypto.randomBytes(32).toString('hex');
   const apiSecret = crypto.randomBytes(64).toString('hex');
   
@@ -612,13 +613,11 @@ userSettingsSchema.virtual('notificationSummary').get(function() {
   const enabled = [];
   const disabled = [];
   
-  // Check email notifications
   Object.entries(this.notifications.email).forEach(([key, value]) => {
     if (value) enabled.push(`email:${key}`);
     else disabled.push(`email:${key}`);
   });
   
-  // Check push notifications
   Object.entries(this.notifications.push).forEach(([key, value]) => {
     if (value) enabled.push(`push:${key}`);
     else disabled.push(`push:${key}`);
@@ -636,20 +635,16 @@ userSettingsSchema.virtual('hasApiAccess').get(function() {
 // PRE-SAVE HOOKS
 // ============================================
 
-// Update timestamps and validate settings
 userSettingsSchema.pre('save', function(next) {
-  // Validate that date format is valid
   if (this.account.dateFormat && !['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'].includes(this.account.dateFormat)) {
     this.account.dateFormat = 'MM/DD/YYYY';
   }
   
-  // Validate timezone
   const validTimezones = Intl.supportedValuesOf('timeZone');
   if (this.account.timezone && !validTimezones.includes(this.account.timezone)) {
     this.account.timezone = 'UTC';
   }
   
-  // Ensure notification digest frequency is valid
   if (this.notifications.digest.frequency === 'never') {
     this.notifications.digest.enabled = false;
   }
