@@ -900,116 +900,223 @@ const UserProfileView = () => {
   }, [deletePost]);
 
   // Upload to gallery
-  const uploadToGallery = useCallback(async (fileOrFiles, folderId, description) => {
-    const formData = new FormData();
-    
-    const files = Array.isArray(fileOrFiles) ? fileOrFiles : [fileOrFiles];
-    
-    files.forEach(file => {
-      if (file instanceof File || file instanceof Blob) {
-        formData.append('galleryFiles', file);
-        console.log(`📎 Appending file: ${file.name} (${file.type}, ${file.size} bytes)`);
-      } else {
-        console.error('❌ Invalid file object:', file);
-      }
+  // UserProfileView.jsx - Fixed Gallery Upload Function (continued from previous)
+
+// ... (all imports and state remain the same)
+
+// ============================================
+// FIXED: Upload to gallery with better error handling
+// ============================================
+const uploadToGallery = useCallback(async (fileOrFiles, folderId, description) => {
+  const formData = new FormData();
+  
+  const files = Array.isArray(fileOrFiles) ? fileOrFiles : [fileOrFiles];
+  
+  // Validate files before upload
+  if (files.length === 0) {
+    throw new Error('No files selected');
+  }
+  
+  // Check file sizes (max 50MB per file)
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+  for (const file of files) {
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error(`File ${file.name} exceeds 50MB limit`);
+    }
+  }
+  
+  // Append files to FormData
+  files.forEach(file => {
+    if (file instanceof File || file instanceof Blob) {
+      formData.append('galleryFiles', file);
+      console.log(`📎 Appending file: ${file.name} (${file.type}, ${(file.size / 1024).toFixed(2)} KB)`);
+    } else {
+      console.error('❌ Invalid file object:', file);
+      throw new Error(`Invalid file: ${file}`);
+    }
+  });
+  
+  if (folderId) {
+    formData.append('folderId', folderId);
+    console.log('📁 Folder ID:', folderId);
+  }
+  
+  if (description) {
+    formData.append('description', description);
+    console.log('📝 Description:', description);
+  }
+  
+  console.log('📤 Sending upload request to:', `${API_URL}/gallery/upload`);
+
+  try {
+    const response = await fetch(`${API_URL}/gallery/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        // Do NOT set Content-Type header - let browser set it with boundary
+      },
+      body: formData,
     });
+
+    console.log('📥 Response status:', response.status);
     
-    if (folderId) {
-      formData.append('folderId', folderId);
+    // Get response text first for debugging
+    const responseText = await response.text();
+    console.log('📥 Response text:', responseText);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error('❌ Failed to parse response as JSON:', e);
+      throw new Error(`Server returned invalid response: ${responseText.substring(0, 200)}`);
     }
     
-    if (description) {
-      formData.append('description', description);
+    console.log('📥 Upload response data:', data);
+
+    if (response.ok && data.success) {
+      // Refresh gallery after successful upload
+      await fetchUserGallery(profileUser.id);
+      return data;
+    } else {
+      // Extract error message from response
+      const errorMessage = data.message || data.error || `Upload failed with status ${response.status}`;
+      console.error('❌ Upload failed:', errorMessage);
+      throw new Error(errorMessage);
     }
-
-    try {
-      const response = await fetch(`${API_URL}/gallery/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: formData,
-      });
-
-      const data = await response.json();
-      console.log('📥 Upload response:', data);
-
-      if (response.ok && data.success) {
-        await fetchUserGallery(profileUser.id);
-        return data;
-      } else {
-        throw new Error(data.message || 'Upload failed');
-      }
-    } catch (error) {
-      console.error('❌ Error uploading to gallery:', error);
-      throw error;
+  } catch (error) {
+    console.error('❌ Error uploading to gallery:', error);
+    
+    // Provide user-friendly error messages
+    if (error.message.includes('Failed to fetch')) {
+      throw new Error('Network error: Unable to connect to server. Please check your internet connection.');
+    } else if (error.message.includes('413')) {
+      throw new Error('File too large. Maximum file size is 50MB.');
+    } else if (error.message.includes('401')) {
+      throw new Error('Authentication failed. Please log in again.');
+    } else if (error.message.includes('403')) {
+      throw new Error('You do not have permission to upload files.');
+    } else if (error.message.includes('500')) {
+      throw new Error('Server error. Please try again later.');
     }
-  }, [profileUser?.id, fetchUserGallery]);
+    
+    throw error; // Re-throw original error if no specific handling
+  }
+}, [profileUser?.id, fetchUserGallery]);
 
-  // Create gallery folder
-  const createGalleryFolder = useCallback(async (name) => {
-    try {
-      const response = await fetch(`${API_URL}/gallery/folders`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
-      });
+// ============================================
+// FIXED: Fetch user gallery with error handling
+// ============================================
+// ============================================
+// FIXED: Create gallery folder with error handling
+// ============================================
+const createGalleryFolder = useCallback(async (name) => {
+  if (!name || !name.trim()) {
+    throw new Error('Folder name is required');
+  }
+  
+  try {
+    console.log('📁 Creating gallery folder:', name);
+    
+    const response = await fetch(`${API_URL}/gallery/folders`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: name.trim() }),
+    });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          fetchUserGallery(profileUser.id);
-        }
-      }
-    } catch (error) {
-      console.error('Error creating folder:', error);
+    console.log('📥 Create folder response status:', response.status);
+    
+    const result = await response.json();
+    console.log('📥 Create folder response:', result);
+    
+    if (response.ok && result.success) {
+      await fetchUserGallery(profileUser.id);
+      return result;
+    } else {
+      throw new Error(result.message || 'Failed to create folder');
     }
-  }, [profileUser?.id, fetchUserGallery]);
+  } catch (error) {
+    console.error('❌ Error creating folder:', error);
+    throw error;
+  }
+}, [profileUser?.id, fetchUserGallery]);
 
-  // Delete gallery folder
-  const deleteGalleryFolder = useCallback(async (folderId) => {
-    try {
-      const response = await fetch(`${API_URL}/gallery/folders/${folderId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+// ============================================
+// FIXED: Delete gallery folder with error handling
+// ============================================
+const deleteGalleryFolder = useCallback(async (folderId) => {
+  if (!folderId) {
+    throw new Error('Folder ID is required');
+  }
+  
+  try {
+    console.log('🗑️ Deleting gallery folder:', folderId);
+    
+    const response = await fetch(`${API_URL}/gallery/folders/${folderId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          fetchUserGallery(profileUser.id);
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting folder:', error);
+    console.log('📥 Delete folder response status:', response.status);
+    
+    const result = await response.json();
+    console.log('📥 Delete folder response:', result);
+    
+    if (response.ok && result.success) {
+      await fetchUserGallery(profileUser.id);
+      return result;
+    } else {
+      throw new Error(result.message || 'Failed to delete folder');
     }
-  }, [profileUser?.id, fetchUserGallery]);
+  } catch (error) {
+    console.error('❌ Error deleting folder:', error);
+    throw error;
+  }
+}, [profileUser?.id, fetchUserGallery]);
 
-  // Delete gallery item
-  const deleteGalleryItem = useCallback(async (itemId) => {
-    try {
-      const response = await fetch(`${API_URL}/gallery/items/${itemId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+// ============================================
+// FIXED: Delete gallery item with error handling
+// ============================================
+const deleteGalleryItem = useCallback(async (itemId) => {
+  if (!itemId) {
+    throw new Error('Item ID is required');
+  }
+  
+  try {
+    console.log('🗑️ Deleting gallery item:', itemId);
+    
+    const response = await fetch(`${API_URL}/gallery/items/${itemId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          fetchUserGallery(profileUser.id);
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting gallery item:', error);
+    console.log('📥 Delete item response status:', response.status);
+    
+    const result = await response.json();
+    console.log('📥 Delete item response:', result);
+    
+    if (response.ok && result.success) {
+      await fetchUserGallery(profileUser.id);
+      return result;
+    } else {
+      throw new Error(result.message || 'Failed to delete item');
     }
-  }, [profileUser?.id, fetchUserGallery]);
+  } catch (error) {
+    console.error('❌ Error deleting gallery item:', error);
+    throw error;
+  }
+}, [profileUser?.id, fetchUserGallery]);
+
+
+
+ 
 
   // Handle follow
   const handleFollow = useCallback(async () => {
