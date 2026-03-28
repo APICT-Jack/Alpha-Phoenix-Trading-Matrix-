@@ -13,10 +13,22 @@ import {
   FaComment 
 } from 'react-icons/fa';
 
-const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+// ============================================
+// FIXED: Get API URL with proper protocol handling
+// ============================================
+const getApiUrl = () => {
+  // In production, use the current origin (will be https://...)
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  // In development, use localhost
+  return import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+};
+
+const API_URL = getApiUrl();
 
 // ============================================
-// UPDATED: Helper function to format image/video URLs with Cloudinary support
+// Helper function to format image/video URLs with Cloudinary support
 // ============================================
 const formatMediaUrl = (url) => {
   if (!url) return null;
@@ -55,14 +67,14 @@ const formatMediaUrl = (url) => {
 };
 
 // ============================================
-// NEW: Helper function to check if URL is from Cloudinary
+// Helper function to check if URL is from Cloudinary
 // ============================================
 const isCloudinaryUrl = (url) => {
   return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
 };
 
 // ============================================
-// NEW: Helper function to get optimized Cloudinary URL
+// Helper function to get optimized Cloudinary URL
 // ============================================
 const getOptimizedCloudinaryUrl = (url, options = {}) => {
   if (!url || !isCloudinaryUrl(url)) return url;
@@ -103,6 +115,7 @@ const GalleryComponent = ({
   const [uploadDescription, setUploadDescription] = useState('');
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploadError, setUploadError] = useState(null);
   
   // Add file input ref
   const fileInputRef = useRef(null);
@@ -123,6 +136,7 @@ const GalleryComponent = ({
       fileInputRef.current.value = '';
       setSelectedFiles([]);
       setUploadDescription('');
+      setUploadError(null);
     }
   }, [showUploadModal]);
 
@@ -141,21 +155,29 @@ const GalleryComponent = ({
     }
     
     setSelectedFiles(validFiles);
+    setUploadError(null);
   };
 
+  // ============================================
+  // FIXED: Handle file upload with better error handling
+  // ============================================
   const handleFileUpload = async () => {
     if (selectedFiles.length === 0) return;
     
     setUploading(true);
+    setUploadError(null);
     
     try {
-      // Log the files to verify they're actual File objects
-      console.log('Selected files:', selectedFiles.map(f => ({
+      // Log the files for debugging
+      console.log('📤 Uploading files:', selectedFiles.map(f => ({
         name: f.name,
         type: f.type,
         size: f.size,
         isFile: f instanceof File
       })));
+      
+      console.log('📤 API URL:', API_URL);
+      console.log('📤 Selected folder:', selectedFolder);
       
       // Pass all files at once to the parent's upload function
       await onUpload(selectedFiles, selectedFolder, uploadDescription);
@@ -164,12 +186,34 @@ const GalleryComponent = ({
       setShowUploadModal(false);
       setUploadDescription('');
       setSelectedFiles([]);
+      setUploadError(null);
       
       alert(`${selectedFiles.length} file(s) uploaded successfully!`);
       
     } catch (error) {
-      console.error('Upload failed:', error);
-      alert('Upload failed: ' + error.message);
+      console.error('❌ Upload failed:', error);
+      
+      // Provide more specific error messages based on error type
+      let errorMessage = 'Upload failed: ';
+      
+      if (error.message?.includes('SSL') || error.message?.includes('certificate')) {
+        errorMessage += 'SSL connection error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('fetch') || error.message?.includes('network')) {
+        errorMessage += 'Network error. Please check your connection and try again.';
+      } else if (error.message?.includes('413')) {
+        errorMessage += 'File size too large. Maximum size is 50MB.';
+      } else if (error.message?.includes('401')) {
+        errorMessage += 'Authentication error. Please log in again.';
+      } else if (error.message?.includes('403')) {
+        errorMessage += 'You do not have permission to upload files.';
+      } else if (error.message?.includes('500')) {
+        errorMessage += 'Server error. Please try again later.';
+      } else {
+        errorMessage += error.message || 'Unknown error occurred';
+      }
+      
+      setUploadError(errorMessage);
+      alert(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -305,9 +349,7 @@ const GalleryComponent = ({
 
   const currentItem = currentFolderItems[currentItemIndex] || null;
 
-  // ============================================
-  // NEW: Helper function to render media with Cloudinary optimization
-  // ============================================
+  // Render media item with Cloudinary optimization
   const renderMediaItem = (item, index, folderId) => {
     const mediaUrl = formatMediaUrl(item.url);
     const hasError = imageErrors[item._id];
@@ -379,9 +421,7 @@ const GalleryComponent = ({
     );
   };
 
-  // ============================================
-  // NEW: Helper function to render viewer content with Cloudinary optimization
-  // ============================================
+  // Render viewer content with Cloudinary optimization
   const renderViewerContent = (item) => {
     const mediaUrl = formatMediaUrl(item.url);
     const isCloudinary = isCloudinaryUrl(mediaUrl);
@@ -413,9 +453,7 @@ const GalleryComponent = ({
     );
   };
 
-  // ============================================
-  // NEW: Helper function to render thumbnail with optimization
-  // ============================================
+  // Render thumbnail with optimization
   const renderThumbnail = (item, idx) => {
     const mediaUrl = formatMediaUrl(item.url);
     const isCloudinary = isCloudinaryUrl(mediaUrl);
@@ -511,7 +549,7 @@ const GalleryComponent = ({
         )}
       </div>
 
-      {/* Image Viewer Modal - UPDATED with optimized rendering */}
+      {/* Image Viewer Modal */}
       {viewerOpen && currentItem && (
         <div className={styles.viewerOverlay} onClick={closeViewer}>
           <div className={styles.viewerContent} onClick={(e) => e.stopPropagation()}>
@@ -568,7 +606,6 @@ const GalleryComponent = ({
                   <button 
                     className={styles.reactionButton}
                     onClick={() => {
-                      // You can implement comments functionality here
                       console.log('Open comments for item:', currentItem._id);
                     }}
                   >
@@ -585,7 +622,7 @@ const GalleryComponent = ({
               </div>
             </div>
             
-            {/* Thumbnail strip - UPDATED with optimized rendering */}
+            {/* Thumbnail strip */}
             {currentFolderItems.length > 1 && (
               <div className={styles.viewerThumbnails}>
                 {currentFolderItems.map((item, idx) => (
@@ -603,11 +640,19 @@ const GalleryComponent = ({
         </div>
       )}
 
-      {/* Upload Modal - unchanged */}
+      {/* Upload Modal - with error display */}
       {showUploadModal && (
         <div className={styles.modalOverlay} onClick={() => setShowUploadModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h3>Upload to Gallery</h3>
+            
+            {/* Error message display */}
+            {uploadError && (
+              <div className={styles.uploadErrorDisplay}>
+                <FaTimes />
+                <span>{uploadError}</span>
+              </div>
+            )}
             
             <input
               type="text"
@@ -689,14 +734,15 @@ const GalleryComponent = ({
 
             {uploading && (
               <div className={styles.uploadProgress}>
-                Uploading... Please wait
+                <div className={styles.progressSpinner}></div>
+                <span>Uploading... Please wait</span>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Create Folder Modal - unchanged */}
+      {/* Create Folder Modal */}
       {showCreateFolderModal && (
         <div className={styles.modalOverlay} onClick={() => setShowCreateFolderModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
