@@ -1,3 +1,4 @@
+// controllers/userController.js - COMPLETE SINGLE FILE
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -40,7 +41,7 @@ export const googleAuth = async (req, res) => {
   }
 };
 
-// ✅ COMPLETE Google OAuth Callback with all code
+// ✅ Google OAuth Callback
 export const googleCallback = async (req, res) => {
   try {
     console.log('🔄 Processing Google OAuth callback...');
@@ -120,44 +121,37 @@ export const googleCallback = async (req, res) => {
 
       if (user) {
         console.log('✅ Existing user found, updating Google ID if needed');
-        // Update Google ID if not set
         if (!user.googleId) {
           user.googleId = googleId;
           await user.save({ session });
         }
-        
-        // Ensure user is active
         user.isActive = true;
         await user.save({ session });
       } else {
         console.log('👤 Creating new user from Google OAuth');
         isNewUser = true;
         
-        // Generate username from email
         const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
         let username = baseUsername;
         let usernameCounter = 1;
 
-        // Ensure unique username
         while (await User.findOne({ username }).session(session)) {
           username = `${baseUsername}${usernameCounter}`;
           usernameCounter++;
         }
 
-        // Create new user
         user = new User({
           name: name || email.split('@')[0],
           email,
           username,
           googleId,
-          isActive: true, // Google users are automatically verified
+          isActive: true,
           avatar: picture,
           avatarInitial: (given_name?.[0] || name?.[0] || 'U').toUpperCase()
         });
 
         await user.save({ session });
 
-        // Create all related documents
         await Promise.all([
           UserProfile.create([{
             userId: user._id,
@@ -187,21 +181,18 @@ export const googleCallback = async (req, res) => {
         ]);
       }
 
-      // Update last active
       await UserProfile.findOneAndUpdate(
         { userId: user._id },
         { $set: { 'stats.lastActive': new Date() } },
         { session }
       );
 
-      // Get complete user data for response
       const [userProfile, subscription, settings] = await Promise.all([
         UserProfile.findOne({ userId: user._id }).session(session),
         Subscription.findOne({ userId: user._id }).session(session),
         UserSettings.findOne({ userId: user._id }).session(session)
       ]);
 
-      // Generate JWT token
       const token = jwt.sign(
         { 
           userId: user._id,
@@ -214,7 +205,6 @@ export const googleCallback = async (req, res) => {
       await session.commitTransaction();
       console.log(`🎉 Google OAuth ${isNewUser ? 'sign-up' : 'sign-in'} successful for:`, email);
 
-      // Send success response to frontend via postMessage
       res.send(`
         <!DOCTYPE html>
         <html>
@@ -258,7 +248,6 @@ export const googleCallback = async (req, res) => {
   } catch (error) {
     console.error('❌ Google OAuth callback error:', error);
     
-    // Send error message to frontend via postMessage
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -279,13 +268,11 @@ export const googleCallback = async (req, res) => {
   }
 };
 
-// ✅ Enhanced Register user + OTP with all profile creation
-// In your userController.js - RegisterUser function
+// ✅ Register user
 export const RegisterUser = async (req, res) => {
   try {
     const { name, username, email, password } = req.body;
 
-    // Check if user exists
     const existingUser = await User.findOne({ 
       $or: [{ email }, { username }] 
     });
@@ -297,17 +284,14 @@ export const RegisterUser = async (req, res) => {
       });
     }
 
-    // Create new user - DO NOT hash password here
-    // The pre-save hook in User model will handle hashing
     const user = new User({
       name,
       username,
       email,
-      password, // Send plain password, model will hash it
+      password,
       isActive: false
     });
 
-    // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date();
     otpExpiry.setMinutes(otpExpiry.getMinutes() + 10);
@@ -315,9 +299,7 @@ export const RegisterUser = async (req, res) => {
     user.otpCode = otp;
     user.otpExpiry = otpExpiry;
 
-    await user.save(); // This triggers the pre-save hook
-
-    // Send OTP email logic here...
+    await user.save();
 
     res.status(201).json({
       success: true,
@@ -335,13 +317,11 @@ export const RegisterUser = async (req, res) => {
   }
 };
 
-// ✅ SINGLE CORRECTED Login user function
-// In your userController.js - loginUser function
+// ✅ Login user
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user by email
     const user = await User.findOne({ email });
     
     if (!user) {
@@ -351,7 +331,6 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // Check if user is active (verified)
     if (!user.isActive) {
       return res.status(401).json({ 
         success: false, 
@@ -359,7 +338,6 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // Check if account is locked
     if (user.isLocked) {
       const lockTimeRemaining = Math.ceil((user.lockUntil - Date.now()) / (60 * 1000));
       return res.status(401).json({ 
@@ -368,11 +346,9 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // Compare passwords
     const isMatch = await user.comparePassword(password);
     
     if (!isMatch) {
-      // Increment login attempts
       await user.incrementLoginAttempts();
       return res.status(401).json({ 
         success: false, 
@@ -380,11 +356,9 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    // Reset login attempts on successful login
     await user.resetLoginAttempts();
     await user.updateLastLogin();
 
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET,
@@ -412,7 +386,8 @@ export const loginUser = async (req, res) => {
     });
   }
 };
-// ✅ SINGLE CORRECTED Check authentication function
+
+// ✅ Check authentication
 export const checkAuth = async (req, res) => {
   try {
     const [profile, subscription, settings] = await Promise.all([
@@ -421,7 +396,6 @@ export const checkAuth = async (req, res) => {
       UserSettings.findOne({ userId: req.user._id })
     ]);
 
-    // Use virtual properties from the user object
     res.status(200).json({
       authenticated: true,
       user: {
@@ -430,9 +404,9 @@ export const checkAuth = async (req, res) => {
         email: req.user.email,
         username: req.user.username,
         isActive: req.user.isActive,
-        avatar: req.user.avatarUrl, // Use virtual property
-        avatarInitial: req.user.avatarInitial, // Use virtual property
-        displayName: req.user.displayName, // Use virtual property
+        avatar: req.user.avatarUrl,
+        avatarInitial: req.user.avatarInitial,
+        displayName: req.user.displayName,
         profile: profile || {},
         subscription: subscription || { plan: 'free', status: 'active' },
         settings: settings || {}
@@ -500,7 +474,6 @@ export const verifyOTP = async (req, res) => {
       });
     }
     
-    // Activate user and update profile
     const session = await mongoose.startSession();
     session.startTransaction();
     
@@ -510,7 +483,6 @@ export const verifyOTP = async (req, res) => {
       user.otpExpiry = null;
       await user.save({ session });
 
-      // Update user profile lastActive
       await UserProfile.findOneAndUpdate(
         { userId: user._id },
         { 
@@ -575,10 +547,9 @@ export const resendOTP = async (req, res) => {
       });
     }
     
-    // Generate new OTP
     const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
     user.otpCode = newOtpCode;
-    user.otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+    user.otpExpiry = Date.now() + 10 * 60 * 1000;
     
     await user.save();
     
@@ -600,7 +571,6 @@ export const resendOTP = async (req, res) => {
 // ✅ Logout user
 export const logoutUser = async (req, res) => {
   try {
-    // Update last active before logout
     await UserProfile.findOneAndUpdate(
       { userId: req.user._id },
       { $set: { 'stats.lastActive': new Date() } }
@@ -619,7 +589,7 @@ export const logoutUser = async (req, res) => {
   }
 };
 
-// ✅ Update user password
+// ✅ Update password
 export const updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -633,7 +603,6 @@ export const updatePassword = async (req, res) => {
 
     const user = await User.findById(req.user._id);
     
-    // Check if user has a password (Google users might not)
     if (!user.password) {
       return res.status(400).json({
         success: false,
@@ -650,7 +619,6 @@ export const updatePassword = async (req, res) => {
       });
     }
 
-    // Hash new password
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedNewPassword;
     await user.save();
@@ -668,7 +636,7 @@ export const updatePassword = async (req, res) => {
   }
 };
 
-// ✅ Delete user account
+// ✅ Delete account
 export const deleteAccount = async (req, res) => {
   try {
     const { password } = req.body;
@@ -680,7 +648,6 @@ export const deleteAccount = async (req, res) => {
       });
     }
 
-    // Verify password (skip for Google users without password)
     const user = await User.findById(req.user._id);
     
     if (user.password) {
@@ -698,7 +665,6 @@ export const deleteAccount = async (req, res) => {
     session.startTransaction();
 
     try {
-      // Delete all user data
       await Promise.all([
         User.findByIdAndDelete(req.user._id, { session }),
         UserProfile.findOneAndDelete({ userId: req.user._id }, { session }),
@@ -797,11 +763,9 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    // Create the avatar path
     const avatarPath = `/uploads/avatars/${req.file.filename}`;
     console.log('💾 Saving avatar path:', avatarPath);
 
-    // Use direct update
     await User.findByIdAndUpdate(
       req.user._id,
       { avatar: avatarPath },
@@ -810,7 +774,6 @@ export const uploadAvatar = async (req, res) => {
 
     console.log('✅ Avatar saved to user');
 
-    // Fetch fresh data
     const updatedUser = await User.findById(req.user._id).select('-password -otpCode');
     const profile = await UserProfile.findOne({ userId: req.user._id });
 
@@ -838,15 +801,14 @@ export const uploadAvatar = async (req, res) => {
   }
 };
 
-// ✅ Get all users (for community discovery)
+// ✅ Get all users
 export const getAllUsers = async (req, res) => {
   try {
     const currentUserId = req.user._id;
     const { search, limit = 50, page = 1 } = req.query;
 
-    // Build search query
     let searchQuery = { 
-      _id: { $ne: currentUserId } // Exclude current user
+      _id: { $ne: currentUserId }
     };
 
     if (search) {
@@ -857,7 +819,6 @@ export const getAllUsers = async (req, res) => {
       ];
     }
 
-    // Get users with pagination
     const users = await User.find(searchQuery)
       .select('name email username avatar isActive createdAt lastLogin')
       .limit(parseInt(limit))
@@ -865,7 +826,6 @@ export const getAllUsers = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Get user profiles for additional data
     const userIds = users.map(user => user._id);
     const userProfiles = await UserProfile.find({ 
       userId: { $in: userIds } 
@@ -873,13 +833,11 @@ export const getAllUsers = async (req, res) => {
     .select('userId tradingExperience interests stats')
     .lean();
 
-    // Create profile map for easy lookup
     const profileMap = {};
     userProfiles.forEach(profile => {
       profileMap[profile.userId.toString()] = profile;
     });
 
-    // Check follow status for each user
     const followStatuses = await Follow.find({
       follower: currentUserId,
       following: { $in: userIds }
@@ -890,7 +848,6 @@ export const getAllUsers = async (req, res) => {
       followMap[follow.following.toString()] = true;
     });
 
-    // Combine user data with profile data
     const usersWithDetails = users.map(user => {
       const profile = profileMap[user._id.toString()];
       
@@ -899,9 +856,9 @@ export const getAllUsers = async (req, res) => {
         name: user.name,
         email: user.email,
         username: user.username,
-        avatar: user.avatar, // Will use virtual in frontend
+        avatar: user.avatar,
         isActive: user.isActive,
-        online: user.lastLogin && (Date.now() - new Date(user.lastLogin).getTime() < 5 * 60 * 1000), // Online if last login < 5 min ago
+        online: user.lastLogin && (Date.now() - new Date(user.lastLogin).getTime() < 5 * 60 * 1000),
         tradingExperience: profile?.tradingExperience || 'beginner',
         interests: profile?.interests || [],
         followersCount: profile?.stats?.followersCount || 0,
@@ -910,7 +867,6 @@ export const getAllUsers = async (req, res) => {
       };
     });
 
-    // Get total count for pagination
     const totalUsers = await User.countDocuments(searchQuery);
 
     res.status(200).json({
@@ -1004,7 +960,7 @@ export const searchUsers = async (req, res) => {
         { username: { $regex: searchTerm, $options: 'i' } },
         { email: { $regex: searchTerm, $options: 'i' } }
       ],
-      _id: { $ne: req.user._id } // Exclude current user
+      _id: { $ne: req.user._id }
     })
     .select('name username email avatar isActive')
     .limit(parseInt(limit))
@@ -1016,7 +972,6 @@ export const searchUsers = async (req, res) => {
           .select('tradingExperience stats')
           .lean();
 
-        // Check follow status
         const isFollowing = await Follow.findOne({
           follower: req.user._id,
           following: user._id
@@ -1048,17 +1003,4 @@ export const searchUsers = async (req, res) => {
       message: 'Error searching users: ' + error.message
     });
   }
-};
-// At the bottom of controllers/userController.js
-export {
-  RegisterUser,
-  verifyOTP,
-  resendOTP,
-  loginUser,
-  logoutUser,
-  checkAuth,
-  googleAuth,
-  googleCallback,
-  updatePassword,
-  deleteAccount
 };
