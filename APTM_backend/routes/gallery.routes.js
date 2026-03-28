@@ -1,6 +1,6 @@
 // routes/gallery.routes.js
 import express from 'express';
-import { authMiddleware } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js';  // Use named export
 import { uploadGalleryMiddleware } from '../middleware/upload.js';
 import { 
   getGallery,
@@ -14,7 +14,7 @@ import {
 const router = express.Router();
 
 // All routes require authentication
-router.use(authMiddleware);
+router.use(authenticateToken);
 
 // Gallery routes
 router.get('/:userId', getGallery);
