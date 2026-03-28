@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "postinstall": "mkdir -p uploads/avatars uploads/banners uploads/gallery uploads/posts"
+    "postinstall": "node -e \"const fs=require('fs');['uploads/avatars','uploads/banners','uploads/gallery','uploads/posts'].forEach(d=>{if(!fs.existsSync(d))fs.mkdirSync(d,{recursive:true})})\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

@@ -4,11 +4,18 @@ import path from 'path';
 import fs from 'fs';
 import { uploadGallery, uploadAvatar, uploadBanner } from '../services/cloudinaryService.js';
 
+// Ensure directories exist (Windows compatible)
+const ensureDir = (dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+};
+
 // Local storage for documents
 const documentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = 'uploads/documents/';
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    ensureDir(dir);
     cb(null, dir);
   },
   filename: (req, file, cb) => {
@@ -20,7 +27,7 @@ const documentStorage = multer.diskStorage({
 const addressProofStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = 'uploads/address-proofs/';
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    ensureDir(dir);
     cb(null, dir);
   },
   filename: (req, file, cb) => {
@@ -36,7 +43,7 @@ const imageFilter = (req, file, cb) => {
 };
 
 const documentFilter = (req, file, cb) => {
-  const allowed = ['application/pdf', 'application/msword', 'image/jpeg', 'image/jpg', 'image/png'];
+  const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
   allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error('Invalid document type'));
 };
 
@@ -51,8 +58,17 @@ export const uploadAvatarMiddleware = uploadAvatar.single('avatar');
 export const uploadBannerMiddleware = uploadBanner.single('banner');
 
 // Local uploads
-export const uploadDocumentMiddleware = multer({ storage: documentStorage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: documentFilter }).single('document');
-export const uploadAddressProofMiddleware = multer({ storage: addressProofStorage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: addressProofFilter }).single('addressProof');
+export const uploadDocumentMiddleware = multer({ 
+  storage: documentStorage, 
+  limits: { fileSize: 10 * 1024 * 1024 }, 
+  fileFilter: documentFilter 
+}).single('document');
+
+export const uploadAddressProofMiddleware = multer({ 
+  storage: addressProofStorage, 
+  limits: { fileSize: 5 * 1024 * 1024 }, 
+  fileFilter: addressProofFilter 
+}).single('addressProof');
 
 export const handleUploadError = (err, req, res, next) => {
   if (err) {
@@ -62,4 +78,10 @@ export const handleUploadError = (err, req, res, next) => {
   next();
 };
 
-export default { uploadGalleryMiddleware, uploadAvatarMiddleware, uploadBannerMiddleware, uploadDocumentMiddleware, uploadAddressProofMiddleware };
+export default { 
+  uploadGalleryMiddleware, 
+  uploadAvatarMiddleware, 
+  uploadBannerMiddleware, 
+  uploadDocumentMiddleware, 
+  uploadAddressProofMiddleware 
+};

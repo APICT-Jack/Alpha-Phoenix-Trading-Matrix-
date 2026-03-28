@@ -3,14 +3,13 @@ import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
-// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Create storage for gallery
+// Storage configurations
 const galleryStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -21,7 +20,6 @@ const galleryStorage = new CloudinaryStorage({
   }
 });
 
-// Create storage for posts
 const postStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -32,7 +30,6 @@ const postStorage = new CloudinaryStorage({
   }
 });
 
-// Create storage for avatars
 const avatarStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -43,7 +40,6 @@ const avatarStorage = new CloudinaryStorage({
   }
 });
 
-// Create storage for banners
 const bannerStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -60,7 +56,7 @@ export const uploadPost = multer({ storage: postStorage });
 export const uploadAvatar = multer({ storage: avatarStorage });
 export const uploadBanner = multer({ storage: bannerStorage });
 
-// Helper function to delete from Cloudinary
+// Helper functions
 export const deleteFromCloudinary = async (publicId, options = {}) => {
   if (!publicId) return null;
   try {
@@ -76,7 +72,6 @@ export const deleteFromCloudinary = async (publicId, options = {}) => {
   }
 };
 
-// Helper function to get public ID from Cloudinary URL
 export const getPublicIdFromUrl = (url) => {
   if (!url || !url.includes('cloudinary')) return null;
   try {
@@ -92,7 +87,6 @@ export const getPublicIdFromUrl = (url) => {
   }
 };
 
-// Helper function to determine resource type
 export const getResourceType = (url, mimetype) => {
   if (mimetype) {
     if (mimetype.startsWith('image/')) return 'image';
