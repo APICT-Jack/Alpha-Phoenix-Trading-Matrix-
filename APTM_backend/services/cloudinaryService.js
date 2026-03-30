@@ -100,5 +100,14 @@ export const getResourceType = (url, mimetype) => {
   }
   return 'auto';
 };
-
+// Add at the very bottom of cloudinaryService.js
+console.log('=' .repeat(50));
+console.log('🔧 CLOUDINARY SERVICE INITIALIZED');
+console.log('=' .repeat(50));
+console.log('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME ? '✅ Set' : '❌ Missing');
+console.log('API Key:', process.env.CLOUDINARY_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('API Secret:', process.env.CLOUDINARY_API_SECRET ? '✅ Set' : '❌ Missing');
+console.log('Upload Gallery configured:', !!uploadGallery);
+console.log('=' .repeat(50));
 export default cloudinary;
+

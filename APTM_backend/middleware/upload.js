@@ -111,5 +111,12 @@ const uploadMiddleware = {
   uploadDocument: uploadDocumentMiddleware,
   uploadAddressProof: uploadAddressProofMiddleware
 };
-
+// Add at the bottom of upload.js
+console.log('=' .repeat(50));
+console.log('📁 UPLOAD MIDDLEWARE INITIALIZED');
+console.log('=' .repeat(50));
+console.log('uploadGallery exists:', !!uploadGallery);
+console.log('uploadGalleryMiddleware exists:', !!uploadGalleryMiddleware);
+console.log('uploadMiddleware.uploadGallery exists:', !!uploadMiddleware.uploadGallery);
+console.log('=' .repeat(50));
 export default uploadMiddleware;

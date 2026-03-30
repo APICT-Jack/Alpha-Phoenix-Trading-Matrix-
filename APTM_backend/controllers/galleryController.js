@@ -53,20 +53,19 @@ export const getGallery = async (req, res) => {
 
 // Upload to gallery
 // controllers/galleryController.js - Updated uploadToGallery with better error handling
+// controllers/galleryController.js - Updated uploadToGallery
 export const uploadToGallery = async (req, res) => {
   try {
-    console.log('='.repeat(50));
-    console.log('📤 UPLOAD TO GALLERY - START');
-    console.log('='.repeat(50));
+    console.log('=' .repeat(50));
+    console.log('📤 GALLERY UPLOAD - START');
+    console.log('=' .repeat(50));
     
     // Log request details
-    console.log('🔍 Request details:');
-    console.log('  - req.files:', req.files ? `${req.files.length} files` : 'NO FILES');
-    console.log('  - req.body:', req.body);
-    console.log('  - req.user:', req.user?._id);
-    console.log('  - req.headers.content-type:', req.headers['content-type']);
+    console.log('req.files exists?', !!req.files);
+    console.log('req.files length?', req.files?.length);
+    console.log('req.body:', req.body);
+    console.log('req.user:', req.user?._id);
     
-    // Check if files exist
     if (!req.files || req.files.length === 0) {
       console.log('❌ No files in request');
       return res.status(400).json({
@@ -74,30 +73,26 @@ export const uploadToGallery = async (req, res) => {
         message: 'No files uploaded'
       });
     }
-    
-    // Log each file
-    console.log('📎 Files received:');
+
+    // Log each file's Cloudinary info
     req.files.forEach((file, i) => {
-      console.log(`  File ${i + 1}:`, {
+      console.log(`File ${i + 1}:`, {
         originalname: file.originalname,
         mimetype: file.mimetype,
         size: file.size,
-        hasPath: !!file.path,
-        hasPublicId: !!file.public_id,
         path: file.path,
-        public_id: file.public_id
+        public_id: file.public_id,
+        url: file.path
       });
     });
-    
+
     const { folderId, description, tags } = req.body;
     const userId = req.user._id;
-    
-    console.log('🔍 Looking up gallery for user:', userId);
-    
+
     let gallery = await Gallery.findOne({ userId });
-    
+
     if (!gallery) {
-      console.log('📁 No gallery found, creating new gallery...');
+      console.log('Creating new gallery for user:', userId);
       gallery = new Gallery({ 
         userId, 
         folders: [
@@ -109,21 +104,18 @@ export const uploadToGallery = async (req, res) => {
         ]
       });
     }
-    
+
     // Find target folder
     let targetFolder;
     if (folderId) {
-      console.log('🔍 Finding folder by ID:', folderId);
       targetFolder = gallery.folders.id(folderId);
       if (!targetFolder) {
-        console.log('❌ Folder not found with ID:', folderId);
         return res.status(404).json({
           success: false,
           message: 'Folder not found'
         });
       }
     } else {
-      console.log('📁 Using default folder');
       if (gallery.folders.length === 0) {
         gallery.folders.push({
           name: 'All Photos',
@@ -133,20 +125,12 @@ export const uploadToGallery = async (req, res) => {
       }
       targetFolder = gallery.folders[0];
     }
-    
-    console.log('✅ Target folder:', {
-      id: targetFolder._id,
-      name: targetFolder.name,
-      currentItems: targetFolder.items.length
-    });
-    
+
+    console.log('Target folder:', targetFolder.name);
+
     const uploadedItems = [];
     
     for (const file of req.files) {
-      console.log(`📎 Processing file: ${file.originalname}`);
-      console.log(`   Cloudinary URL: ${file.path}`);
-      console.log(`   Public ID: ${file.public_id}`);
-      
       const galleryItem = {
         filename: file.filename || (file.public_id ? file.public_id.split('/').pop() : null),
         originalName: file.originalname,
@@ -159,20 +143,14 @@ export const uploadToGallery = async (req, res) => {
         uploadedAt: new Date()
       };
       
-      console.log(`   Created gallery item:`, {
-        filename: galleryItem.filename,
-        url: galleryItem.url,
-        description: galleryItem.description
-      });
-      
       targetFolder.items.push(galleryItem);
       uploadedItems.push(galleryItem);
     }
-    
-    console.log(`💾 Saving gallery with ${uploadedItems.length} new items...`);
+
+    console.log(`Saving ${uploadedItems.length} items to database...`);
     await gallery.save();
-    console.log(`✅ ${uploadedItems.length} file(s) uploaded successfully`);
-    
+    console.log('✅ Gallery saved successfully');
+
     res.status(200).json({
       success: true,
       message: `${uploadedItems.length} file(s) uploaded successfully`,
@@ -181,35 +159,36 @@ export const uploadToGallery = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌❌❌ ERROR IN UPLOAD TO GALLERY ❌❌❌');
+    console.error('❌❌❌ GALLERY UPLOAD ERROR ❌❌❌');
     console.error('Error name:', error.name);
     console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
     
-    // Clean up uploaded files from Cloudinary if there was an error
+    // Check if it's a Cloudinary error
+    if (error.message && error.message.includes('cloudinary')) {
+      console.error('🔧 This appears to be a Cloudinary error.');
+      console.error('   Check that your Cloudinary credentials are correct and the account is active.');
+    }
+    
+    // Clean up any uploaded files
     if (req.files && req.files.length > 0) {
-      console.log('🧹 Cleaning up uploaded files from Cloudinary...');
+      console.log('🧹 Cleaning up uploaded files...');
       for (const file of req.files) {
         if (file.public_id) {
           try {
             await deleteFromCloudinary(file.public_id);
-            console.log(`🧹 Cleaned up Cloudinary file: ${file.public_id}`);
+            console.log(`🧹 Cleaned up: ${file.public_id}`);
           } catch (cleanupError) {
-            console.error(`❌ Error cleaning up file ${file.public_id}:`, cleanupError);
+            console.error('Cleanup error:', cleanupError.message);
           }
         }
       }
     }
     
-    // Send detailed error response
     res.status(500).json({
       success: false,
       message: 'Error uploading files: ' + error.message,
-      error: process.env.NODE_ENV === 'development' ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      } : undefined
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
