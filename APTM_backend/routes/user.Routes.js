@@ -1,11 +1,7 @@
 // routes/user.Routes.js
 import express from 'express';
 import authMiddleware from '../middleware/auth.js';
-import uploadMiddleware from '../middleware/upload.js';
 import { 
-  getProfile, 
-  updateProfile, 
-  // Remove uploadAvatar and deleteAvatar from here
   getAllUsers,
   getUserById,
   searchUsers
@@ -13,17 +9,10 @@ import {
 
 const router = express.Router();
 
+// All routes here require authentication
 router.use(authMiddleware);
 
-// Profile routes
-router.get('/profile', getProfile);
-router.put('/profile', updateProfile);
-
-// Remove avatar routes - they're already in profile.routes.js
-// router.post('/avatar', uploadMiddleware.uploadAvatar, uploadAvatar);
-// router.delete('/avatar', deleteAvatar);
-
-// User discovery routes
+// User discovery routes only
 router.get('/all', getAllUsers);
 router.get('/search', searchUsers);
 router.get('/:userId', getUserById);
