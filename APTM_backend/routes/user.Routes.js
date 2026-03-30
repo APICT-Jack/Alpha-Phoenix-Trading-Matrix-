@@ -5,25 +5,23 @@ import uploadMiddleware from '../middleware/upload.js';
 import { 
   getProfile, 
   updateProfile, 
-  uploadAvatar,
+  // Remove uploadAvatar and deleteAvatar from here
   getAllUsers,
   getUserById,
   searchUsers
 } from '../controllers/userController.js';
-import { deleteAvatar } from '../controllers/userProfileController.js';  // Add this line
 
 const router = express.Router();
 
-// Protected routes (require authentication)
 router.use(authMiddleware);
 
 // Profile routes
 router.get('/profile', getProfile);
 router.put('/profile', updateProfile);
 
-// Avatar routes
-router.post('/avatar', uploadMiddleware.uploadAvatar, uploadAvatar);
-router.delete('/avatar', deleteAvatar);  // Now works
+// Remove avatar routes - they're already in profile.routes.js
+// router.post('/avatar', uploadMiddleware.uploadAvatar, uploadAvatar);
+// router.delete('/avatar', deleteAvatar);
 
 // User discovery routes
 router.get('/all', getAllUsers);
