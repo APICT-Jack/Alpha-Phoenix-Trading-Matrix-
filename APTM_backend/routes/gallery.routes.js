@@ -11,7 +11,8 @@ const router = express.Router();
 
 router.use(authenticateToken);
 router.get('/:userId', getGallery);
-router.post('/upload', uploadMiddleware.uploadGalleryMiddleware, uploadToGallery);
+// Change this line:
+router.post('/upload', uploadMiddleware.uploadGallery, uploadToGallery);  // ← Changed from uploadGalleryMiddleware to uploadGallery
 router.post('/folders', createGalleryFolder);
 router.delete('/folders/:folderId', deleteGalleryFolder);
 router.delete('/items/:itemId', deleteGalleryItem);
