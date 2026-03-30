@@ -52,24 +52,52 @@ export const getGallery = async (req, res) => {
 };
 
 // Upload to gallery
+// controllers/galleryController.js - Updated uploadToGallery with better error handling
 export const uploadToGallery = async (req, res) => {
   try {
-    const { folderId, description, tags } = req.body;
-    const userId = req.user._id;
-
-    console.log('📤 Upload to gallery - Request received');
-    console.log('📁 Files:', req.files?.length || 0);
+    console.log('='.repeat(50));
+    console.log('📤 UPLOAD TO GALLERY - START');
+    console.log('='.repeat(50));
     
+    // Log request details
+    console.log('🔍 Request details:');
+    console.log('  - req.files:', req.files ? `${req.files.length} files` : 'NO FILES');
+    console.log('  - req.body:', req.body);
+    console.log('  - req.user:', req.user?._id);
+    console.log('  - req.headers.content-type:', req.headers['content-type']);
+    
+    // Check if files exist
     if (!req.files || req.files.length === 0) {
+      console.log('❌ No files in request');
       return res.status(400).json({
         success: false,
         message: 'No files uploaded'
       });
     }
-
+    
+    // Log each file
+    console.log('📎 Files received:');
+    req.files.forEach((file, i) => {
+      console.log(`  File ${i + 1}:`, {
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        hasPath: !!file.path,
+        hasPublicId: !!file.public_id,
+        path: file.path,
+        public_id: file.public_id
+      });
+    });
+    
+    const { folderId, description, tags } = req.body;
+    const userId = req.user._id;
+    
+    console.log('🔍 Looking up gallery for user:', userId);
+    
     let gallery = await Gallery.findOne({ userId });
-
+    
     if (!gallery) {
+      console.log('📁 No gallery found, creating new gallery...');
       gallery = new Gallery({ 
         userId, 
         folders: [
@@ -81,18 +109,21 @@ export const uploadToGallery = async (req, res) => {
         ]
       });
     }
-
+    
     // Find target folder
     let targetFolder;
     if (folderId) {
+      console.log('🔍 Finding folder by ID:', folderId);
       targetFolder = gallery.folders.id(folderId);
       if (!targetFolder) {
+        console.log('❌ Folder not found with ID:', folderId);
         return res.status(404).json({
           success: false,
           message: 'Folder not found'
         });
       }
     } else {
+      console.log('📁 Using default folder');
       if (gallery.folders.length === 0) {
         gallery.folders.push({
           name: 'All Photos',
@@ -102,7 +133,13 @@ export const uploadToGallery = async (req, res) => {
       }
       targetFolder = gallery.folders[0];
     }
-
+    
+    console.log('✅ Target folder:', {
+      id: targetFolder._id,
+      name: targetFolder.name,
+      currentItems: targetFolder.items.length
+    });
+    
     const uploadedItems = [];
     
     for (const file of req.files) {
@@ -121,14 +158,21 @@ export const uploadToGallery = async (req, res) => {
         tags: tags ? (Array.isArray(tags) ? tags : tags.split(',')) : [],
         uploadedAt: new Date()
       };
-
+      
+      console.log(`   Created gallery item:`, {
+        filename: galleryItem.filename,
+        url: galleryItem.url,
+        description: galleryItem.description
+      });
+      
       targetFolder.items.push(galleryItem);
       uploadedItems.push(galleryItem);
     }
-
+    
+    console.log(`💾 Saving gallery with ${uploadedItems.length} new items...`);
     await gallery.save();
     console.log(`✅ ${uploadedItems.length} file(s) uploaded successfully`);
-
+    
     res.status(200).json({
       success: true,
       message: `${uploadedItems.length} file(s) uploaded successfully`,
@@ -137,10 +181,14 @@ export const uploadToGallery = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error uploading to gallery:', error);
+    console.error('❌❌❌ ERROR IN UPLOAD TO GALLERY ❌❌❌');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     
     // Clean up uploaded files from Cloudinary if there was an error
     if (req.files && req.files.length > 0) {
+      console.log('🧹 Cleaning up uploaded files from Cloudinary...');
       for (const file of req.files) {
         if (file.public_id) {
           try {
@@ -153,9 +201,15 @@ export const uploadToGallery = async (req, res) => {
       }
     }
     
+    // Send detailed error response
     res.status(500).json({
       success: false,
-      message: 'Error uploading files: ' + error.message
+      message: 'Error uploading files: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      } : undefined
     });
   }
 };
