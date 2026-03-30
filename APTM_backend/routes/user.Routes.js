@@ -5,12 +5,12 @@ import uploadMiddleware from '../middleware/upload.js';
 import { 
   getProfile, 
   updateProfile, 
-  uploadAvatar, 
-  deleteAvatar,
+  uploadAvatar,
   getAllUsers,
   getUserById,
   searchUsers
 } from '../controllers/userController.js';
+import { deleteAvatar } from '../controllers/userProfileController.js';  // Add this line
 
 const router = express.Router();
 
@@ -21,9 +21,9 @@ router.use(authMiddleware);
 router.get('/profile', getProfile);
 router.put('/profile', updateProfile);
 
-// Avatar routes - use the named export directly
+// Avatar routes
 router.post('/avatar', uploadMiddleware.uploadAvatar, uploadAvatar);
-router.delete('/avatar', deleteAvatar);
+router.delete('/avatar', deleteAvatar);  // Now works
 
 // User discovery routes
 router.get('/all', getAllUsers);

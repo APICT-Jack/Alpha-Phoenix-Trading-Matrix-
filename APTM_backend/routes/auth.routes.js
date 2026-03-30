@@ -1,6 +1,4 @@
-// routes/auth.routes.js
 import express from 'express';
-import User from '../models/User.js';
 import { 
   RegisterUser, 
   verifyOTP,
@@ -14,10 +12,11 @@ import {
   deleteAccount
 } from '../controllers/userController.js';
 import authMiddleware from '../middleware/auth.js';
+import uploadMiddleware from '../middleware/upload.js';
 
 const router = express.Router();
 
-// Public auth routes
+// Auth routes
 router.post("/signup", RegisterUser);
 router.post("/verify-otp", verifyOTP);
 router.post("/resend-otp", resendOTP);
@@ -31,13 +30,14 @@ router.post("/logout", authMiddleware, logoutUser);
 router.put("/password", authMiddleware, updatePassword);
 router.delete("/account", authMiddleware, deleteAccount);
 
-// Change password route
+// Add to auth routes
 router.post('/change-password', authMiddleware, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     
     const user = await User.findById(req.user._id);
     
+    // Verify current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
       return res.status(400).json({
@@ -46,6 +46,7 @@ router.post('/change-password', authMiddleware, async (req, res) => {
       });
     }
     
+    // Update password
     user.password = newPassword;
     await user.save();
     
@@ -61,5 +62,4 @@ router.post('/change-password', authMiddleware, async (req, res) => {
     });
   }
 });
-
 export default router;
