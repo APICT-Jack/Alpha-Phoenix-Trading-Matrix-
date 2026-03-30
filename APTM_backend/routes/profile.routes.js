@@ -18,17 +18,17 @@ router.get("/complete", authMiddleware, getCompleteProfile);
 router.put("/update", authMiddleware, updateProfile);
 router.put("/complete", authMiddleware, updateCompleteProfile);
 
-// Avatar routes
-router.post("/avatar", authMiddleware, uploadMiddleware.uploadAvatarMiddleware, uploadAvatar);
+// Avatar routes - FIX: use uploadMiddleware.uploadAvatar, not uploadAvatarMiddleware
+router.post("/avatar", authMiddleware, uploadMiddleware.uploadAvatar, uploadAvatar);
 router.delete("/avatar", authMiddleware, deleteAvatar);
 
-// Banner routes
-router.post("/banner", authMiddleware, uploadMiddleware.uploadBannerMiddleware, uploadBanner);
+// Banner routes - FIX: use uploadMiddleware.uploadBanner, not uploadBannerMiddleware
+router.post("/banner", authMiddleware, uploadMiddleware.uploadBanner, uploadBanner);
 router.delete("/banner", authMiddleware, removeBanner);
 
-// Document routes
-router.post("/documents", authMiddleware, uploadMiddleware.uploadDocumentMiddleware, uploadDocument);
-router.post("/address-proof", authMiddleware, uploadMiddleware.uploadAddressProofMiddleware, uploadAddressProof);
+// Document routes - These are correct (they use local storage)
+router.post("/documents", authMiddleware, uploadMiddleware.uploadDocument, uploadDocument);
+router.post("/address-proof", authMiddleware, uploadMiddleware.uploadAddressProof, uploadAddressProof);
 
 // Settings
 router.get('/settings', authMiddleware, getUserSettings);
@@ -44,6 +44,6 @@ router.get('/trading/accounts', authMiddleware, getTradingAccounts);
 router.get('/public/:username', getPublicProfile);
 
 // Test
-router.post("/test-banner-upload", authMiddleware, uploadMiddleware.uploadBannerMiddleware, testBannerUpload);
+router.post("/test-banner-upload", authMiddleware, uploadMiddleware.uploadBanner, testBannerUpload);
 
 export default router;
