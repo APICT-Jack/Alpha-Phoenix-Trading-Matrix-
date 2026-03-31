@@ -1,6 +1,6 @@
-/* ConnectionPanel.module.css - macOS/iOS Vibe + Fullscreen Center Scale */
+/* ConnectionPanel.module.css - macOS/iOS Vibe + Fullscreen Center Scale + Mobile Left Navigation */
 
-/* ===== MODAL BACKDROP (Fullscreen Center) ===== */
+/* ===== MODAL BACKDROP (Fullscreen Center on PC, Hidden on Mobile) ===== */
 .modalBackdrop {
   position: fixed;
   top: 0;
@@ -35,6 +35,38 @@
   transform: scale(1);
 }
 
+/* Mobile: Override modal to be left-aligned navigation drawer */
+@media (max-width: 768px) {
+  .modalBackdrop {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    align-items: flex-start;
+    justify-content: flex-start;
+    pointer-events: none;
+  }
+  
+  .modalBackdrop.open {
+    pointer-events: auto;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  
+  .modalContainer {
+    width: 85vw;
+    max-width: 320px;
+    height: 100vh;
+    max-height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  }
+  
+  .modalBackdrop.open .modalContainer {
+    transform: translateX(0);
+  }
+}
+
 /* ===== MAIN PANEL - macOS/iOS Glassmorphic Card ===== */
 .navigationPanel {
   width: 100%;
@@ -51,6 +83,14 @@
   transition: all 0.3s ease;
 }
 
+/* Mobile panel styling - no rounded corners, full height */
+@media (max-width: 768px) {
+  .navigationPanel {
+    border-radius: 0;
+    border-right: 0.5px solid rgba(255, 255, 255, 0.12);
+  }
+}
+
 /* Light mode (iOS light) */
 .navigationPanel.light {
   background: rgba(245, 245, 247, 0.94);
@@ -62,7 +102,7 @@
   border-bottom-color: rgba(0, 0, 0, 0.08);
 }
 
-/* Embedded mode (original sidebar) */
+/* Embedded mode (original sidebar) - hidden on mobile */
 .navigationPanel.embedded {
   position: fixed;
   left: 0;
@@ -74,6 +114,12 @@
   box-shadow: none;
 }
 
+@media (max-width: 768px) {
+  .navigationPanel.embedded {
+    display: none;
+  }
+}
+
 /* ===== HEADER with macOS vibes ===== */
 .navigationHeader {
   padding: 1rem 1.5rem;
@@ -83,6 +129,13 @@
   align-items: center;
   justify-content: space-between;
   backdrop-filter: blur(20px);
+}
+
+/* Mobile header adjustments */
+@media (max-width: 768px) {
+  .navigationHeader {
+    padding: 1rem;
+  }
 }
 
 .headerTitle {
@@ -170,6 +223,14 @@
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Mobile tabs adjustments */
+@media (max-width: 768px) {
+  .mainTabs {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+}
+
 .mainTab {
   flex: 1;
   display: flex;
@@ -214,10 +275,27 @@
   color: white;
 }
 
+/* Mobile: Hide text labels on tabs, show only icons */
+@media (max-width: 768px) {
+  .mainTab span {
+    display: none;
+  }
+  
+  .mainTab svg {
+    font-size: 1.2rem;
+  }
+}
+
 /* ===== SEARCH SECTION ===== */
 .searchSection {
   padding: 0.75rem 1.25rem;
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 768px) {
+  .searchSection {
+    padding: 0.75rem;
+  }
 }
 
 .searchContainer {
@@ -352,6 +430,12 @@
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
 }
 
+@media (max-width: 768px) {
+  .contentHeader {
+    padding: 0.75rem;
+  }
+}
+
 .contentHeader h4 {
   font-size: 0.8rem;
   font-weight: 500;
@@ -364,6 +448,13 @@
   flex: 1;
   overflow-y: auto;
   padding: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .usersList,
+  .chatRoomsList {
+    padding: 0.5rem;
+  }
 }
 
 /* ===== USER CARD (iOS Style) ===== */
@@ -391,6 +482,14 @@
   border-radius: 50%;
   margin-right: 1rem;
   flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .userAvatar {
+    width: 40px;
+    height: 40px;
+    margin-right: 0.75rem;
+  }
 }
 
 .userAvatar img {
@@ -439,6 +538,7 @@
   align-items: center;
   gap: 0.3rem;
   margin-bottom: 0.2rem;
+  flex-wrap: wrap;
 }
 
 .userName strong {
@@ -483,6 +583,7 @@
   display: flex;
   gap: 0.75rem;
   margin-top: 0.3rem;
+  flex-wrap: wrap;
 }
 
 .userStat {
@@ -502,6 +603,18 @@
 
 .userItem:hover .userActions {
   opacity: 1;
+}
+
+/* Mobile: Always show actions */
+@media (max-width: 768px) {
+  .userActions {
+    opacity: 1;
+  }
+  
+  .actionButton {
+    width: 32px;
+    height: 32px;
+  }
 }
 
 .actionButton {
@@ -570,6 +683,14 @@
   margin-right: 1rem;
 }
 
+@media (max-width: 768px) {
+  .roomIcon {
+    width: 40px;
+    height: 40px;
+    margin-right: 0.75rem;
+  }
+}
+
 .roomInfo {
   flex: 1;
 }
@@ -586,6 +707,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .joinButton {
@@ -612,6 +734,12 @@
   border-top: 0.5px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px);
+}
+
+@media (max-width: 768px) {
+  .recentActivity {
+    padding: 0.75rem;
+  }
 }
 
 .activityHeader {
@@ -675,25 +803,23 @@
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .modalContainer {
-    width: 95vw;
-    height: 90vh;
-  }
-  
-  .mainTab span {
-    display: none;
-  }
-  
-  .mainTab svg {
-    font-size: 1.2rem;
-  }
-  
-  .navigationPanel.embedded {
-    width: 100%;
+    width: 85vw;
+    max-width: 320px;
+    height: 100vh;
+    max-height: 100vh;
     transform: translateX(-100%);
   }
   
-  .navigationPanel.embedded.mobileOpen {
+  .modalBackdrop.open .modalContainer {
     transform: translateX(0);
+  }
+  
+  .navigationPanel {
+    border-radius: 0;
+  }
+  
+  .navigationPanel.embedded {
+    display: none;
   }
 }
 
@@ -702,12 +828,8 @@
     font-size: 1rem;
   }
   
-  .userActions {
-    opacity: 1;
-  }
-  
-  .actionButton {
-    width: 32px;
-    height: 32px;
+  .modalContainer {
+    width: 90vw;
+    max-width: 280px;
   }
 }
