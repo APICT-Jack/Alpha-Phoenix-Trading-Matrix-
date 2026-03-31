@@ -636,148 +636,158 @@ const CreatePost = ({
   // ============================================
   // UPDATED: Main post creation handler with Cloudinary support
   // ============================================
-  const handleCreatePost = useCallback(async () => {
-    if (!validatePost() || isSubmitting) return;
+  // CreatePost.jsx - Updated handleCreatePost with Cloudinary support
+
+const handleCreatePost = useCallback(async () => {
+  if (!validatePost() || isSubmitting) return;
+  
+  setIsSubmitting(true);
+  setUploading(true);
+  
+  try {
+    const formData = new FormData();
     
-    setIsSubmitting(true);
-    setUploading(true);
+    // Add text fields
+    const contentValue = newPostContent.trim() || '';
+    formData.append('content', contentValue);
+    formData.append('visibility', visibility);
     
-    try {
-      const formData = new FormData();
-      
-      // Add text fields
-      const contentValue = newPostContent.trim() || '';
-      formData.append('content', contentValue);
-      formData.append('visibility', visibility);
-      
-      // Add location if exists
-      if (location) {
-        formData.append('location', JSON.stringify(location));
-      }
-      
-      // Add mentions if any
-      if (mentions.length > 0) {
-        mentions.forEach(mention => {
-          if (mention && mention !== 'undefined' && mention !== 'null' && mention.trim() !== '') {
-            formData.append('mentions', mention);
-          }
-        });
-      }
-      
-      // Add scheduled date if exists
-      if (scheduledDate) {
-        formData.append('scheduledFor', scheduledDate);
-      }
-      
-      // Add media files (will be uploaded to Cloudinary by the server)
-      if (mediaFiles.length > 0) {
-        mediaFiles.forEach(file => {
-          formData.append('media', file);
-        });
-      }
-      
-      // Add chart if exists
-      if (chartPreview) {
-        const chartJson = JSON.stringify({
-          symbol: chartData.symbol,
-          interval: chartData.interval,
-          theme: chartData.theme,
-          indicators: chartData.indicators,
-          hideToolbar: chartData.hideToolbar,
-          hideSideToolbar: chartData.hideSideToolbar
-        });
-        formData.append('chart', chartJson);
-      }
-      
-      // Add poll data if present
-      if (showPollCreator) {
-        const validOptions = pollData.options
-          .filter(opt => opt && opt.trim() !== '')
-          .map(opt => opt.trim());
-        
-        if (pollData.question.trim() && validOptions.length >= 2) {
-          const pollObject = {
-            question: pollData.question.trim(),
-            options: validOptions,
-            multipleChoice: pollData.multipleChoice,
-            endsIn: pollData.endsIn
-          };
-          
-          formData.append('poll', JSON.stringify(pollObject));
-        }
-      }
-      
-      // Log FormData contents for debugging
-      console.log('📦 FormData contents:');
-      for (let [key, value] of formData.entries()) {
-        if (key === 'media') {
-          console.log(`  ${key}: File - ${value.name} (${value.size} bytes)`);
-        } else if (key === 'poll' || key === 'chart') {
-          console.log(`  ${key}: ${value}`);
-        } else {
-          console.log(`  ${key}: ${value}`);
-        }
-      }
-      
-      // Make API call
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/posts`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Server response:', errorData);
-        throw new Error(errorData.message || 'Failed to create post');
-      }
-      
-      const result = await response.json();
-      console.log('✅ Post created successfully:', result);
-      
-      // Handle success
-      setSubmitSuccess(true);
-      clearDraft();
-      
-      // Reset form
-      setNewPostContent('');
-      setMediaFiles([]);
-      setMediaPreviews([]);
-      setVisibility('public');
-      setLocation(null);
-      setMentions([]);
-      resetPoll();
-      removeChart();
-      setScheduledDate(null);
-      setShowScheduler(false);
-      setUploadProgress({});
-      setValidationErrors([]);
-      
-      notificationService.showSuccess(
-        'Success',
-        scheduledDate ? 'Your post has been scheduled' : 'Your post has been published'
-      );
-      
-      if (onPostCreated) {
-        onPostCreated(result.post || result);
-      }
-      
-    } catch (error) {
-      console.error('Failed to create post:', error);
-      notificationService.showError('Failed to Create Post', error.message || 'Unknown error occurred');
-    } finally {
-      setIsSubmitting(false);
-      setUploading(false);
-      setSubmitSuccess(false);
+    // Add location if exists
+    if (location) {
+      formData.append('location', JSON.stringify(location));
     }
-  }, [
-    newPostContent, mediaFiles, visibility, location, mentions, 
-    scheduledDate, showPollCreator, pollData, chartPreview, chartData,
-    validatePost, isSubmitting, onPostCreated, clearDraft, resetPoll, removeChart
-  ]);
+    
+    // Add mentions if any
+    if (mentions.length > 0) {
+      mentions.forEach(mention => {
+        if (mention && mention !== 'undefined' && mention !== 'null' && mention.trim() !== '') {
+          formData.append('mentions', mention);
+        }
+      });
+    }
+    
+    // Add scheduled date if exists
+    if (scheduledDate) {
+      formData.append('scheduledFor', scheduledDate);
+    }
+    
+    // ============================================
+    // UPDATED: Add media files for Cloudinary upload
+    // The server will handle uploading to Cloudinary
+    // ============================================
+    if (mediaFiles.length > 0) {
+      console.log(`📎 Adding ${mediaFiles.length} media files for Cloudinary upload`);
+      mediaFiles.forEach((file, index) => {
+        formData.append('media', file);
+        console.log(`  File ${index + 1}: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB, ${file.type})`);
+      });
+    }
+    
+    // Add chart if exists
+    if (chartPreview) {
+      const chartJson = JSON.stringify({
+        symbol: chartData.symbol,
+        interval: chartData.interval,
+        theme: chartData.theme,
+        indicators: chartData.indicators,
+        hideToolbar: chartData.hideToolbar,
+        hideSideToolbar: chartData.hideSideToolbar
+      });
+      formData.append('chart', chartJson);
+    }
+    
+    // Add poll data if present
+    if (showPollCreator) {
+      const validOptions = pollData.options
+        .filter(opt => opt && opt.trim() !== '')
+        .map(opt => opt.trim());
+      
+      if (pollData.question.trim() && validOptions.length >= 2) {
+        const pollObject = {
+          question: pollData.question.trim(),
+          options: validOptions,
+          multipleChoice: pollData.multipleChoice,
+          endsIn: pollData.endsIn
+        };
+        
+        formData.append('poll', JSON.stringify(pollObject));
+      }
+    }
+    
+    // Log FormData contents for debugging
+    console.log('📦 FormData contents:');
+    for (let [key, value] of formData.entries()) {
+      if (key === 'media') {
+        console.log(`  ${key}: File - ${value.name} (${value.size} bytes)`);
+      } else if (key === 'poll' || key === 'chart') {
+        console.log(`  ${key}: ${value}`);
+      } else {
+        console.log(`  ${key}: ${value}`);
+      }
+    }
+    
+    // Make API call
+    const token = localStorage.getItem('token');
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
+    const response = await fetch(`${API_BASE_URL}/posts`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+        // Don't set Content-Type - let browser set it with boundary for multipart/form-data
+      },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ Server response:', errorData);
+      throw new Error(errorData.message || 'Failed to create post');
+    }
+    
+    const result = await response.json();
+    console.log('✅ Post created successfully:', result);
+    
+    // Handle success
+    setSubmitSuccess(true);
+    clearDraft();
+    
+    // Reset form
+    setNewPostContent('');
+    setMediaFiles([]);
+    setMediaPreviews([]);
+    setVisibility('public');
+    setLocation(null);
+    setMentions([]);
+    resetPoll();
+    removeChart();
+    setScheduledDate(null);
+    setShowScheduler(false);
+    setUploadProgress({});
+    setValidationErrors([]);
+    
+    notificationService.showSuccess(
+      'Success',
+      scheduledDate ? 'Your post has been scheduled' : 'Your post has been published'
+    );
+    
+    if (onPostCreated) {
+      onPostCreated(result.post || result);
+    }
+    
+  } catch (error) {
+    console.error('Failed to create post:', error);
+    notificationService.showError('Failed to Create Post', error.message || 'Unknown error occurred');
+  } finally {
+    setIsSubmitting(false);
+    setUploading(false);
+    setSubmitSuccess(false);
+  }
+}, [
+  newPostContent, mediaFiles, visibility, location, mentions, 
+  scheduledDate, showPollCreator, pollData, chartPreview, chartData,
+  validatePost, isSubmitting, onPostCreated, clearDraft, resetPoll, removeChart
+]);
   
   const getVisibilityIcon = useCallback(() => {
     switch(visibility) {

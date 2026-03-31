@@ -6,7 +6,7 @@ import User from '../models/User.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { deleteFromCloudinary, getPublicIdFromUrl, getResourceType } from '../services/cloudinaryService.js';import cloudinary from '../services/cloudinaryService.js';
+import cloudinary, { deleteFromCloudinary, getPublicIdFromUrl, getResourceType } from '../services/cloudinaryService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +14,7 @@ const __dirname = path.dirname(__filename);
 // ============================================
 // MEDIA UPLOAD UTILITY - CLOUDINARY VERSION
 // ============================================
+// controllers/postController.js - Updated uploadMediaFiles function
 const uploadMediaFiles = async (files) => {
   const uploadedMedia = [];
   
@@ -26,29 +27,51 @@ const uploadMediaFiles = async (files) => {
       if (file.mimetype.startsWith('image/')) mediaType = 'image';
       else if (file.mimetype.startsWith('video/')) mediaType = 'video';
 
-      // Upload to Cloudinary
+      // Create a buffer from either buffer or path
+      let buffer;
+      if (file.buffer) {
+        // Memory storage (from multer memoryStorage)
+        buffer = file.buffer;
+      } else if (file.path) {
+        // Disk storage (fallback)
+        const fs = await import('fs');
+        buffer = await fs.promises.readFile(file.path);
+      } else {
+        throw new Error('No file data available');
+      }
+
+      // Upload to Cloudinary using promise-based upload_stream
       const result = await new Promise((resolve, reject) => {
+        const uploadOptions = {
+          folder: 'trading-app/posts',
+          resource_type: 'auto',
+        };
+        
+        // Add transformations for images
+        if (mediaType === 'image') {
+          uploadOptions.transformation = [
+            { quality: 'auto' },
+            { fetch_format: 'auto' },
+            { width: 1200, crop: 'limit' }
+          ];
+        } else if (mediaType === 'video') {
+          uploadOptions.transformation = [
+            { quality: 'auto' },
+            { fetch_format: 'auto' }
+          ];
+        }
+        
         const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            folder: 'trading-app/posts',
-            resource_type: 'auto',
-            transformation: mediaType === 'image' ? [
-              { quality: 'auto' },
-              { fetch_format: 'auto' },
-              { width: 1200, crop: 'limit' }
-            ] : [
-              { quality: 'auto' },
-              { fetch_format: 'auto' }
-            ]
-          },
+          uploadOptions,
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
           }
         );
         
-        // Convert buffer to stream
-        const bufferStream = require('stream').Readable.from(file.buffer);
+        // Convert buffer to stream and pipe to Cloudinary
+        const { Readable } = require('stream');
+        const bufferStream = Readable.from(buffer);
         bufferStream.pipe(uploadStream);
       });
 
