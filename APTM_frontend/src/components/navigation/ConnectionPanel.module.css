@@ -1,6 +1,6 @@
-/* ConnectionPanel.module.css - macOS/iOS Vibe + Fullscreen Center Scale + Mobile Left Navigation */
+/* ConnectionPanel.module.css - macOS/iOS Vibe + Fullscreen Center Scale + Mobile Fullscreen Sticky Navigation */
 
-/* ===== MODAL BACKDROP (Fullscreen Center on PC, Hidden on Mobile) ===== */
+/* ===== MODAL BACKDROP (Fullscreen Center on PC, Fullscreen Sticky on Mobile) ===== */
 .modalBackdrop {
   position: fixed;
   top: 0;
@@ -35,31 +35,26 @@
   transform: scale(1);
 }
 
-/* Mobile: Override modal to be left-aligned navigation drawer */
+/* Mobile: Fullscreen sticky navigation - takes entire screen */
 @media (max-width: 768px) {
   .modalBackdrop {
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
     align-items: flex-start;
     justify-content: flex-start;
-    pointer-events: none;
-  }
-  
-  .modalBackdrop.open {
-    pointer-events: auto;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
   
   .modalContainer {
-    width: 85vw;
-    max-width: 320px;
+    width: 100vw;
+    max-width: 100vw;
     height: 100vh;
     max-height: 100vh;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    position: fixed;
+    top: 0;
+    left: 0;
   }
   
   .modalBackdrop.open .modalContainer {
@@ -83,11 +78,18 @@
   transition: all 0.3s ease;
 }
 
-/* Mobile panel styling - no rounded corners, full height */
+/* Mobile panel styling - fullscreen, no rounded corners */
 @media (max-width: 768px) {
   .navigationPanel {
     border-radius: 0;
-    border-right: 0.5px solid rgba(255, 255, 255, 0.12);
+    border: none;
+    background: rgba(30, 30, 35, 0.98);
+    backdrop-filter: blur(60px);
+    -webkit-backdrop-filter: blur(60px);
+  }
+  
+  .navigationPanel.light {
+    background: rgba(245, 245, 247, 0.98);
   }
 }
 
@@ -131,10 +133,20 @@
   backdrop-filter: blur(20px);
 }
 
-/* Mobile header adjustments */
+/* Mobile header adjustments - sticky at top */
 @media (max-width: 768px) {
   .navigationHeader {
-    padding: 1rem;
+    padding: 1.25rem 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(30, 30, 35, 0.95);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+  }
+  
+  .light .navigationHeader {
+    background: rgba(245, 245, 247, 0.95);
   }
 }
 
@@ -223,11 +235,21 @@
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Mobile tabs adjustments */
+/* Mobile tabs - sticky below header */
 @media (max-width: 768px) {
   .mainTabs {
-    padding: 0.75rem;
+    padding: 0.75rem 1rem;
     gap: 0.5rem;
+    position: sticky;
+    top: 73px;
+    z-index: 9;
+    background: rgba(30, 30, 35, 0.95);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+  }
+  
+  .light .mainTabs {
+    background: rgba(245, 245, 247, 0.95);
   }
 }
 
@@ -275,14 +297,15 @@
   color: white;
 }
 
-/* Mobile: Hide text labels on tabs, show only icons */
+/* Mobile: Show both icon and text for better UX */
 @media (max-width: 768px) {
   .mainTab span {
-    display: none;
+    display: inline;
+    font-size: 0.8rem;
   }
   
   .mainTab svg {
-    font-size: 1.2rem;
+    font-size: 1rem;
   }
 }
 
@@ -292,9 +315,20 @@
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Mobile search section - sticky */
 @media (max-width: 768px) {
   .searchSection {
-    padding: 0.75rem;
+    padding: 0.75rem 1rem;
+    position: sticky;
+    top: 124px;
+    z-index: 8;
+    background: rgba(30, 30, 35, 0.95);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+  }
+  
+  .light .searchSection {
+    background: rgba(245, 245, 247, 0.95);
   }
 }
 
@@ -422,6 +456,14 @@
   flex-direction: column;
 }
 
+/* Mobile content area - takes remaining space */
+@media (max-width: 768px) {
+  .contentArea {
+    overflow-y: auto;
+    height: calc(100vh - 200px);
+  }
+}
+
 .contentHeader {
   padding: 0.75rem 1.25rem;
   display: flex;
@@ -432,7 +474,7 @@
 
 @media (max-width: 768px) {
   .contentHeader {
-    padding: 0.75rem;
+    padding: 0.75rem 1rem;
   }
 }
 
@@ -454,6 +496,7 @@
   .usersList,
   .chatRoomsList {
     padding: 0.5rem;
+    overflow-y: auto;
   }
 }
 
@@ -486,8 +529,8 @@
 
 @media (max-width: 768px) {
   .userAvatar {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     margin-right: 0.75rem;
   }
 }
@@ -612,8 +655,8 @@
   }
   
   .actionButton {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
   }
 }
 
@@ -685,8 +728,8 @@
 
 @media (max-width: 768px) {
   .roomIcon {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     margin-right: 0.75rem;
   }
 }
@@ -738,7 +781,16 @@
 
 @media (max-width: 768px) {
   .recentActivity {
-    padding: 0.75rem;
+    padding: 0.75rem 1rem;
+    position: sticky;
+    bottom: 0;
+    background: rgba(30, 30, 35, 0.95);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+  }
+  
+  .light .recentActivity {
+    background: rgba(245, 245, 247, 0.95);
   }
 }
 
@@ -803,11 +855,14 @@
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .modalContainer {
-    width: 85vw;
-    max-width: 320px;
+    width: 100vw;
+    max-width: 100vw;
     height: 100vh;
     max-height: 100vh;
     transform: translateX(-100%);
+    position: fixed;
+    top: 0;
+    left: 0;
   }
   
   .modalBackdrop.open .modalContainer {
@@ -816,6 +871,7 @@
   
   .navigationPanel {
     border-radius: 0;
+    border: none;
   }
   
   .navigationPanel.embedded {
@@ -828,8 +884,11 @@
     font-size: 1rem;
   }
   
-  .modalContainer {
-    width: 90vw;
-    max-width: 280px;
+  .mainTab span {
+    font-size: 0.75rem;
+  }
+  
+  .mainTab svg {
+    font-size: 0.9rem;
   }
 }
