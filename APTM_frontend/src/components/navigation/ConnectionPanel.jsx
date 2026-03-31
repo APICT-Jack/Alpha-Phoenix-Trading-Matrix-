@@ -7,7 +7,7 @@ import { useConnectionPanel } from '../../context/ConnectionPanelContext';
 import { userStatusService } from '../../services/userStatusService';
 import styles from './ConnectionPanel.module.css';
 
-// Import icons
+// Import icons - REMOVED FaApple
 import {
   FaUserFriends, FaSearch, FaCircle, FaRegCircle,
   FaRegCommentDots, FaComments, FaUserPlus, FaUserCheck,
@@ -16,7 +16,7 @@ import {
   FaUser, FaSignInAlt, FaSignOutAlt, FaInfoCircle,
   FaPlus, FaFilter, FaStar, FaClock, FaFire,
   FaMapMarkerAlt, FaChartLine, FaHeart, FaSyncAlt,
-  FaApple, FaGlobe, FaRegTimesCircle
+  FaGlobe, FaRegTimesCircle
 } from 'react-icons/fa';
 
 // Helper functions
@@ -53,13 +53,11 @@ const ConnectionPanel = ({
   isOpen = false,
   onClose,
   initialTab = 'followers',
-  embedded = false,
-  triggerButton = null // Optional trigger button that opens the panel
+  embedded = false
 }) => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { darkMode } = useTheme();
-  const { openPanel: globalOpenPanel } = useConnectionPanel();
 
   // Modal animation state
   const [isVisible, setIsVisible] = useState(false);
@@ -139,32 +137,46 @@ const ConnectionPanel = ({
     }
   }, [isOpen, embedded, onClose]);
 
-  // User status service setup
+  // User status service setup with error handling
   useEffect(() => {
     if (!currentUser) return;
     
-    userStatusService.init(currentUser, {
-      onConnect: () => {
-        setTimeout(() => userStatusService.getOnlineUsers(), 500);
-      },
-      onOnlineUsers: (users) => setOnlineUsers(users),
-      onUserOnline: (data) => {
-        setOnlineUsers(prev => ({ ...prev, [data.userId]: { online: true, userData: data.userData } }));
-        addRecentActivity({ type: 'user-online', userId: data.userId, userName: data.userData?.name, timestamp: new Date().toISOString() });
-      },
-      onUserOffline: (data) => {
-        setOnlineUsers(prev => {
-          const newState = { ...prev };
-          delete newState[data.userId];
-          return newState;
+    try {
+      if (userStatusService && userStatusService.init) {
+        userStatusService.init(currentUser, {
+          onConnect: () => {
+            setTimeout(() => {
+              if (userStatusService.getOnlineUsers) {
+                userStatusService.getOnlineUsers();
+              }
+            }, 500);
+          },
+          onOnlineUsers: (users) => setOnlineUsers(users || {}),
+          onUserOnline: (data) => {
+            setOnlineUsers(prev => ({ ...prev, [data.userId]: { online: true, userData: data.userData } }));
+            addRecentActivity({ type: 'user-online', userId: data.userId, userName: data.userData?.name, timestamp: new Date().toISOString() });
+          },
+          onUserOffline: (data) => {
+            setOnlineUsers(prev => {
+              const newState = { ...prev };
+              delete newState[data.userId];
+              return newState;
+            });
+            addRecentActivity({ type: 'user-offline', userId: data.userId, timestamp: new Date().toISOString() });
+          }
         });
-        addRecentActivity({ type: 'user-offline', userId: data.userId, timestamp: new Date().toISOString() });
       }
-    });
+    } catch (error) {
+      console.error('Error initializing user status service:', error);
+    }
 
     return () => {
-      userStatusService.offUserOnline?.();
-      userStatusService.offUserOffline?.();
+      try {
+        if (userStatusService && userStatusService.offUserOnline) userStatusService.offUserOnline();
+        if (userStatusService && userStatusService.offUserOffline) userStatusService.offUserOffline();
+      } catch (error) {
+        console.error('Error cleaning up user status service:', error);
+      }
     };
   }, [currentUser]);
 
@@ -199,7 +211,6 @@ const ConnectionPanel = ({
         const data = await response.json();
         setFollowing(data.following || []);
         
-        // Update following status map
         const statusMap = {};
         (data.following || []).forEach(user => {
           statusMap[user.id] = true;
@@ -224,13 +235,6 @@ const ConnectionPanel = ({
       if (response.ok) {
         const data = await response.json();
         setSuggestions(data.users || []);
-      } else {
-        // Mock data for demo
-        setSuggestions([
-          { id: 's1', name: 'Sarah Johnson', username: 'sarahj', followersCount: 1240, tradingExperience: 'advanced', country: 'USA', interests: ['Stocks', 'Forex'] },
-          { id: 's2', name: 'Mike Chen', username: 'mikechen', followersCount: 892, tradingExperience: 'intermediate', country: 'Singapore', interests: ['Crypto', 'Stocks'] },
-          { id: 's3', name: 'Elena Rodriguez', username: 'elenar', followersCount: 2100, tradingExperience: 'expert', country: 'Spain', interests: ['Forex', 'Commodities'] }
-        ]);
       }
     } catch (error) {
       console.error('Error fetching suggestions:', error);
@@ -249,13 +253,6 @@ const ConnectionPanel = ({
         if (response.ok) {
           const data = await response.json();
           setChatRooms(data.rooms || []);
-        } else {
-          // Mock data for demo
-          setChatRooms([
-            { id: '1', title: '💬 Trading Lounge', description: 'General trading discussions', memberCount: 156, onlineCount: 23, type: 'public', isMember: false, tags: ['trading', 'stocks'] },
-            { id: '2', title: '📈 Forex Daily', description: 'Forex market analysis', memberCount: 89, onlineCount: 12, type: 'public', isMember: true, tags: ['forex', 'currencies'] },
-            { id: '3', title: '🪙 Crypto Hub', description: 'Bitcoin, Ethereum & altcoins', memberCount: 342, onlineCount: 67, type: 'public', isMember: false, tags: ['crypto', 'blockchain'] }
-          ]);
         }
       } catch (error) {
         console.error('Error fetching rooms:', error);
@@ -283,7 +280,6 @@ const ConnectionPanel = ({
       if (response.ok) {
         setFollowingStatus(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
         
-        // Update local data
         if (activeMainTab === 'followers') {
           setFollowers(prev => prev.map(f => f.id === userId ? { ...f, isFollowing: !isCurrentlyFollowing } : f));
         } else if (activeMainTab === 'following') {
@@ -354,7 +350,13 @@ const ConnectionPanel = ({
 
   const refreshOnlineStatus = () => {
     setIsRefreshing(true);
-    if (userStatusService.isConnected?.()) userStatusService.getOnlineUsers();
+    try {
+      if (userStatusService && userStatusService.isConnected?.() && userStatusService.getOnlineUsers) {
+        userStatusService.getOnlineUsers();
+      }
+    } catch (error) {
+      console.error('Error refreshing status:', error);
+    }
     setTimeout(() => setIsRefreshing(false), 1000);
   };
 
@@ -517,10 +519,10 @@ const ConnectionPanel = ({
   // Main panel JSX (shared between modal and embedded)
   const panelContent = (
     <div className={`${styles.navigationPanel} ${darkMode ? styles.dark : styles.light} ${embedded ? styles.embedded : ''}`} ref={panelRef}>
-      {/* Header with macOS-style close for modal */}
+      {/* Header - Removed Apple icon */}
       <div className={styles.navigationHeader}>
         <div className={styles.headerTitle}>
-          <div className={styles.headerIcon}><FaApple /></div>
+          <FaUsers className={styles.headerIcon} />
           <h3>Connect</h3>
           <span className={styles.headerBadge}>Live</span>
         </div>
