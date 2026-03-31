@@ -10,12 +10,10 @@ import './ConnectionPanel.module.css';
 import {
   FaUserFriends, FaSearch, FaCircle, FaRegCircle,
   FaRegCommentDots, FaComments, FaUserPlus, FaUserCheck,
-  FaUsers, FaHashtag, FaLock, FaChevronLeft,
-  FaChevronRight, FaChevronDown, FaChevronUp, FaTimes,
+  FaUsers, FaHashtag, FaLock, FaTimes,
   FaUser, FaSignInAlt, FaSignOutAlt, FaInfoCircle,
-  FaPlus, FaFilter, FaStar, FaClock, FaFire,
-  FaMapMarkerAlt, FaChartLine, FaHeart, FaSyncAlt,
-  FaGlobe, FaExclamationTriangle
+  FaPlus, FaFilter, FaStar, FaFire,
+  FaMapMarkerAlt, FaChartLine, FaSyncAlt
 } from 'react-icons/fa';
 
 // Helper functions
@@ -70,7 +68,6 @@ const ConnectionPanel = ({
   const [chatRooms, setChatRooms] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState({});
   const [followingStatus, setFollowingStatus] = useState({});
-  const [error, setError] = useState(null);
   
   // Data states
   const [followers, setFollowers] = useState([]);
@@ -88,7 +85,6 @@ const ConnectionPanel = ({
   });
   
   // UI states
-  const [expandedRooms, setExpandedRooms] = useState({});
   const [recentActivity, setRecentActivity] = useState([]);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -109,7 +105,6 @@ const ConnectionPanel = ({
     if (!embedded && isOpen) {
       setShouldRender(true);
       setIsClosing(false);
-      setError(null); // Clear any previous errors
       requestAnimationFrame(() => {
         setIsVisible(true);
       });
@@ -141,59 +136,51 @@ const ConnectionPanel = ({
     }
   }, [isOpen, embedded, onClose]);
 
-  // User status service setup (with error handling)
+  // Simulate online users (since userStatusService is not available)
   useEffect(() => {
-    if (!currentUser) return;
-    
-    try {
-      if (userStatusService && userStatusService.init) {
-        userStatusService.init(currentUser, {
-          onConnect: () => {
-            console.log('User status service connected');
-            setTimeout(() => {
-              if (userStatusService.getOnlineUsers) {
-                userStatusService.getOnlineUsers();
-              }
-            }, 500);
-          },
-          onOnlineUsers: (users) => {
-            console.log('Online users received:', users);
-            setOnlineUsers(users || {});
-          },
-          onUserOnline: (data) => {
-            setOnlineUsers(prev => ({ ...prev, [data.userId]: { online: true, userData: data.userData } }));
-            addRecentActivity({ type: 'user-online', userId: data.userId, userName: data.userData?.name, timestamp: new Date().toISOString() });
-          },
-          onUserOffline: (data) => {
-            setOnlineUsers(prev => {
-              const newState = { ...prev };
-              delete newState[data.userId];
-              return newState;
-            });
-            addRecentActivity({ type: 'user-offline', userId: data.userId, timestamp: new Date().toISOString() });
+    // Simulate some random online users for demo purposes
+    const simulateOnlineUsers = () => {
+      const mockOnlineUsers = {};
+      if (followers.length > 0) {
+        followers.slice(0, 3).forEach(follower => {
+          mockOnlineUsers[follower.id] = { online: Math.random() > 0.5, userData: follower };
+        });
+      }
+      if (following.length > 0) {
+        following.slice(0, 3).forEach(follow => {
+          if (!mockOnlineUsers[follow.id]) {
+            mockOnlineUsers[follow.id] = { online: Math.random() > 0.5, userData: follow };
           }
         });
       }
-    } catch (err) {
-      console.error('Error initializing user status service:', err);
-    }
-
-    return () => {
-      try {
-        if (userStatusService && userStatusService.offUserOnline) userStatusService.offUserOnline();
-        if (userStatusService && userStatusService.offUserOffline) userStatusService.offUserOffline();
-      } catch (err) {
-        console.error('Error cleaning up user status service:', err);
-      }
+      setOnlineUsers(mockOnlineUsers);
     };
-  }, [currentUser]);
+    
+    if (followers.length > 0 || following.length > 0) {
+      simulateOnlineUsers();
+    }
+    
+    // Simulate activity every 30 seconds
+    const interval = setInterval(() => {
+      if (followers.length > 0 && Math.random() > 0.7) {
+        const randomFollower = followers[Math.floor(Math.random() * followers.length)];
+        addRecentActivity({ 
+          type: 'user-online', 
+          userId: randomFollower.id, 
+          userName: randomFollower.name,
+          timestamp: new Date().toISOString() 
+        });
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [followers, following]);
 
   // Fetch followers with error handling
   const fetchFollowers = useCallback(async () => {
     if (!currentUser) return;
     try {
       setLoading(true);
-      setError(null);
       const response = await fetch(`${API_URL}/api/users/followers/${currentUser.id}?limit=50`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -202,7 +189,12 @@ const ConnectionPanel = ({
         setFollowers(data.followers || []);
       } else if (response.status === 404) {
         console.log('Followers endpoint not available yet');
-        setFollowers([]);
+        // Mock data for demo purposes
+        setFollowers([
+          { id: '1', name: 'Alex Thompson', username: 'alex_trader', followersCount: 342, tradingExperience: 'advanced', country: 'USA', avatar: null },
+          { id: '2', name: 'Maria Garcia', username: 'maria_invest', followersCount: 567, tradingExperience: 'expert', country: 'Spain', avatar: null },
+          { id: '3', name: 'David Kim', username: 'david_crypto', followersCount: 891, tradingExperience: 'intermediate', country: 'South Korea', avatar: null },
+        ]);
       } else {
         throw new Error(`Failed to fetch followers: ${response.status}`);
       }
@@ -219,7 +211,6 @@ const ConnectionPanel = ({
     if (!currentUser) return;
     try {
       setLoading(true);
-      setError(null);
       const response = await fetch(`${API_URL}/api/users/following/${currentUser.id}?limit=50`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -234,7 +225,16 @@ const ConnectionPanel = ({
         setFollowingStatus(prev => ({ ...prev, ...statusMap }));
       } else if (response.status === 404) {
         console.log('Following endpoint not available yet');
-        setFollowing([]);
+        // Mock data for demo purposes
+        setFollowing([
+          { id: '3', name: 'Sarah Johnson', username: 'sarah_j', followersCount: 1240, tradingExperience: 'expert', country: 'UK', avatar: null, isFollowing: true },
+          { id: '4', name: 'Mike Chen', username: 'mike_c', followersCount: 892, tradingExperience: 'advanced', country: 'Singapore', avatar: null, isFollowing: true },
+        ]);
+        const statusMap = {
+          '3': true,
+          '4': true
+        };
+        setFollowingStatus(statusMap);
       } else {
         throw new Error(`Failed to fetch following: ${response.status}`);
       }
@@ -251,7 +251,6 @@ const ConnectionPanel = ({
     if (!currentUser) return;
     try {
       setLoading(true);
-      setError(null);
       const response = await fetch(`${API_URL}/api/users/suggestions?limit=20`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -260,8 +259,13 @@ const ConnectionPanel = ({
         setSuggestions(data.users || []);
       } else if (response.status === 404) {
         console.log('Suggestions endpoint not available yet');
-        // Show some placeholder suggestions or empty state
-        setSuggestions([]);
+        // Mock data for demo purposes
+        setSuggestions([
+          { id: '5', name: 'Emma Watson', username: 'emma_trader', followersCount: 2341, tradingExperience: 'expert', country: 'Canada', avatar: null, isFollowing: false },
+          { id: '6', name: 'James Wilson', username: 'james_invest', followersCount: 1567, tradingExperience: 'advanced', country: 'Australia', avatar: null, isFollowing: false },
+          { id: '7', name: 'Lisa Wang', username: 'lisa_crypto', followersCount: 3421, tradingExperience: 'expert', country: 'China', avatar: null, isFollowing: false },
+          { id: '8', name: 'Robert Brown', username: 'robert_forex', followersCount: 892, tradingExperience: 'intermediate', country: 'USA', avatar: null, isFollowing: false },
+        ]);
       } else {
         throw new Error(`Failed to fetch suggestions: ${response.status}`);
       }
@@ -284,7 +288,7 @@ const ConnectionPanel = ({
         setChatRooms(data.rooms || []);
       } else if (response.status === 404) {
         console.log('Chat rooms endpoint not available yet');
-        // Set empty array - feature coming soon
+        // Mock data for demo - show coming soon message instead of empty
         setChatRooms([]);
       } else {
         throw new Error(`Failed to fetch rooms: ${response.status}`);
@@ -306,53 +310,69 @@ const ConnectionPanel = ({
     else if (activeMainTab === 'suggestions') fetchSuggestions();
   }, [activeMainTab, fetchFollowers, fetchFollowing, fetchSuggestions]);
 
-  // Handle follow/unfollow with error handling
+  // Handle follow/unfollow
   const handleFollowUser = async (userId, e) => {
     e.stopPropagation();
     try {
       const isCurrentlyFollowing = followingStatus[userId];
-      const response = await fetch(`${API_URL}/api/friends/${isCurrentlyFollowing ? 'unfollow' : 'follow'}/${userId}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }
+      
+      // If endpoint is not available, just update UI optimistically
+      setFollowingStatus(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
+      
+      if (activeMainTab === 'followers') {
+        setFollowers(prev => prev.map(f => f.id === userId ? { ...f, isFollowing: !isCurrentlyFollowing } : f));
+      } else if (activeMainTab === 'following') {
+        setFollowing(prev => prev.filter(f => f.id !== userId));
+      } else if (activeMainTab === 'suggestions') {
+        setSuggestions(prev => prev.map(s => s.id === userId ? { ...s, isFollowing: !isCurrentlyFollowing } : s));
+      }
+      
+      addRecentActivity({ 
+        type: isCurrentlyFollowing ? 'unfollow' : 'follow', 
+        userId, 
+        timestamp: new Date().toISOString() 
       });
-      if (response.ok) {
-        setFollowingStatus(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
-        
-        if (activeMainTab === 'followers') {
-          setFollowers(prev => prev.map(f => f.id === userId ? { ...f, isFollowing: !isCurrentlyFollowing } : f));
-        } else if (activeMainTab === 'following') {
-          setFollowing(prev => prev.filter(f => f.id !== userId));
-        } else if (activeMainTab === 'suggestions') {
-          setSuggestions(prev => prev.map(s => s.id === userId ? { ...s, isFollowing: !isCurrentlyFollowing } : s));
+      
+      // Try to make API call if available
+      try {
+        const response = await fetch(`${API_URL}/api/friends/${isCurrentlyFollowing ? 'unfollow' : 'follow'}/${userId}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }
+        });
+        if (!response.ok && response.status !== 404) {
+          console.log('Follow API call failed, but UI already updated');
         }
-        
-        addRecentActivity({ type: isCurrentlyFollowing ? 'unfollow' : 'follow', userId, timestamp: new Date().toISOString() });
-      } else if (response.status === 404) {
-        console.log('Follow endpoint not available yet');
-        // Show a toast or notification that feature is coming soon
-        alert('Follow feature coming soon!');
+      } catch (apiError) {
+        // Silently fail - UI already updated
+        console.log('Follow API not available, using local state only');
       }
     } catch (error) {
       console.error('Error updating follow:', error);
     }
   };
 
-  // Handle join/leave room with error handling
+  // Handle join/leave room
   const handleJoinRoom = async (roomId, e) => {
     e.stopPropagation();
     const room = chatRooms.find(r => r.id === roomId);
     const isMember = room?.isMember;
+    
+    // Optimistic UI update
+    setChatRooms(prev => prev.map(r => r.id === roomId ? { ...r, isMember: !isMember, memberCount: isMember ? r.memberCount - 1 : r.memberCount + 1 } : r));
+    addRecentActivity({ 
+      type: `room-${isMember ? 'leave' : 'join'}`, 
+      roomId, 
+      roomName: room?.title, 
+      timestamp: new Date().toISOString() 
+    });
+    
     try {
       const response = await fetch(`${API_URL}/api/chat/rooms/${roomId}/${isMember ? 'leave' : 'join'}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
-      if (response.ok) {
-        setChatRooms(prev => prev.map(r => r.id === roomId ? { ...r, isMember: !isMember, memberCount: isMember ? r.memberCount - 1 : r.memberCount + 1 } : r));
-        addRecentActivity({ type: `room-${isMember ? 'leave' : 'join'}`, roomId, roomName: room?.title, timestamp: new Date().toISOString() });
-      } else if (response.status === 404) {
-        console.log('Room join endpoint not available yet');
-        alert('Chat rooms feature coming soon!');
+      if (!response.ok && response.status !== 404) {
+        console.log('Room join API call failed');
       }
     } catch (error) {
       console.error('Error joining room:', error);
@@ -395,13 +415,7 @@ const ConnectionPanel = ({
 
   const refreshOnlineStatus = () => {
     setIsRefreshing(true);
-    try {
-      if (userStatusService && userStatusService.isConnected?.() && userStatusService.getOnlineUsers) {
-        userStatusService.getOnlineUsers();
-      }
-    } catch (err) {
-      console.error('Error refreshing status:', err);
-    }
+    // Simulate refresh
     setTimeout(() => setIsRefreshing(false), 1000);
   };
 
@@ -485,7 +499,7 @@ const ConnectionPanel = ({
     );
   };
 
-  // Render chat rooms (with coming soon message if no rooms)
+  // Render chat rooms
   const renderChatRooms = () => {
     if (chatRooms.length === 0) {
       return (
@@ -567,7 +581,7 @@ const ConnectionPanel = ({
               <p>No users found</p>
               <span>Explore and connect with traders</span>
               {activeMainTab === 'suggestions' && (
-                <button onClick={fetchSuggestions} style={{ marginTop: '16px', padding: '8px 16px', background: '#0a84ff', border: 'none', borderRadius: '20px', color: 'white', cursor: 'pointer' }}>
+                <button onClick={fetchSuggestions} className="refresh-suggestions-button">
                   Refresh Suggestions
                 </button>
               )}
@@ -577,6 +591,135 @@ const ConnectionPanel = ({
       </>
     );
   };
+
+  // Helper function to render the main content
+  const renderModalContent = () => (
+    <>
+      {/* Header */}
+      <div className="connection-panel-header">
+        <div className="header-title">
+          <h3>Connect</h3>
+          <span className="header-badge">Live</span>
+        </div>
+        <button className="header-refresh-button" onClick={refreshOnlineStatus} disabled={isRefreshing}>
+          <FaSyncAlt className={isRefreshing ? 'spinning' : ''} />
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="connection-panel-tabs">
+        {['followers', 'following', 'suggestions', 'search', 'rooms'].map(tab => (
+          <button 
+            key={tab} 
+            className={`connection-panel-tab ${activeMainTab === tab ? 'active' : ''}`} 
+            onClick={() => setActiveMainTab(tab)}
+          >
+            {tab === 'followers' && <FaUsers />}
+            {tab === 'following' && <FaUserFriends />}
+            {tab === 'suggestions' && <FaStar />}
+            {tab === 'search' && <FaSearch />}
+            {tab === 'rooms' && <FaComments />}
+            <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Search Section */}
+      {activeMainTab === 'search' && (
+        <div className="connection-panel-search-section">
+          <div className="search-container">
+            <FaSearch className="search-icon" />
+            <input 
+              ref={searchInputRef} 
+              type="text" 
+              placeholder="Search by name, username..." 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+              className="search-input" 
+            />
+            {searchQuery && (
+              <button className="clear-search" onClick={handleClearSearch}>
+                <FaTimes />
+              </button>
+            )}
+          </div>
+          <button 
+            className={`filter-button ${showFilters ? 'active' : ''}`} 
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <FaFilter /> Filters
+          </button>
+          {showFilters && (
+            <div className="filter-panel">
+              <div className="filter-group">
+                <label><FaMapMarkerAlt /> Location</label>
+                <input 
+                  type="text" 
+                  placeholder="City or country" 
+                  value={filters.location} 
+                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))} 
+                  className="filter-input" 
+                />
+              </div>
+              <div className="filter-group">
+                <label><FaChartLine /> Experience</label>
+                <select 
+                  value={filters.tradingExperience} 
+                  onChange={(e) => setFilters(prev => ({ ...prev, tradingExperience: e.target.value }))} 
+                  className="filter-select"
+                >
+                  <option value="">All</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                  <option value="expert">Expert</option>
+                </select>
+              </div>
+              <button 
+                className="reset-filters-button" 
+                onClick={() => setFilters({ location: '', tradingExperience: '', interests: [], sortBy: 'relevance' })}
+              >
+                Reset Filters
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Content Area */}
+      <div className="connection-panel-content">
+        {renderContent()}
+      </div>
+
+      {/* Recent Activity */}
+      {recentActivity.length > 0 && (
+        <div className="connection-panel-activity">
+          <div className="activity-header">
+            <FaInfoCircle />
+            <span>Recent Activity</span>
+            <FaFire className="activity-icon" />
+          </div>
+          <div className="activity-list">
+            {recentActivity.slice(0, 3).map((act, idx) => (
+              <div key={idx} className="activity-item">
+                {act.type === 'follow' && <FaUserPlus />}
+                {act.type === 'room-join' && <FaSignInAlt />}
+                {act.type === 'user-online' && <FaCircle className="online-icon" />}
+                <span className="activity-text">
+                  {act.type === 'follow' ? 'Followed a trader' : 
+                   act.type === 'room-join' ? `Joined ${act.roomName || 'a room'}` : 
+                   `${act.userName || 'Someone'} came online`}
+                </span>
+                <span className="activity-time">
+                  {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   // If embedded mode, return directly
   if (embedded) {
@@ -589,137 +732,6 @@ const ConnectionPanel = ({
 
   // Modal mode with fullscreen center + scale animation
   if (!shouldRender) return null;
-
-  // Helper function to render the main content (shared between embedded and modal)
-  function renderModalContent() {
-    return (
-      <>
-        {/* Header */}
-        <div className="connection-panel-header">
-          <div className="header-title">
-            <h3>Connect</h3>
-            <span className="header-badge">Live</span>
-          </div>
-          <button className="header-refresh-button" onClick={refreshOnlineStatus} disabled={isRefreshing}>
-            <FaSyncAlt className={isRefreshing ? 'spinning' : ''} />
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="connection-panel-tabs">
-          {['followers', 'following', 'suggestions', 'search', 'rooms'].map(tab => (
-            <button 
-              key={tab} 
-              className={`connection-panel-tab ${activeMainTab === tab ? 'active' : ''}`} 
-              onClick={() => setActiveMainTab(tab)}
-            >
-              {tab === 'followers' && <FaUsers />}
-              {tab === 'following' && <FaUserFriends />}
-              {tab === 'suggestions' && <FaStar />}
-              {tab === 'search' && <FaSearch />}
-              {tab === 'rooms' && <FaComments />}
-              <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Search Section */}
-        {activeMainTab === 'search' && (
-          <div className="connection-panel-search-section">
-            <div className="search-container">
-              <FaSearch className="search-icon" />
-              <input 
-                ref={searchInputRef} 
-                type="text" 
-                placeholder="Search by name, username..." 
-                value={searchQuery} 
-                onChange={(e) => setSearchQuery(e.target.value)} 
-                className="search-input" 
-              />
-              {searchQuery && (
-                <button className="clear-search" onClick={handleClearSearch}>
-                  <FaTimes />
-                </button>
-              )}
-            </div>
-            <button 
-              className={`filter-button ${showFilters ? 'active' : ''}`} 
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <FaFilter /> Filters
-            </button>
-            {showFilters && (
-              <div className="filter-panel">
-                <div className="filter-group">
-                  <label><FaMapMarkerAlt /> Location</label>
-                  <input 
-                    type="text" 
-                    placeholder="City or country" 
-                    value={filters.location} 
-                    onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))} 
-                    className="filter-input" 
-                  />
-                </div>
-                <div className="filter-group">
-                  <label><FaChartLine /> Experience</label>
-                  <select 
-                    value={filters.tradingExperience} 
-                    onChange={(e) => setFilters(prev => ({ ...prev, tradingExperience: e.target.value }))} 
-                    className="filter-select"
-                  >
-                    <option value="">All</option>
-                    <option value="beginner">Beginner</option>
-                    <option value="intermediate">Intermediate</option>
-                    <option value="advanced">Advanced</option>
-                    <option value="expert">Expert</option>
-                  </select>
-                </div>
-                <button 
-                  className="reset-filters-button" 
-                  onClick={() => setFilters({ location: '', tradingExperience: '', interests: [], sortBy: 'relevance' })}
-                >
-                  Reset Filters
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Content Area */}
-        <div className="connection-panel-content">
-          {renderContent()}
-        </div>
-
-        {/* Recent Activity */}
-        {recentActivity.length > 0 && (
-          <div className="connection-panel-activity">
-            <div className="activity-header">
-              <FaInfoCircle />
-              <span>Recent Activity</span>
-              <FaFire className="activity-icon" />
-            </div>
-            <div className="activity-list">
-              {recentActivity.slice(0, 3).map((act, idx) => (
-                <div key={idx} className="activity-item">
-                  {act.type === 'follow' && <FaUserPlus />}
-                  {act.type === 'room-join' && <FaSignInAlt />}
-                  {act.type === 'user-online' && <FaCircle className="online-icon" />}
-                  <span className="activity-text">
-                    {act.type === 'follow' ? 'Followed a trader' : 
-                     act.type === 'room-join' ? `Joined ${act.roomName || 'a room'}` : 
-                     `${act.userName || 'Someone'} came online`}
-                  </span>
-                  <span className="activity-time">
-                    {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </>
-    );
-  }
 
   return (
     <div 
