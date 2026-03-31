@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useConnectionPanel } from '../../context/ConnectionPanelContext';
 import { userStatusService } from '../../services/userStatusService';
-import './ConnectionPanel.css'; // Independent CSS file
+import './ConnectionPanel.module.css'; // Independent CSS file
 
 // Import icons
 import {
