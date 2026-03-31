@@ -13,7 +13,7 @@ export const useConnectionPanel = () => {
 
 export const ConnectionPanelProvider = ({ children }) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [activePanelTab, setActivePanelTab] = useState('followers'); // 'followers', 'following', 'suggestions', 'search'
+  const [activePanelTab, setActivePanelTab] = useState('followers');
 
   const openPanel = (tab = 'followers') => {
     setActivePanelTab(tab);
