@@ -1,13 +1,12 @@
-// src/components/navigation/ConnectionPanel.jsx
+// ConnectionPanel.jsx - Upgraded with Fullscreen Center Modal + macOS/iOS Vibe
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useConnectionPanel } from '../../context/ConnectionPanelContext';
 import { userStatusService } from '../../services/userStatusService';
 import styles from './ConnectionPanel.module.css';
 
-// Import icons - REMOVED FaApple
+// Import icons
 import {
   FaUserFriends, FaSearch, FaCircle, FaRegCircle,
   FaRegCommentDots, FaComments, FaUserPlus, FaUserCheck,
@@ -16,7 +15,7 @@ import {
   FaUser, FaSignInAlt, FaSignOutAlt, FaInfoCircle,
   FaPlus, FaFilter, FaStar, FaClock, FaFire,
   FaMapMarkerAlt, FaChartLine, FaHeart, FaSyncAlt,
-  FaGlobe, FaRegTimesCircle
+  FaGlobe, FaRegTimesCircle, FaMicrophone
 } from 'react-icons/fa';
 
 // Helper functions
@@ -50,10 +49,10 @@ const getAvatarInitial = (user) => {
 };
 
 const ConnectionPanel = ({ 
-  isOpen = false,
-  onClose,
+  isOpen = false,           // Controls modal visibility
+  onClose,                  // Close handler
   initialTab = 'followers',
-  embedded = false
+  embedded = false          // If true, renders as inline sidebar (no modal)
 }) => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
@@ -97,17 +96,11 @@ const ConnectionPanel = ({
   const searchInputRef = useRef(null);
   const panelRef = useRef(null);
 
-  // Update active tab when initialTab prop changes
-  useEffect(() => {
-    if (initialTab) {
-      setActiveMainTab(initialTab);
-    }
-  }, [initialTab]);
-
   // Modal enter/exit animation handling
   useEffect(() => {
     if (!embedded && isOpen) {
       setShouldRender(true);
+      // Small delay to trigger animation
       requestAnimationFrame(() => {
         setIsVisible(true);
       });
@@ -129,6 +122,7 @@ const ConnectionPanel = ({
         }
       };
       document.addEventListener('keydown', handleEsc);
+      // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
       return () => {
         document.removeEventListener('keydown', handleEsc);
@@ -137,91 +131,40 @@ const ConnectionPanel = ({
     }
   }, [isOpen, embedded, onClose]);
 
-  // User status service setup with error handling
+  // Update parent when tab changes
+  useEffect(() => {
+    if (onClose && !embedded) {
+      // Tab change callback could be added if needed
+    }
+  }, [activeMainTab]);
+
+  // User status service setup
   useEffect(() => {
     if (!currentUser) return;
     
-    try {
-      if (userStatusService && userStatusService.init) {
-        userStatusService.init(currentUser, {
-          onConnect: () => {
-            setTimeout(() => {
-              if (userStatusService.getOnlineUsers) {
-                userStatusService.getOnlineUsers();
-              }
-            }, 500);
-          },
-          onOnlineUsers: (users) => setOnlineUsers(users || {}),
-          onUserOnline: (data) => {
-            setOnlineUsers(prev => ({ ...prev, [data.userId]: { online: true, userData: data.userData } }));
-            addRecentActivity({ type: 'user-online', userId: data.userId, userName: data.userData?.name, timestamp: new Date().toISOString() });
-          },
-          onUserOffline: (data) => {
-            setOnlineUsers(prev => {
-              const newState = { ...prev };
-              delete newState[data.userId];
-              return newState;
-            });
-            addRecentActivity({ type: 'user-offline', userId: data.userId, timestamp: new Date().toISOString() });
-          }
+    userStatusService.init(currentUser, {
+      onConnect: () => {
+        setTimeout(() => userStatusService.getOnlineUsers(), 500);
+      },
+      onOnlineUsers: (users) => setOnlineUsers(users),
+      onUserOnline: (data) => {
+        setOnlineUsers(prev => ({ ...prev, [data.userId]: { online: true, userData: data.userData } }));
+        addRecentActivity({ type: 'user-online', userId: data.userId, userName: data.userData?.name, timestamp: new Date().toISOString() });
+      },
+      onUserOffline: (data) => {
+        setOnlineUsers(prev => {
+          const newState = { ...prev };
+          delete newState[data.userId];
+          return newState;
         });
+        addRecentActivity({ type: 'user-offline', userId: data.userId, timestamp: new Date().toISOString() });
       }
-    } catch (error) {
-      console.error('Error initializing user status service:', error);
-    }
+    });
 
     return () => {
-      try {
-        if (userStatusService && userStatusService.offUserOnline) userStatusService.offUserOnline();
-        if (userStatusService && userStatusService.offUserOffline) userStatusService.offUserOffline();
-      } catch (error) {
-        console.error('Error cleaning up user status service:', error);
-      }
+      userStatusService.offUserOnline?.();
+      userStatusService.offUserOffline?.();
     };
-  }, [currentUser]);
-
-  // Fetch followers
-  const fetchFollowers = useCallback(async () => {
-    if (!currentUser) return;
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/users/followers/${currentUser.id}?limit=50`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFollowers(data.followers || []);
-      }
-    } catch (error) {
-      console.error('Error fetching followers:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentUser]);
-
-  // Fetch following
-  const fetchFollowing = useCallback(async () => {
-    if (!currentUser) return;
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/users/following/${currentUser.id}?limit=50`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFollowing(data.following || []);
-        
-        const statusMap = {};
-        (data.following || []).forEach(user => {
-          statusMap[user.id] = true;
-        });
-        setFollowingStatus(prev => ({ ...prev, ...statusMap }));
-      }
-    } catch (error) {
-      console.error('Error fetching following:', error);
-    } finally {
-      setLoading(false);
-    }
   }, [currentUser]);
 
   // Fetch suggestions
@@ -253,6 +196,13 @@ const ConnectionPanel = ({
         if (response.ok) {
           const data = await response.json();
           setChatRooms(data.rooms || []);
+        } else {
+          // Mock data for demo
+          setChatRooms([
+            { id: '1', title: '💬 Trading Lounge', description: 'General trading discussions', memberCount: 156, onlineCount: 23, type: 'public', isMember: false, tags: ['trading', 'stocks'] },
+            { id: '2', title: '📈 Forex Daily', description: 'Forex market analysis', memberCount: 89, onlineCount: 12, type: 'public', isMember: true, tags: ['forex', 'currencies'] },
+            { id: '3', title: '🪙 Crypto Hub', description: 'Bitcoin, Ethereum & altcoins', memberCount: 342, onlineCount: 67, type: 'public', isMember: false, tags: ['crypto', 'blockchain'] }
+          ]);
         }
       } catch (error) {
         console.error('Error fetching rooms:', error);
@@ -261,12 +211,10 @@ const ConnectionPanel = ({
     fetchChatRooms();
   }, []);
 
-  // Initial data load based on active tab
+  // Initial data load
   useEffect(() => {
-    if (activeMainTab === 'followers') fetchFollowers();
-    else if (activeMainTab === 'following') fetchFollowing();
-    else if (activeMainTab === 'suggestions') fetchSuggestions();
-  }, [activeMainTab, fetchFollowers, fetchFollowing, fetchSuggestions]);
+    if (activeMainTab === 'suggestions') fetchSuggestions();
+  }, [activeMainTab, fetchSuggestions]);
 
   // Handle follow/unfollow
   const handleFollowUser = async (userId, e) => {
@@ -279,15 +227,6 @@ const ConnectionPanel = ({
       });
       if (response.ok) {
         setFollowingStatus(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
-        
-        if (activeMainTab === 'followers') {
-          setFollowers(prev => prev.map(f => f.id === userId ? { ...f, isFollowing: !isCurrentlyFollowing } : f));
-        } else if (activeMainTab === 'following') {
-          setFollowing(prev => prev.filter(f => f.id !== userId));
-        } else if (activeMainTab === 'suggestions') {
-          setSuggestions(prev => prev.map(s => s.id === userId ? { ...s, isFollowing: !isCurrentlyFollowing } : s));
-        }
-        
         addRecentActivity({ type: isCurrentlyFollowing ? 'unfollow' : 'follow', userId, timestamp: new Date().toISOString() });
       }
     } catch (error) {
@@ -350,13 +289,7 @@ const ConnectionPanel = ({
 
   const refreshOnlineStatus = () => {
     setIsRefreshing(true);
-    try {
-      if (userStatusService && userStatusService.isConnected?.() && userStatusService.getOnlineUsers) {
-        userStatusService.getOnlineUsers();
-      }
-    } catch (error) {
-      console.error('Error refreshing status:', error);
-    }
+    if (userStatusService.isConnected?.()) userStatusService.getOnlineUsers();
     setTimeout(() => setIsRefreshing(false), 1000);
   };
 
@@ -440,51 +373,39 @@ const ConnectionPanel = ({
     );
   };
 
-  // Render chat rooms
-  const renderChatRooms = () => {
-    return (
-      <div className={styles.chatRoomsSection}>
-        <div className={styles.sectionHeader}>
-          <span>🎙️ Active Rooms</span>
-          <button className={styles.createRoomButton} onClick={handleCreateRoom}><FaPlus /> New Room</button>
-        </div>
-        <div className={styles.chatRoomsList}>
-          {chatRooms.map(room => (
-            <div key={room.id} className={styles.roomContainer}>
-              <div className={`${styles.chatRoomItem} ${room.isMember ? styles.member : ''}`} onClick={() => handleChatRoomClick(room.id)}>
-                <div className={styles.roomIcon}>{room.type === 'private' ? <FaLock /> : <FaHashtag />}</div>
-                <div className={styles.roomInfo}>
-                  <div className={styles.roomTitle}><strong>{room.title}</strong></div>
-                  <span className={styles.roomMeta}><FaUsers /> {room.memberCount} members • {room.onlineCount || 0} online</span>
-                </div>
-                <div className={styles.roomActions}>
-                  <button className={`${styles.joinButton} ${room.isMember ? styles.member : ''}`} onClick={(e) => handleJoinRoom(room.id, e)}>
-                    {room.isMember ? <FaSignOutAlt /> : <FaSignInAlt />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-          {chatRooms.length === 0 && (
-            <div className={styles.emptyState}>
-              <FaComments size={48} />
-              <p>No chat rooms available</p>
-              <button className={styles.createFirstRoom} onClick={handleCreateRoom}>Create your first room</button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   // Render content based on active tab
   const renderContent = () => {
-    if (activeMainTab === 'rooms') {
-      return renderChatRooms();
-    }
-    
     const tabsData = { followers, following, suggestions, search: searchResults };
     const currentData = tabsData[activeMainTab] || [];
+    
+    if (activeMainTab === 'rooms') {
+      return (
+        <div className={styles.chatRoomsSection}>
+          <div className={styles.sectionHeader}>
+            <span>🎙️ Active Rooms</span>
+            <button className={styles.createRoomButton} onClick={handleCreateRoom}><FaPlus /> New Room</button>
+          </div>
+          <div className={styles.chatRoomsList}>
+            {chatRooms.map(room => (
+              <div key={room.id} className={styles.roomContainer}>
+                <div className={`${styles.chatRoomItem} ${room.isMember ? styles.member : ''}`} onClick={() => handleChatRoomClick(room.id)}>
+                  <div className={styles.roomIcon}>{room.type === 'private' ? <FaLock /> : <FaHashtag />}</div>
+                  <div className={styles.roomInfo}>
+                    <div className={styles.roomTitle}><strong>{room.title}</strong></div>
+                    <span className={styles.roomMeta}><FaUsers /> {room.memberCount} members • {room.onlineCount || 0} online</span>
+                  </div>
+                  <div className={styles.roomActions}>
+                    <button className={`${styles.joinButton} ${room.isMember ? styles.member : ''}`} onClick={(e) => handleJoinRoom(room.id, e)}>
+                      {room.isMember ? <FaSignOutAlt /> : <FaSignInAlt />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
     
     return (
       <>
@@ -495,9 +416,7 @@ const ConnectionPanel = ({
             {activeMainTab === 'suggestions' && `✨ Suggestions (${suggestions.length})`}
             {activeMainTab === 'search' && `🔍 Search Results (${searchResults.length})`}
           </h4>
-          {activeMainTab === 'suggestions' && (
-            <button onClick={fetchSuggestions} className={styles.refreshButton}><FaSyncAlt /></button>
-          )}
+          {activeMainTab === 'suggestions' && <button onClick={fetchSuggestions} className={styles.refreshButton}><FaSyncAlt /></button>}
         </div>
         <div className={styles.usersList}>
           {loading && currentData.length === 0 ? (
@@ -519,17 +438,15 @@ const ConnectionPanel = ({
   // Main panel JSX (shared between modal and embedded)
   const panelContent = (
     <div className={`${styles.navigationPanel} ${darkMode ? styles.dark : styles.light} ${embedded ? styles.embedded : ''}`} ref={panelRef}>
-      {/* Header - Removed Apple icon */}
+      {/* Header with macOS-style close for modal */}
       <div className={styles.navigationHeader}>
         <div className={styles.headerTitle}>
-          <FaUsers className={styles.headerIcon} />
+          
           <h3>Connect</h3>
           <span className={styles.headerBadge}>Live</span>
         </div>
         <div className={styles.headerActions}>
-          <button className={styles.refreshButton} onClick={refreshOnlineStatus} disabled={isRefreshing}>
-            <FaSyncAlt className={isRefreshing ? styles.spinning : ''} />
-          </button>
+          <button className={styles.refreshButton} onClick={refreshOnlineStatus} disabled={isRefreshing}><FaSyncAlt className={isRefreshing ? styles.spinning : ''} /></button>
           {!embedded && (
             <button className={styles.closeModalButton} onClick={onClose} title="Close (ESC)">
               <FaTimes />
@@ -541,16 +458,8 @@ const ConnectionPanel = ({
       {/* iOS-style segmented tabs */}
       <div className={styles.mainTabs}>
         {['followers', 'following', 'suggestions', 'search', 'rooms'].map(tab => (
-          <button 
-            key={tab} 
-            className={`${styles.mainTab} ${activeMainTab === tab ? styles.active : ''}`} 
-            onClick={() => setActiveMainTab(tab)}
-          >
-            {tab === 'followers' && <FaUsers />}
-            {tab === 'following' && <FaUserFriends />}
-            {tab === 'suggestions' && <FaStar />}
-            {tab === 'search' && <FaSearch />}
-            {tab === 'rooms' && <FaComments />}
+          <button key={tab} className={`${styles.mainTab} ${activeMainTab === tab ? styles.active : ''}`} onClick={() => setActiveMainTab(tab)}>
+            {tab === 'followers' && <FaUsers />}{tab === 'following' && <FaUserFriends />}{tab === 'suggestions' && <FaStar />}{tab === 'search' && <FaSearch />}{tab === 'rooms' && <FaComments />}
             <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
           </button>
         ))}
@@ -561,90 +470,33 @@ const ConnectionPanel = ({
         <div className={styles.searchSection}>
           <div className={styles.searchContainer}>
             <FaSearch className={styles.searchIcon} />
-            <input 
-              ref={searchInputRef} 
-              type="text" 
-              placeholder="Search by name, username..." 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              className={styles.searchInput} 
-            />
-            {searchQuery && (
-              <button className={styles.clearSearch} onClick={handleClearSearch}>
-                <FaTimes />
-              </button>
-            )}
+            <input ref={searchInputRef} type="text" placeholder="Search by name, username..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={styles.searchInput} />
+            {searchQuery && <button className={styles.clearSearch} onClick={handleClearSearch}><FaTimes /></button>}
           </div>
-          <button 
-            className={`${styles.filterButton} ${showFilters ? styles.active : ''}`} 
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <FaFilter /> Filters
-          </button>
+          <button className={`${styles.filterButton} ${showFilters ? styles.active : ''}`} onClick={() => setShowFilters(!showFilters)}><FaFilter /> Filters</button>
           {showFilters && (
             <div className={styles.filterPanel}>
-              <div className={styles.filterGroup}>
-                <label><FaMapMarkerAlt /> Location</label>
-                <input 
-                  type="text" 
-                  placeholder="City or country" 
-                  value={filters.location} 
-                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))} 
-                  className={styles.filterInput} 
-                />
-              </div>
-              <div className={styles.filterGroup}>
-                <label><FaChartLine /> Experience</label>
-                <select 
-                  value={filters.tradingExperience} 
-                  onChange={(e) => setFilters(prev => ({ ...prev, tradingExperience: e.target.value }))} 
-                  className={styles.filterSelect}
-                >
-                  <option value="">All</option>
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                  <option value="expert">Expert</option>
-                </select>
-              </div>
-              <button 
-                className={styles.resetFiltersButton} 
-                onClick={() => setFilters({ location: '', tradingExperience: '', interests: [], sortBy: 'relevance' })}
-              >
-                Reset Filters
-              </button>
+              <div className={styles.filterGroup}><label><FaMapMarkerAlt /> Location</label><input type="text" placeholder="City or country" value={filters.location} onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))} className={styles.filterInput} /></div>
+              <div className={styles.filterGroup}><label><FaChartLine /> Experience</label><select value={filters.tradingExperience} onChange={(e) => setFilters(prev => ({ ...prev, tradingExperience: e.target.value }))} className={styles.filterSelect}><option value="">All</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></div>
+              <button className={styles.resetFiltersButton} onClick={() => setFilters({ location: '', tradingExperience: '', interests: [], sortBy: 'relevance' })}>Reset</button>
             </div>
           )}
         </div>
       )}
 
       {/* Dynamic content area */}
-      <div className={styles.contentArea}>
-        {renderContent()}
-      </div>
+      <div className={styles.contentArea}>{renderContent()}</div>
 
       {/* Recent activity (iOS-style status) */}
       {recentActivity.length > 0 && (
         <div className={styles.recentActivity}>
-          <div className={styles.activityHeader}>
-            <FaInfoCircle />
-            <span>Recent Activity</span>
-            <FaFire className={styles.activityIcon} />
-          </div>
+          <div className={styles.activityHeader}><FaInfoCircle /><span>Recent Activity</span><FaFire className={styles.activityIcon} /></div>
           <div className={styles.activityList}>
             {recentActivity.slice(0, 3).map((act, idx) => (
               <div key={idx} className={styles.activityItem}>
-                {act.type === 'follow' && <FaUserPlus />}
-                {act.type === 'room-join' && <FaSignInAlt />}
-                {act.type === 'user-online' && <FaCircle className={styles.onlineIcon} />}
-                <span className={styles.activityText}>
-                  {act.type === 'follow' ? 'Followed a trader' : 
-                   act.type === 'room-join' ? `Joined ${act.roomName || 'a room'}` : 
-                   `${act.userName || 'Someone'} came online`}
-                </span>
-                <span className={styles.activityTime}>
-                  {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                {act.type === 'follow' && <FaUserPlus />}{act.type === 'room-join' && <FaSignInAlt />}{act.type === 'user-online' && <FaCircle className={styles.onlineIcon} />}
+                <span className={styles.activityText}>{act.type === 'follow' ? 'Followed a trader' : act.type === 'room-join' ? `Joined ${act.roomName || 'a room'}` : `${act.userName || 'Someone'} came online`}</span>
+                <span className={styles.activityTime}>{new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
             ))}
           </div>
