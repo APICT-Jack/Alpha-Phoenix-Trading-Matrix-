@@ -974,3 +974,281 @@
   border-color: #007aff;
   color: #007aff;
 }
+/* Add to ConnectionPanel.module.css - Light Mode Text Color Overrides */
+
+/* Light mode text colors */
+.navigationPanel.light {
+  --panel-text-primary: #1c1c1e;
+  --panel-text-secondary: #3a3a3c;
+  --panel-text-tertiary: #8e8e93;
+}
+
+/* Override all text colors for light mode */
+.navigationPanel.light .headerTitle h3,
+.navigationPanel.light .mainTab,
+.navigationPanel.light .mainTab span,
+.navigationPanel.light .contentHeader h4,
+.navigationPanel.light .userName strong,
+.navigationPanel.light .userUsername,
+.navigationPanel.light .userLocation,
+.navigationPanel.light .userStat,
+.navigationPanel.light .roomTitle strong,
+.navigationPanel.light .roomMeta,
+.navigationPanel.light .lastMessage,
+.navigationPanel.light .sectionHeader span,
+.navigationPanel.light .activityText,
+.navigationPanel.light .activityHeader span,
+.navigationPanel.light .emptyState p,
+.navigationPanel.light .emptyState span,
+.navigationPanel.light .loadingState span {
+  color: var(--panel-text-primary);
+}
+
+/* Secondary text for light mode */
+.navigationPanel.light .userUsername,
+.navigationPanel.light .userLocation,
+.navigationPanel.light .userStat,
+.navigationPanel.light .roomMeta,
+.navigationPanel.light .lastMessage,
+.navigationPanel.light .activityText,
+.navigationPanel.light .emptyState span,
+.navigationPanel.light .loadingState span {
+  color: var(--panel-text-secondary);
+}
+
+/* Tertiary text for light mode */
+.navigationPanel.light .activityTime,
+.navigationPanel.light .activityHeader {
+  color: var(--panel-text-tertiary);
+}
+
+/* Input text in light mode */
+.navigationPanel.light .searchInput,
+.navigationPanel.light .filterInput,
+.navigationPanel.light .filterSelect {
+  color: var(--panel-text-primary);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.navigationPanel.light .searchInput::placeholder,
+.navigationPanel.light .filterInput::placeholder {
+  color: var(--panel-text-tertiary);
+}
+
+/* User level badges in light mode */
+.navigationPanel.light .userLevel.beginner {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.navigationPanel.light .userLevel.intermediate {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.navigationPanel.light .userLevel.advanced {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+/* Action buttons in light mode */
+.navigationPanel.light .actionButton,
+.navigationPanel.light .joinButton,
+.navigationPanel.light .refreshButton,
+.navigationPanel.light .closeModalButton {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--panel-text-secondary);
+}
+
+.navigationPanel.light .actionButton:hover,
+.navigationPanel.light .joinButton:hover,
+.navigationPanel.light .refreshButton:hover,
+.navigationPanel.light .closeModalButton:hover {
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
+}
+
+/* You badge in light mode */
+.navigationPanel.light .youBadge {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--panel-text-secondary);
+}
+
+/* Empty state in light mode */
+.navigationPanel.light .emptyState svg {
+  color: var(--panel-text-tertiary);
+}
+
+/* Loading spinner in light mode */
+.navigationPanel.light .spinner {
+  border-color: rgba(0, 0, 0, 0.1);
+  border-top-color: #007aff;
+}
+
+/* Modal backdrop for light mode */
+:global(body.light-mode) .modalBackdrop {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Panel background for light mode modal */
+.navigationPanel.light {
+  background: rgba(245, 245, 247, 0.98);
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Mobile sticky headers in light mode */
+@media (max-width: 768px) {
+  .navigationPanel.light .navigationHeader,
+  .navigationPanel.light .mainTabs,
+  .navigationPanel.light .searchSection {
+    background: rgba(245, 245, 247, 0.98);
+  }
+  
+  .navigationPanel.light .recentActivity {
+    background: rgba(245, 245, 247, 0.98);
+  }
+}
+
+/* User item hover in light mode */
+.navigationPanel.light .userItem:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Room item in light mode */
+.navigationPanel.light .chatRoomItem {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.navigationPanel.light .chatRoomItem:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Filter panel in light mode */
+.navigationPanel.light .filterPanel {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.navigationPanel.light .filterGroup label {
+  color: var(--panel-text-primary);
+}
+
+/* Interest options in light mode */
+.navigationPanel.light .interestOption {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--panel-text-secondary);
+}
+
+.navigationPanel.light .interestOption:hover {
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
+}
+
+.navigationPanel.light .interestOption.active {
+  background: linear-gradient(135deg, #007aff, #5856d6);
+  color: white;
+}
+
+/* Recent activity in light mode */
+.navigationPanel.light .recentActivity {
+  background: rgba(0, 0, 0, 0.02);
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.navigationPanel.light .activityItem {
+  border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+
+.navigationPanel.light .activityItem:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Scrollbar in light mode */
+.navigationPanel.light .usersList::-webkit-scrollbar-thumb,
+.navigationPanel.light .chatRoomsList::-webkit-scrollbar-thumb,
+.navigationPanel.light .contentArea::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.navigationPanel.light .usersList::-webkit-scrollbar-thumb:hover,
+.navigationPanel.light .chatRoomsList::-webkit-scrollbar-thumb:hover,
+.navigationPanel.light .contentArea::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Load more button in light mode */
+.navigationPanel.light .loadMoreButton {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: var(--panel-text-secondary);
+}
+
+.navigationPanel.light .loadMoreButton:hover:not(:disabled) {
+  background: rgba(0, 122, 255, 0.1);
+  border-color: #007aff;
+  color: #007aff;
+}
+
+/* Header badge in light mode */
+.navigationPanel.light .headerBadge {
+  background: rgba(0, 122, 255, 0.15);
+  color: #007aff;
+}
+
+/* Tab styles in light mode */
+.navigationPanel.light .mainTab {
+  background: rgba(0, 0, 0, 0.03);
+  color: var(--panel-text-secondary);
+}
+
+.navigationPanel.light .mainTab:hover {
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
+}
+
+.navigationPanel.light .mainTab.active {
+  background: linear-gradient(135deg, #007aff, #5856d6);
+  color: white;
+}
+
+/* Search input in light mode */
+.navigationPanel.light .searchInput {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: var(--panel-text-primary);
+}
+
+.navigationPanel.light .searchInput:focus {
+  border-color: #007aff;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.navigationPanel.light .searchIcon {
+  color: var(--panel-text-tertiary);
+}
+
+/* Filter button in light mode */
+.navigationPanel.light .filterButton {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--panel-text-secondary);
+}
+
+.navigationPanel.light .filterButton:hover,
+.navigationPanel.light .filterButton.active {
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
+}
+
+/* Reset button in light mode */
+.navigationPanel.light .resetFiltersButton {
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+  border-color: rgba(255, 59, 48, 0.2);
+}
+
+.navigationPanel.light .resetFiltersButton:hover {
+  background: #ff3b30;
+  color: white;
+}
