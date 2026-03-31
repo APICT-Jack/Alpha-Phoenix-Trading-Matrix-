@@ -1,4 +1,5 @@
 // controllers/postController.js - COMPLETE CLOUDINARY VERSION
+import { Readable } from 'stream';
 import Post from '../models/Post.js';
 import Poll from '../models/Poll.js';
 import UserProfile from '../models/UserProfile.js';
@@ -34,7 +35,6 @@ const uploadMediaFiles = async (files) => {
         buffer = file.buffer;
       } else if (file.path) {
         // Disk storage (fallback)
-        const fs = await import('fs');
         buffer = await fs.promises.readFile(file.path);
       } else {
         throw new Error('No file data available');
@@ -70,7 +70,7 @@ const uploadMediaFiles = async (files) => {
         );
         
         // Convert buffer to stream and pipe to Cloudinary
-        const { Readable } = require('stream');
+        // FIXED: Use imported Readable instead of require
         const bufferStream = Readable.from(buffer);
         bufferStream.pipe(uploadStream);
       });
@@ -102,7 +102,6 @@ const uploadMediaFiles = async (files) => {
 
   return uploadedMedia;
 };
-
 // ============================================
 // DELETE MEDIA FILES FROM CLOUDINARY
 // ============================================
