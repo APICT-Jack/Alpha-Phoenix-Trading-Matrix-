@@ -15,7 +15,7 @@ import {
   FaUser, FaSignInAlt, FaSignOutAlt, FaInfoCircle,
   FaPlus, FaFilter, FaStar, FaClock, FaFire,
   FaMapMarkerAlt, FaChartLine, FaHeart, FaSyncAlt,
-  FaGlobe, FaRegTimesCircle,  FaMicrophone
+  FaGlobe, FaRegTimesCircle, FaMicrophone
 } from 'react-icons/fa';
 
 // Helper functions
@@ -85,6 +85,14 @@ const ConnectionPanel = ({
     sortBy: 'relevance'
   });
   
+  // Pagination states
+  const [pagination, setPagination] = useState({
+    followers: { page: 1, total: 0, limit: 20 },
+    following: { page: 1, total: 0, limit: 20 },
+    suggestions: { page: 1, total: 0, limit: 20 },
+    search: { page: 1, total: 0, limit: 20 }
+  });
+  
   // UI states
   const [expandedRooms, setExpandedRooms] = useState({});
   const [roomMembers, setRoomMembers] = useState({});
@@ -100,7 +108,6 @@ const ConnectionPanel = ({
   useEffect(() => {
     if (!embedded && isOpen) {
       setShouldRender(true);
-      // Small delay to trigger animation
       requestAnimationFrame(() => {
         setIsVisible(true);
       });
@@ -122,7 +129,6 @@ const ConnectionPanel = ({
         }
       };
       document.addEventListener('keydown', handleEsc);
-      // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
       return () => {
         document.removeEventListener('keydown', handleEsc);
@@ -131,12 +137,151 @@ const ConnectionPanel = ({
     }
   }, [isOpen, embedded, onClose]);
 
-  // Update parent when tab changes
-  useEffect(() => {
-    if (onClose && !embedded) {
-      // Tab change callback could be added if needed
+  // ============ FETCH FOLLOWERS ============
+  const fetchFollowers = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_URL}/api/users/followers/${currentUser.id}?page=${pagination.followers.page}&limit=${pagination.followers.limit}&sortBy=latest`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setFollowers(data.followers || []);
+        setPagination(prev => ({
+          ...prev,
+          followers: { ...prev.followers, total: data.pagination?.total || 0 }
+        }));
+        
+        // Update following status for followers
+        const statusMap = {};
+        (data.followers || []).forEach(user => {
+          statusMap[user.id] = user.isFollowing || false;
+        });
+        setFollowingStatus(prev => ({ ...prev, ...statusMap }));
+      }
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [activeMainTab]);
+  }, [currentUser, pagination.followers.page, pagination.followers.limit]);
+
+  // ============ FETCH FOLLOWING ============
+  const fetchFollowing = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_URL}/api/users/following/${currentUser.id}?page=${pagination.following.page}&limit=${pagination.following.limit}&sortBy=latest`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setFollowing(data.following || []);
+        setPagination(prev => ({
+          ...prev,
+          following: { ...prev.following, total: data.pagination?.total || 0 }
+        }));
+        
+        // Update following status (they are all followed)
+        const statusMap = {};
+        (data.following || []).forEach(user => {
+          statusMap[user.id] = true;
+        });
+        setFollowingStatus(prev => ({ ...prev, ...statusMap }));
+      }
+    } catch (error) {
+      console.error('Error fetching following:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser, pagination.following.page, pagination.following.limit]);
+
+  // ============ FETCH SUGGESTIONS ============
+  const fetchSuggestions = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_URL}/api/users/suggestions?page=${pagination.suggestions.page}&limit=${pagination.suggestions.limit}`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestions(data.users || []);
+        setPagination(prev => ({
+          ...prev,
+          suggestions: { ...prev.suggestions, total: data.pagination?.total || 0 }
+        }));
+        
+        // Update following status for suggestions
+        const statusMap = {};
+        (data.users || []).forEach(user => {
+          statusMap[user.id] = user.isFollowing || false;
+        });
+        setFollowingStatus(prev => ({ ...prev, ...statusMap }));
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser, pagination.suggestions.page, pagination.suggestions.limit]);
+
+  // ============ ADVANCED SEARCH ============
+  const performAdvancedSearch = useCallback(async () => {
+    if (!searchQuery && !filters.location && !filters.tradingExperience && !filters.interests.length) {
+      setSearchResults([]);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: pagination.search.page,
+        limit: pagination.search.limit,
+        sortBy: filters.sortBy
+      });
+      if (searchQuery) params.append('q', searchQuery);
+      if (filters.location) params.append('location', filters.location);
+      if (filters.tradingExperience) params.append('tradingExperience', filters.tradingExperience);
+      if (filters.interests.length) params.append('interests', filters.interests.join(','));
+      
+      const response = await fetch(
+        `${API_URL}/api/users/advanced-search?${params.toString()}`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.users || []);
+        setPagination(prev => ({
+          ...prev,
+          search: { ...prev.search, total: data.pagination?.total || 0 }
+        }));
+        
+        // Update following status for search results
+        const statusMap = {};
+        (data.users || []).forEach(user => {
+          statusMap[user.id] = user.isFollowing || false;
+        });
+        setFollowingStatus(prev => ({ ...prev, ...statusMap }));
+      }
+    } catch (error) {
+      console.error('Error performing search:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, filters, pagination.search.page, pagination.search.limit]);
 
   // User status service setup
   useEffect(() => {
@@ -167,25 +312,6 @@ const ConnectionPanel = ({
     };
   }, [currentUser]);
 
-  // Fetch suggestions
-  const fetchSuggestions = useCallback(async () => {
-    if (!currentUser) return;
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/users/suggestions?limit=20`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSuggestions(data.users || []);
-      }
-    } catch (error) {
-      console.error('Error fetching suggestions:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentUser]);
-
   // Fetch chat rooms
   useEffect(() => {
     const fetchChatRooms = async () => {
@@ -211,10 +337,34 @@ const ConnectionPanel = ({
     fetchChatRooms();
   }, []);
 
-  // Initial data load
+  // Initial data load based on active tab
   useEffect(() => {
-    if (activeMainTab === 'suggestions') fetchSuggestions();
-  }, [activeMainTab, fetchSuggestions]);
+    if (activeMainTab === 'followers') {
+      fetchFollowers();
+    } else if (activeMainTab === 'following') {
+      fetchFollowing();
+    } else if (activeMainTab === 'suggestions') {
+      fetchSuggestions();
+    }
+  }, [activeMainTab, fetchFollowers, fetchFollowing, fetchSuggestions]);
+
+  // Search when query or filters change
+  useEffect(() => {
+    if (activeMainTab === 'search') {
+      const debounceTimer = setTimeout(() => {
+        performAdvancedSearch();
+      }, 500);
+      return () => clearTimeout(debounceTimer);
+    }
+  }, [activeMainTab, searchQuery, filters, pagination.search.page, performAdvancedSearch]);
+
+  // Handle load more
+  const handleLoadMore = () => {
+    setPagination(prev => ({
+      ...prev,
+      [activeMainTab]: { ...prev[activeMainTab], page: prev[activeMainTab].page + 1 }
+    }));
+  };
 
   // Handle follow/unfollow
   const handleFollowUser = async (userId, e) => {
@@ -227,7 +377,31 @@ const ConnectionPanel = ({
       });
       if (response.ok) {
         setFollowingStatus(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
-        addRecentActivity({ type: isCurrentlyFollowing ? 'unfollow' : 'follow', userId, timestamp: new Date().toISOString() });
+        
+        // Update local data based on current tab
+        if (activeMainTab === 'followers') {
+          setFollowers(prev => prev.map(f => 
+            f.id === userId ? { ...f, isFollowing: !isCurrentlyFollowing } : f
+          ));
+        } else if (activeMainTab === 'following') {
+          if (isCurrentlyFollowing) {
+            setFollowing(prev => prev.filter(f => f.id !== userId));
+          }
+        } else if (activeMainTab === 'suggestions') {
+          setSuggestions(prev => prev.map(s => 
+            s.id === userId ? { ...s, isFollowing: !isCurrentlyFollowing } : s
+          ));
+        } else if (activeMainTab === 'search') {
+          setSearchResults(prev => prev.map(u => 
+            u.id === userId ? { ...u, isFollowing: !isCurrentlyFollowing } : u
+          ));
+        }
+        
+        addRecentActivity({ 
+          type: isCurrentlyFollowing ? 'unfollow' : 'follow', 
+          userId, 
+          timestamp: new Date().toISOString() 
+        });
       }
     } catch (error) {
       console.error('Error updating follow:', error);
@@ -316,6 +490,28 @@ const ConnectionPanel = ({
     };
   };
 
+  // Get current data based on active tab
+  const getCurrentData = () => {
+    switch(activeMainTab) {
+      case 'followers': return followers;
+      case 'following': return following;
+      case 'suggestions': return suggestions;
+      case 'search': return searchResults;
+      default: return [];
+    }
+  };
+
+  const getCurrentTotal = () => {
+    return pagination[activeMainTab]?.total || 0;
+  };
+
+  const hasMoreData = () => {
+    const currentPage = pagination[activeMainTab]?.page || 1;
+    const limit = pagination[activeMainTab]?.limit || 20;
+    const total = pagination[activeMainTab]?.total || 0;
+    return currentPage * limit < total;
+  };
+
   // Render user card
   const renderUserCard = (user) => {
     const formattedUser = formatUserForDisplay(user);
@@ -375,9 +571,6 @@ const ConnectionPanel = ({
 
   // Render content based on active tab
   const renderContent = () => {
-    const tabsData = { followers, following, suggestions, search: searchResults };
-    const currentData = tabsData[activeMainTab] || [];
-    
     if (activeMainTab === 'rooms') {
       return (
         <div className={styles.chatRoomsSection}>
@@ -407,22 +600,45 @@ const ConnectionPanel = ({
       );
     }
     
+    const currentData = getCurrentData();
+    const currentTotal = getCurrentTotal();
+    const isLoading = loading && currentData.length === 0;
+    const hasMore = hasMoreData();
+    
     return (
       <>
         <div className={styles.contentHeader}>
           <h4>
-            {activeMainTab === 'followers' && `👥 Followers (${followers.length})`}
-            {activeMainTab === 'following' && `🤝 Following (${following.length})`}
-            {activeMainTab === 'suggestions' && `✨ Suggestions (${suggestions.length})`}
-            {activeMainTab === 'search' && `🔍 Search Results (${searchResults.length})`}
+            {activeMainTab === 'followers' && `👥 Followers (${currentTotal})`}
+            {activeMainTab === 'following' && `🤝 Following (${currentTotal})`}
+            {activeMainTab === 'suggestions' && `✨ Suggestions (${currentTotal})`}
+            {activeMainTab === 'search' && `🔍 Search Results (${currentTotal})`}
           </h4>
-          {activeMainTab === 'suggestions' && <button onClick={fetchSuggestions} className={styles.refreshButton}><FaSyncAlt /></button>}
+          {activeMainTab === 'suggestions' && (
+            <button onClick={fetchSuggestions} className={styles.refreshButton}>
+              <FaSyncAlt />
+            </button>
+          )}
         </div>
         <div className={styles.usersList}>
-          {loading && currentData.length === 0 ? (
-            <div className={styles.loadingState}><div className={styles.spinner}></div><span>Loading...</span></div>
+          {isLoading ? (
+            <div className={styles.loadingState}>
+              <div className={styles.spinner}></div>
+              <span>Loading...</span>
+            </div>
           ) : currentData.length > 0 ? (
-            currentData.map(user => renderUserCard(user))
+            <>
+              {currentData.map(user => renderUserCard(user))}
+              {hasMore && (
+                <button 
+                  className={styles.loadMoreButton}
+                  onClick={handleLoadMore}
+                  disabled={loading}
+                >
+                  {loading ? 'Loading...' : 'Load More'}
+                </button>
+              )}
+            </>
           ) : (
             <div className={styles.emptyState}>
               <FaUserFriends size={48} />
@@ -441,12 +657,13 @@ const ConnectionPanel = ({
       {/* Header with macOS-style close for modal */}
       <div className={styles.navigationHeader}>
         <div className={styles.headerTitle}>
-          
           <h3>Connect</h3>
           <span className={styles.headerBadge}>Live</span>
         </div>
         <div className={styles.headerActions}>
-          <button className={styles.refreshButton} onClick={refreshOnlineStatus} disabled={isRefreshing}><FaSyncAlt className={isRefreshing ? styles.spinning : ''} /></button>
+          <button className={styles.refreshButton} onClick={refreshOnlineStatus} disabled={isRefreshing}>
+            <FaSyncAlt className={isRefreshing ? styles.spinning : ''} />
+          </button>
           {!embedded && (
             <button className={styles.closeModalButton} onClick={onClose} title="Close (ESC)">
               <FaTimes />
@@ -458,8 +675,23 @@ const ConnectionPanel = ({
       {/* iOS-style segmented tabs */}
       <div className={styles.mainTabs}>
         {['followers', 'following', 'suggestions', 'search', 'rooms'].map(tab => (
-          <button key={tab} className={`${styles.mainTab} ${activeMainTab === tab ? styles.active : ''}`} onClick={() => setActiveMainTab(tab)}>
-            {tab === 'followers' && <FaUsers />}{tab === 'following' && <FaUserFriends />}{tab === 'suggestions' && <FaStar />}{tab === 'search' && <FaSearch />}{tab === 'rooms' && <FaComments />}
+          <button 
+            key={tab} 
+            className={`${styles.mainTab} ${activeMainTab === tab ? styles.active : ''}`} 
+            onClick={() => {
+              setActiveMainTab(tab);
+              // Reset pagination when switching tabs
+              setPagination(prev => ({
+                ...prev,
+                [tab]: { ...prev[tab], page: 1 }
+              }));
+            }}
+          >
+            {tab === 'followers' && <FaUsers />}
+            {tab === 'following' && <FaUserFriends />}
+            {tab === 'suggestions' && <FaStar />}
+            {tab === 'search' && <FaSearch />}
+            {tab === 'rooms' && <FaComments />}
             <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
           </button>
         ))}
@@ -470,15 +702,57 @@ const ConnectionPanel = ({
         <div className={styles.searchSection}>
           <div className={styles.searchContainer}>
             <FaSearch className={styles.searchIcon} />
-            <input ref={searchInputRef} type="text" placeholder="Search by name, username..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={styles.searchInput} />
-            {searchQuery && <button className={styles.clearSearch} onClick={handleClearSearch}><FaTimes /></button>}
+            <input 
+              ref={searchInputRef} 
+              type="text" 
+              placeholder="Search by name, username..." 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+              className={styles.searchInput} 
+            />
+            {searchQuery && (
+              <button className={styles.clearSearch} onClick={handleClearSearch}>
+                <FaTimes />
+              </button>
+            )}
           </div>
-          <button className={`${styles.filterButton} ${showFilters ? styles.active : ''}`} onClick={() => setShowFilters(!showFilters)}><FaFilter /> Filters</button>
+          <button 
+            className={`${styles.filterButton} ${showFilters ? styles.active : ''}`} 
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <FaFilter /> Filters
+          </button>
           {showFilters && (
             <div className={styles.filterPanel}>
-              <div className={styles.filterGroup}><label><FaMapMarkerAlt /> Location</label><input type="text" placeholder="City or country" value={filters.location} onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))} className={styles.filterInput} /></div>
-              <div className={styles.filterGroup}><label><FaChartLine /> Experience</label><select value={filters.tradingExperience} onChange={(e) => setFilters(prev => ({ ...prev, tradingExperience: e.target.value }))} className={styles.filterSelect}><option value="">All</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></div>
-              <button className={styles.resetFiltersButton} onClick={() => setFilters({ location: '', tradingExperience: '', interests: [], sortBy: 'relevance' })}>Reset</button>
+              <div className={styles.filterGroup}>
+                <label><FaMapMarkerAlt /> Location</label>
+                <input 
+                  type="text" 
+                  placeholder="City or country" 
+                  value={filters.location} 
+                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))} 
+                  className={styles.filterInput} 
+                />
+              </div>
+              <div className={styles.filterGroup}>
+                <label><FaChartLine /> Experience</label>
+                <select 
+                  value={filters.tradingExperience} 
+                  onChange={(e) => setFilters(prev => ({ ...prev, tradingExperience: e.target.value }))} 
+                  className={styles.filterSelect}
+                >
+                  <option value="">All</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+              <button 
+                className={styles.resetFiltersButton} 
+                onClick={() => setFilters({ location: '', tradingExperience: '', interests: [], sortBy: 'relevance' })}
+              >
+                Reset
+              </button>
             </div>
           )}
         </div>
@@ -490,13 +764,26 @@ const ConnectionPanel = ({
       {/* Recent activity (iOS-style status) */}
       {recentActivity.length > 0 && (
         <div className={styles.recentActivity}>
-          <div className={styles.activityHeader}><FaInfoCircle /><span>Recent Activity</span><FaFire className={styles.activityIcon} /></div>
+          <div className={styles.activityHeader}>
+            <FaInfoCircle />
+            <span>Recent Activity</span>
+            <FaFire className={styles.activityIcon} />
+          </div>
           <div className={styles.activityList}>
             {recentActivity.slice(0, 3).map((act, idx) => (
               <div key={idx} className={styles.activityItem}>
-                {act.type === 'follow' && <FaUserPlus />}{act.type === 'room-join' && <FaSignInAlt />}{act.type === 'user-online' && <FaCircle className={styles.onlineIcon} />}
-                <span className={styles.activityText}>{act.type === 'follow' ? 'Followed a trader' : act.type === 'room-join' ? `Joined ${act.roomName || 'a room'}` : `${act.userName || 'Someone'} came online`}</span>
-                <span className={styles.activityTime}>{new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                {act.type === 'follow' && <FaUserPlus />}
+                {act.type === 'room-join' && <FaSignInAlt />}
+                {act.type === 'user-online' && <FaCircle className={styles.onlineIcon} />}
+                <span className={styles.activityText}>
+                  {act.type === 'follow' ? 'Followed a trader' : 
+                   act.type === 'unfollow' ? 'Unfollowed a trader' :
+                   act.type === 'room-join' ? `Joined ${act.roomName || 'a room'}` : 
+                   `${act.userName || 'Someone'} came online`}
+                </span>
+                <span className={styles.activityTime}>
+                  {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
             ))}
           </div>

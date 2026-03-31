@@ -938,3 +938,39 @@
     height: 32px;
   }
 }
+/* Add to ConnectionPanel.module.css */
+.loadMoreButton {
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.loadMoreButton:hover:not(:disabled) {
+  background: rgba(10, 132, 255, 0.2);
+  border-color: #0a84ff;
+  color: #0a84ff;
+}
+
+.loadMoreButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.navigationPanel.light .loadMoreButton {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.navigationPanel.light .loadMoreButton:hover:not(:disabled) {
+  background: rgba(0, 122, 255, 0.1);
+  border-color: #007aff;
+  color: #007aff;
+}
