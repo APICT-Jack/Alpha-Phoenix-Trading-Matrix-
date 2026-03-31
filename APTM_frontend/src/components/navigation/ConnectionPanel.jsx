@@ -1,19 +1,23 @@
 // src/components/navigation/ConnectionPanel.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useConnectionPanel } from '../../context/ConnectionPanelContext';
-import './ConnectionPanel.module.css';
+import { userStatusService } from '../../services/userStatusService';
+import styles from './ConnectionPanel.module.css';
 
 // Import icons
 import {
-  FaUserFriends, FaSearch, FaCircle, FaRegCircle,
+  FaUserFriends, FaSearch, FaCircle, FaRegCircle, 
   FaRegCommentDots, FaComments, FaUserPlus, FaUserCheck,
-  FaUsers, FaHashtag, FaLock, FaTimes,
+  FaUsers, FaHashtag, FaLock, FaGlobe, FaChevronLeft,
+  FaChevronRight, FaChevronDown, FaChevronUp, FaTimes,
   FaUser, FaSignInAlt, FaSignOutAlt, FaInfoCircle,
-  FaPlus, FaFilter, FaStar, FaFire,
-  FaMapMarkerAlt, FaChartLine, FaSyncAlt
+  FaPlus, FaFilter, FaBell, FaCheckCircle, FaStar,
+  FaGem, FaFire, FaClock, FaShieldAlt, FaCrown,
+  FaUserMinus, FaSyncAlt, FaUserFriends as FaSuggestions,
+  FaMapMarkerAlt, FaChartLine, FaHeart, FaExchangeAlt,
+  FaTrophy, FaHandshake, FaChartBar, FaDollarSign
 } from 'react-icons/fa';
 
 // Helper functions
@@ -34,7 +38,11 @@ const formatAvatarUrl = (avatar) => {
 
 const getOptimizedCloudinaryUrl = (url, size = 'small') => {
   if (!url || !isCloudinaryUrl(url)) return url;
-  const dimensions = { small: { width: 48, height: 48 }, medium: { width: 64, height: 64 } };
+  const dimensions = { 
+    small: { width: 32, height: 32 }, 
+    medium: { width: 48, height: 48 }, 
+    large: { width: 64, height: 64 } 
+  };
   const { width, height } = dimensions[size] || dimensions.small;
   return url.replace('/upload/', `/upload/w_${width},h_${height},c_fill,g_face,q_auto,f_auto/`);
 };
@@ -46,22 +54,23 @@ const getAvatarInitial = (user) => {
   return 'U';
 };
 
+const hasValidAvatar = (avatar) => {
+  return avatar && !avatar.startsWith('data:');
+};
+
 const ConnectionPanel = ({ 
-  isOpen = false,
-  onClose,
-  initialTab = 'followers',
-  embedded = false
+  initialTab = 'followers', 
+  onClose, 
+  onTabChange,
+  embedded = false 
 }) => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { darkMode } = useTheme();
 
-  // Modal animation state
-  const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
-  const [shouldRender, setShouldRender] = useState(false);
-  
   // Panel states
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [activeMainTab, setActiveMainTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -81,419 +90,733 @@ const ConnectionPanel = ({
     location: '',
     tradingExperience: '',
     interests: [],
+    minFollowers: '',
+    maxFollowers: '',
     sortBy: 'relevance'
   });
   
+  // Pagination states
+  const [pagination, setPagination] = useState({
+    followers: { page: 1, total: 0, limit: 20 },
+    following: { page: 1, total: 0, limit: 20 },
+    suggestions: { page: 1, total: 0, limit: 20 },
+    search: { page: 1, total: 0, limit: 20 }
+  });
+  
   // UI states
+  const [expandedRooms, setExpandedRooms] = useState({});
+  const [roomMembers, setRoomMembers] = useState({});
+  const [typingUsers, setTypingUsers] = useState({});
+  const [unreadCounts, setUnreadCounts] = useState({});
   const [recentActivity, setRecentActivity] = useState([]);
   const [hoveredItem, setHoveredItem] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [avatarErrors, setAvatarErrors] = useState({});
   
   const searchInputRef = useRef(null);
   const panelRef = useRef(null);
+  const notificationsRef = useRef(null);
 
-  // Update active tab when initialTab prop changes
+  // Available filter options
+  const tradingExperienceOptions = ['beginner', 'intermediate', 'advanced', 'expert'];
+  const interestOptions = ['Forex', 'Stocks', 'Crypto', 'Commodities', 'Indices', 'Options', 'Futures', 'Technical Analysis', 'Fundamental Analysis', 'Day Trading', 'Swing Trading', 'Long-term Investing'];
+  const sortOptions = [
+    { value: 'relevance', label: 'Most Relevant', icon: FaStar },
+    { value: 'followers', label: 'Most Followers', icon: FaUsers },
+    { value: 'newest', label: 'Newest', icon: FaClock },
+    { value: 'active', label: 'Most Active', icon: FaFire }
+  ];
+
+  // Update parent when tab changes
   useEffect(() => {
-    if (initialTab) {
-      setActiveMainTab(initialTab);
+    if (onTabChange) {
+      onTabChange(activeMainTab);
     }
+  }, [activeMainTab, onTabChange]);
+
+  // Set initial tab
+  useEffect(() => {
+    setActiveMainTab(initialTab);
   }, [initialTab]);
 
-  // Modal enter/exit animation handling
+  // Dispatch panel state change
   useEffect(() => {
-    if (!embedded && isOpen) {
-      setShouldRender(true);
-      setIsClosing(false);
-      requestAnimationFrame(() => {
-        setIsVisible(true);
-      });
-    } else if (!embedded && !isOpen && shouldRender) {
-      setIsVisible(false);
-      setIsClosing(true);
-      const timer = setTimeout(() => {
-        setShouldRender(false);
-        setIsClosing(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, embedded, shouldRender]);
+    window.dispatchEvent(new CustomEvent('panelStateChange', { 
+      detail: { collapsed: isCollapsed }
+    }));
+  }, [isCollapsed]);
 
-  // Handle ESC key to close modal
+  // Handle click outside for mobile panel
   useEffect(() => {
-    if (!embedded && isOpen) {
-      const handleEsc = (e) => {
-        if (e.key === 'Escape' && onClose) {
-          onClose();
-        }
-      };
-      document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.removeEventListener('keydown', handleEsc);
-        document.body.style.overflow = '';
-      };
-    }
-  }, [isOpen, embedded, onClose]);
-
-  // Simulate online users (since userStatusService is not available)
-  useEffect(() => {
-    // Simulate some random online users for demo purposes
-    const simulateOnlineUsers = () => {
-      const mockOnlineUsers = {};
-      if (followers.length > 0) {
-        followers.slice(0, 3).forEach(follower => {
-          mockOnlineUsers[follower.id] = { online: Math.random() > 0.5, userData: follower };
-        });
+    const handleClickOutside = (event) => {
+      if (panelRef.current && !panelRef.current.contains(event.target) && isMobileOpen) {
+        setIsMobileOpen(false);
       }
-      if (following.length > 0) {
-        following.slice(0, 3).forEach(follow => {
-          if (!mockOnlineUsers[follow.id]) {
-            mockOnlineUsers[follow.id] = { online: Math.random() > 0.5, userData: follow };
-          }
-        });
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target) && showNotifications) {
+        setShowNotifications(false);
       }
-      setOnlineUsers(mockOnlineUsers);
     };
-    
-    if (followers.length > 0 || following.length > 0) {
-      simulateOnlineUsers();
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobileOpen, showNotifications]);
+
+  // ============ USER STATUS SERVICE SETUP ============
+  useEffect(() => {
+    if (!currentUser) {
+      console.log('❌ No current user, skipping user status service');
+      return;
     }
     
-    // Simulate activity every 30 seconds
-    const interval = setInterval(() => {
-      if (followers.length > 0 && Math.random() > 0.7) {
-        const randomFollower = followers[Math.floor(Math.random() * followers.length)];
-        addRecentActivity({ 
-          type: 'user-online', 
-          userId: randomFollower.id, 
-          userName: randomFollower.name,
-          timestamp: new Date().toISOString() 
-        });
-      }
-    }, 30000);
-    
-    return () => clearInterval(interval);
-  }, [followers, following]);
+    console.log('🔌 ConnectionPanel initializing user status service');
 
-  // Fetch followers with error handling
+    userStatusService.init(currentUser, {
+      onConnect: () => {
+        console.log('✅ ConnectionPanel: User status service connected');
+        
+        setTimeout(() => {
+          userStatusService.getOnlineUsers();
+        }, 500);
+      },
+      onDisconnect: () => {
+        console.log('❌ ConnectionPanel: User status service disconnected');
+      },
+      onOnlineUsers: (users) => {
+        console.log('📊 ConnectionPanel: Online users received');
+        setOnlineUsers(users);
+      },
+      onUserOnline: (data) => {
+        console.log('🟢 ConnectionPanel: User online:', data);
+        setOnlineUsers(prev => ({ 
+          ...prev, 
+          [data.userId]: { online: true, userData: data.userData } 
+        }));
+        
+        addRecentActivity({
+          type: 'user-online',
+          userId: data.userId,
+          userName: data.userData?.name,
+          timestamp: new Date().toISOString()
+        });
+      },
+      onUserOffline: (data) => {
+        console.log('🔴 ConnectionPanel: User offline:', data);
+        setOnlineUsers(prev => {
+          const newState = { ...prev };
+          delete newState[data.userId];
+          return newState;
+        });
+        
+        addRecentActivity({
+          type: 'user-offline',
+          userId: data.userId,
+          timestamp: new Date().toISOString()
+        });
+      },
+      onUserStatusResponse: (data) => {
+        console.log('📡 ConnectionPanel: User status response:', data);
+        setOnlineUsers(prev => ({
+          ...prev,
+          [data.userId]: { online: data.isOnline, userData: data.userData }
+        }));
+      }
+    });
+
+    return () => {
+      console.log('🧹 ConnectionPanel cleaning up user status service');
+      userStatusService.offUserOnline();
+      userStatusService.offUserOffline();
+      userStatusService.offUsersOnline();
+      userStatusService.offUserStatusResponse();
+    };
+  }, [currentUser]);
+
+  // Fetch followers
   const fetchFollowers = useCallback(async () => {
     if (!currentUser) return;
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/users/followers/${currentUser.id}?limit=50`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await fetch(
+        `${API_URL}/api/users/followers/${currentUser.id}?page=${pagination.followers.page}&limit=${pagination.followers.limit}&sortBy=latest`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
       if (response.ok) {
         const data = await response.json();
-        setFollowers(data.followers || []);
-      } else if (response.status === 404) {
-        console.log('Followers endpoint not available yet');
-        // Mock data for demo purposes
-        setFollowers([
-          { id: '1', name: 'Alex Thompson', username: 'alex_trader', followersCount: 342, tradingExperience: 'advanced', country: 'USA', avatar: null },
-          { id: '2', name: 'Maria Garcia', username: 'maria_invest', followersCount: 567, tradingExperience: 'expert', country: 'Spain', avatar: null },
-          { id: '3', name: 'David Kim', username: 'david_crypto', followersCount: 891, tradingExperience: 'intermediate', country: 'South Korea', avatar: null },
-        ]);
-      } else {
-        throw new Error(`Failed to fetch followers: ${response.status}`);
+        setFollowers(data.followers);
+        setPagination(prev => ({
+          ...prev,
+          followers: { ...prev.followers, total: data.pagination.total }
+        }));
       }
     } catch (error) {
       console.error('Error fetching followers:', error);
-      setFollowers([]);
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, pagination.followers.page, pagination.followers.limit]);
 
-  // Fetch following with error handling
+  // Fetch following
   const fetchFollowing = useCallback(async () => {
     if (!currentUser) return;
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/users/following/${currentUser.id}?limit=50`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await fetch(
+        `${API_URL}/api/users/following/${currentUser.id}?page=${pagination.following.page}&limit=${pagination.following.limit}&sortBy=latest`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
       if (response.ok) {
         const data = await response.json();
-        setFollowing(data.following || []);
-        
-        const statusMap = {};
-        (data.following || []).forEach(user => {
-          statusMap[user.id] = true;
-        });
-        setFollowingStatus(prev => ({ ...prev, ...statusMap }));
-      } else if (response.status === 404) {
-        console.log('Following endpoint not available yet');
-        // Mock data for demo purposes
-        setFollowing([
-          { id: '3', name: 'Sarah Johnson', username: 'sarah_j', followersCount: 1240, tradingExperience: 'expert', country: 'UK', avatar: null, isFollowing: true },
-          { id: '4', name: 'Mike Chen', username: 'mike_c', followersCount: 892, tradingExperience: 'advanced', country: 'Singapore', avatar: null, isFollowing: true },
-        ]);
-        const statusMap = {
-          '3': true,
-          '4': true
-        };
-        setFollowingStatus(statusMap);
-      } else {
-        throw new Error(`Failed to fetch following: ${response.status}`);
+        setFollowing(data.following);
+        setPagination(prev => ({
+          ...prev,
+          following: { ...prev.following, total: data.pagination.total }
+        }));
       }
     } catch (error) {
       console.error('Error fetching following:', error);
-      setFollowing([]);
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, pagination.following.page, pagination.following.limit]);
 
-  // Fetch suggestions with error handling
+  // Fetch suggestions
   const fetchSuggestions = useCallback(async () => {
     if (!currentUser) return;
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/users/suggestions?limit=20`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await fetch(
+        `${API_URL}/api/users/suggestions?page=${pagination.suggestions.page}&limit=${pagination.suggestions.limit}`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
       if (response.ok) {
         const data = await response.json();
-        setSuggestions(data.users || []);
-      } else if (response.status === 404) {
-        console.log('Suggestions endpoint not available yet');
-        // Mock data for demo purposes
-        setSuggestions([
-          { id: '5', name: 'Emma Watson', username: 'emma_trader', followersCount: 2341, tradingExperience: 'expert', country: 'Canada', avatar: null, isFollowing: false },
-          { id: '6', name: 'James Wilson', username: 'james_invest', followersCount: 1567, tradingExperience: 'advanced', country: 'Australia', avatar: null, isFollowing: false },
-          { id: '7', name: 'Lisa Wang', username: 'lisa_crypto', followersCount: 3421, tradingExperience: 'expert', country: 'China', avatar: null, isFollowing: false },
-          { id: '8', name: 'Robert Brown', username: 'robert_forex', followersCount: 892, tradingExperience: 'intermediate', country: 'USA', avatar: null, isFollowing: false },
-        ]);
-      } else {
-        throw new Error(`Failed to fetch suggestions: ${response.status}`);
+        setSuggestions(data.users);
+        setPagination(prev => ({
+          ...prev,
+          suggestions: { ...prev.suggestions, total: data.pagination.total }
+        }));
       }
     } catch (error) {
       console.error('Error fetching suggestions:', error);
-      setSuggestions([]);
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, pagination.suggestions.page, pagination.suggestions.limit]);
 
-  // Fetch chat rooms with error handling
-  const fetchChatRooms = useCallback(async () => {
+  // Advanced search
+  const performAdvancedSearch = useCallback(async () => {
+    if (!searchQuery && !filters.location && !filters.tradingExperience && !filters.interests.length) return;
+    
     try {
-      const response = await fetch(`${API_URL}/api/chat/rooms`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: pagination.search.page,
+        limit: pagination.search.limit,
+        sortBy: filters.sortBy
       });
+      if (searchQuery) params.append('q', searchQuery);
+      if (filters.location) params.append('location', filters.location);
+      if (filters.tradingExperience) params.append('tradingExperience', filters.tradingExperience);
+      if (filters.interests.length) params.append('interests', filters.interests.join(','));
+      if (filters.minFollowers) params.append('minFollowers', filters.minFollowers);
+      if (filters.maxFollowers) params.append('maxFollowers', filters.maxFollowers);
+      
+      const response = await fetch(
+        `${API_URL}/api/users/advanced-search?${params.toString()}`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
       if (response.ok) {
         const data = await response.json();
-        setChatRooms(data.rooms || []);
-      } else if (response.status === 404) {
-        console.log('Chat rooms endpoint not available yet');
-        // Mock data for demo - show coming soon message instead of empty
-        setChatRooms([]);
-      } else {
-        throw new Error(`Failed to fetch rooms: ${response.status}`);
+        setSearchResults(data.users);
+        setPagination(prev => ({
+          ...prev,
+          search: { ...prev.search, total: data.pagination.total }
+        }));
+        
+        // Update following status for search results
+        const statusMap = {};
+        data.users.forEach(user => {
+          statusMap[user.id] = user.isFollowing || false;
+        });
+        setFollowingStatus(prev => ({ ...prev, ...statusMap }));
       }
     } catch (error) {
-      console.error('Error fetching rooms:', error);
-      setChatRooms([]);
+      console.error('Error performing search:', error);
+    } finally {
+      setLoading(false);
     }
+  }, [searchQuery, filters, pagination.search.page, pagination.search.limit]);
+
+  // Fetch chat rooms
+  useEffect(() => {
+    const fetchChatRooms = async () => {
+      try {
+        const chatResponse = await fetch(`${API_URL}/api/chat/rooms`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        
+        if (chatResponse.ok) {
+          const chatData = await chatResponse.json();
+          const rooms = chatData.rooms || [];
+          
+          const roomsWithDetails = await Promise.all(
+            rooms.map(async (room) => {
+              try {
+                const membersResponse = await fetch(`${API_URL}/api/chat/rooms/${room.id}/members`, {
+                  headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                  },
+                });
+                
+                if (membersResponse.ok) {
+                  const membersData = await membersResponse.json();
+                  return {
+                    ...room,
+                    memberCount: membersData.count || room.memberCount || 0,
+                    onlineCount: membersData.onlineCount || 0,
+                    members: membersData.members || []
+                  };
+                }
+              } catch (error) {
+                console.error(`Error fetching members for room ${room.id}:`, error);
+              }
+              return room;
+            })
+          );
+          
+          setChatRooms(roomsWithDetails);
+        }
+      } catch (error) {
+        console.error('Error fetching chat rooms:', error);
+        // Mock data
+        const mockRooms = [
+          { 
+            id: 'forex-1', 
+            title: '💱 Forex Trading Hub', 
+            description: 'Discuss forex strategies, currency pairs, and market analysis',
+            memberCount: 124, 
+            onlineCount: 18,
+            type: 'public',
+            category: 'forex',
+            isActive: true,
+            isMember: false,
+            isFeatured: true,
+            isPremium: false,
+            lastMessage: 'EUR/USD showing bullish pattern on 4H chart',
+            lastActivity: new Date().toISOString(),
+            createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
+            tags: ['forex', 'eurusd', 'technical-analysis'],
+            language: 'en'
+          },
+          { 
+            id: 'crypto-1', 
+            title: '🪙 Crypto Discussion', 
+            description: 'All things crypto - BTC, ETH, altcoins, DeFi, and NFTs',
+            memberCount: 289, 
+            onlineCount: 42,
+            type: 'public',
+            category: 'crypto',
+            isActive: true,
+            isMember: false,
+            isFeatured: true,
+            isPremium: false,
+            lastMessage: 'Bitcoin breaking resistance at $50k',
+            lastActivity: new Date().toISOString(),
+            createdAt: new Date(Date.now() - 86400000 * 14).toISOString(),
+            tags: ['bitcoin', 'ethereum', 'defi'],
+            language: 'en'
+          },
+          { 
+            id: 'stocks-1', 
+            title: '📈 Stock Market Analysis', 
+            description: 'US and international stocks, earnings analysis, and investment strategies',
+            memberCount: 145, 
+            onlineCount: 23,
+            type: 'public',
+            category: 'stocks',
+            isActive: true,
+            isMember: false,
+            isFeatured: false,
+            isPremium: false,
+            lastMessage: 'Tech earnings this week - watch out for AAPL',
+            lastActivity: new Date().toISOString(),
+            createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+            tags: ['stocks', 'investing', 'earnings'],
+            language: 'en'
+          }
+        ];
+        setChatRooms(mockRooms);
+      }
+    };
+
+    fetchChatRooms();
   }, []);
 
-  useEffect(() => {
-    fetchChatRooms();
-  }, [fetchChatRooms]);
-
-  // Initial data load based on active tab
+  // Initial data load
   useEffect(() => {
     if (activeMainTab === 'followers') fetchFollowers();
     else if (activeMainTab === 'following') fetchFollowing();
     else if (activeMainTab === 'suggestions') fetchSuggestions();
   }, [activeMainTab, fetchFollowers, fetchFollowing, fetchSuggestions]);
 
+  // Search when query or filters change
+  useEffect(() => {
+    if (activeMainTab === 'search' && (searchQuery || filters.location || filters.tradingExperience || filters.interests.length)) {
+      performAdvancedSearch();
+    }
+  }, [activeMainTab, searchQuery, filters, pagination.search.page, performAdvancedSearch]);
+
   // Handle follow/unfollow
   const handleFollowUser = async (userId, e) => {
     e.stopPropagation();
     try {
       const isCurrentlyFollowing = followingStatus[userId];
+      const action = isCurrentlyFollowing ? 'unfollow' : 'follow';
       
-      // If endpoint is not available, just update UI optimistically
-      setFollowingStatus(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
-      
-      if (activeMainTab === 'followers') {
-        setFollowers(prev => prev.map(f => f.id === userId ? { ...f, isFollowing: !isCurrentlyFollowing } : f));
-      } else if (activeMainTab === 'following') {
-        setFollowing(prev => prev.filter(f => f.id !== userId));
-      } else if (activeMainTab === 'suggestions') {
-        setSuggestions(prev => prev.map(s => s.id === userId ? { ...s, isFollowing: !isCurrentlyFollowing } : s));
-      }
-      
-      addRecentActivity({ 
-        type: isCurrentlyFollowing ? 'unfollow' : 'follow', 
-        userId, 
-        timestamp: new Date().toISOString() 
+      const response = await fetch(`${API_URL}/api/friends/${action}/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
       });
-      
-      // Try to make API call if available
-      try {
-        const response = await fetch(`${API_URL}/api/friends/${isCurrentlyFollowing ? 'unfollow' : 'follow'}/${userId}`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }
-        });
-        if (!response.ok && response.status !== 404) {
-          console.log('Follow API call failed, but UI already updated');
+
+      if (response.ok) {
+        setFollowingStatus(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
+        
+        // Update local data
+        if (activeMainTab === 'followers') {
+          setFollowers(prev => prev.map(f => 
+            f.id === userId ? { ...f, isFollowing: !isCurrentlyFollowing } : f
+          ));
+        } else if (activeMainTab === 'following') {
+          setFollowing(prev => prev.filter(f => f.id !== userId));
+        } else if (activeMainTab === 'suggestions') {
+          setSuggestions(prev => prev.filter(s => s.id !== userId));
+        } else if (activeMainTab === 'search') {
+          setSearchResults(prev => prev.map(u => 
+            u.id === userId ? { ...u, isFollowing: !isCurrentlyFollowing } : u
+          ));
         }
-      } catch (apiError) {
-        // Silently fail - UI already updated
-        console.log('Follow API not available, using local state only');
+        
+        addRecentActivity({
+          type: action,
+          userId,
+          timestamp: new Date().toISOString()
+        });
       }
     } catch (error) {
-      console.error('Error updating follow:', error);
+      console.error('Error updating follow status:', error);
     }
   };
 
-  // Handle join/leave room
+  // Handle join/leave chat room
   const handleJoinRoom = async (roomId, e) => {
     e.stopPropagation();
-    const room = chatRooms.find(r => r.id === roomId);
-    const isMember = room?.isMember;
-    
-    // Optimistic UI update
-    setChatRooms(prev => prev.map(r => r.id === roomId ? { ...r, isMember: !isMember, memberCount: isMember ? r.memberCount - 1 : r.memberCount + 1 } : r));
-    addRecentActivity({ 
-      type: `room-${isMember ? 'leave' : 'join'}`, 
-      roomId, 
-      roomName: room?.title, 
-      timestamp: new Date().toISOString() 
-    });
     
     try {
-      const response = await fetch(`${API_URL}/api/chat/rooms/${roomId}/${isMember ? 'leave' : 'join'}`, {
+      const room = chatRooms.find(r => r.id === roomId);
+      const isMember = room?.isMember || false;
+      const action = isMember ? 'leave' : 'join';
+      
+      const response = await fetch(`${API_URL}/api/chat/rooms/${roomId}/${action}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
       });
-      if (!response.ok && response.status !== 404) {
-        console.log('Room join API call failed');
+
+      if (response.ok) {
+        setChatRooms(prev =>
+          prev.map(r =>
+            r.id === roomId
+              ? { 
+                  ...r, 
+                  isMember: !isMember,
+                  memberCount: isMember ? r.memberCount - 1 : r.memberCount + 1
+                }
+              : r
+          )
+        );
+
+        if (userStatusService.isConnected()) {
+          userStatusService.getSocket().emit('room-joined-left', {
+            roomId,
+            userId: currentUser.id,
+            action
+          });
+        }
+
+        addRecentActivity({
+          type: `room-${action}`,
+          roomId,
+          roomName: room.title,
+          timestamp: new Date().toISOString()
+        });
       }
     } catch (error) {
-      console.error('Error joining room:', error);
+      console.error(`Error ${room?.isMember ? 'leaving' : 'joining'} room:`, error);
     }
   };
 
+  // Toggle room expansion
+  const toggleRoomExpand = (roomId, e) => {
+    e.stopPropagation();
+    setExpandedRooms(prev => ({
+      ...prev,
+      [roomId]: !prev[roomId]
+    }));
+
+    if (!expandedRooms[roomId] && !roomMembers[roomId]) {
+      fetchRoomMembers(roomId);
+    }
+  };
+
+  // Fetch room members
+  const fetchRoomMembers = async (roomId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/chat/rooms/${roomId}/members`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRoomMembers(prev => ({
+          ...prev,
+          [roomId]: data.members || []
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching room members:', error);
+    }
+  };
+
+  // Handle user click
   const handleUserClick = (userId) => {
     navigate(`/profile/${userId}`);
-    if (!embedded && onClose) onClose();
+    if (isMobileOpen) setIsMobileOpen(false);
   };
 
+  // Handle chat room click
   const handleChatRoomClick = (roomId) => {
     navigate(`/chat/room/${roomId}`);
-    if (!embedded && onClose) onClose();
+    if (isMobileOpen) setIsMobileOpen(false);
   };
 
+  // Handle message user
   const handleMessageUser = (userId, e) => {
     e.stopPropagation();
+    console.log('💬 Starting chat with user:', userId);
     navigate(`/chat/${userId}`);
-    if (!embedded && onClose) onClose();
+    if (isMobileOpen) setIsMobileOpen(false);
   };
 
+  // Handle create room
   const handleCreateRoom = () => {
     navigate('/chat/create-room');
-    if (!embedded && onClose) onClose();
+    if (isMobileOpen) setIsMobileOpen(false);
   };
 
+  // Handle toggle collapse
+  const handleToggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
+  // Handle clear search
   const handleClearSearch = () => {
     setSearchQuery('');
     searchInputRef.current?.focus();
   };
 
+  // Handle avatar error
   const handleAvatarError = (userId) => {
     setAvatarErrors(prev => ({ ...prev, [userId]: true }));
   };
 
-  const addRecentActivity = (activity) => {
-    setRecentActivity(prev => [activity, ...prev].slice(0, 8));
+  // Handle filter change
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    // Reset search pagination when filters change
+    setPagination(prev => ({ ...prev, search: { ...prev.search, page: 1 } }));
   };
 
+  // Handle interest toggle
+  const toggleInterest = (interest) => {
+    setFilters(prev => ({
+      ...prev,
+      interests: prev.interests.includes(interest)
+        ? prev.interests.filter(i => i !== interest)
+        : [...prev.interests, interest]
+    }));
+  };
+
+  // Handle pagination
+  const handleLoadMore = (tab) => {
+    setPagination(prev => ({
+      ...prev,
+      [tab]: { ...prev[tab], page: prev[tab].page + 1 }
+    }));
+  };
+
+  // Add recent activity
+  const addRecentActivity = (activity) => {
+    setRecentActivity(prev => [activity, ...prev].slice(0, 10));
+  };
+
+  // Manual refresh function
   const refreshOnlineStatus = () => {
+    console.log('🔄 Manually refreshing online status');
     setIsRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => setIsRefreshing(false), 1000);
+    
+    if (userStatusService.isConnected()) {
+      userStatusService.getOnlineUsers();
+    }
+    
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1000);
   };
 
   // Format user for display
   const formatUserForDisplay = (user) => {
+    let rawAvatar = user.avatar;
+    if (rawAvatar && typeof rawAvatar === 'object') rawAvatar = rawAvatar.url || rawAvatar.avatarUrl || null;
     const userId = user.id || user._id;
     const isOnline = onlineUsers[userId]?.online || false;
-    let formattedAvatar = user.avatar && !avatarErrors[userId] ? formatAvatarUrl(user.avatar) : null;
-    if (formattedAvatar && isCloudinaryUrl(formattedAvatar)) formattedAvatar = getOptimizedCloudinaryUrl(formattedAvatar, 'small');
+    const hasError = avatarErrors[userId];
+    
+    let formattedAvatar = null;
+    if (rawAvatar && !hasError) {
+      formattedAvatar = formatAvatarUrl(rawAvatar);
+      if (isCloudinaryUrl(formattedAvatar)) formattedAvatar = getOptimizedCloudinaryUrl(formattedAvatar, 'small');
+    }
     
     return {
       id: userId,
-      name: user.name || user.displayName || 'Trader',
+      name: user.name || user.displayName || 'Unknown User',
       username: user.username || `user${userId}`,
+      email: user.email,
       avatar: formattedAvatar,
       avatarInitial: getAvatarInitial(user),
-      hasAvatar: !!formattedAvatar && !avatarErrors[userId],
+      hasAvatar: hasValidAvatar(rawAvatar) && !hasError,
       online: isOnline,
       followersCount: user.followersCount || 0,
       isFollowing: followingStatus[userId] || user.isFollowing || false,
       tradingExperience: user.tradingExperience || 'beginner',
       country: user.country,
-      interests: user.interests || []
+      interests: user.interests || [],
+      bio: user.bio,
+      followsBack: user.followsBack,
+      matchScore: user.matchScore,
+      commonInterests: user.commonInterests || []
     };
   };
 
   // Render user card
-  const renderUserCard = (user) => {
+  const renderUserCard = (user, showMutualInfo = false) => {
     const formattedUser = formatUserForDisplay(user);
     const isCurrentUser = currentUser?.id === formattedUser.id;
     
     return (
       <div
         key={formattedUser.id}
-        className={`connection-panel-user-item ${formattedUser.online ? 'online' : ''} ${hoveredItem === formattedUser.id ? 'hovered' : ''}`}
+        className={`${styles.userItem} ${formattedUser.online ? styles.online : ''} ${hoveredItem === formattedUser.id ? styles.hovered : ''}`}
         onClick={() => handleUserClick(formattedUser.id)}
         onMouseEnter={() => setHoveredItem(formattedUser.id)}
         onMouseLeave={() => setHoveredItem(null)}
       >
-        <div className="connection-panel-user-avatar">
+        <div className={styles.userAvatar}>
           {formattedUser.hasAvatar ? (
-            <img src={formattedUser.avatar} alt={formattedUser.name} onError={() => handleAvatarError(formattedUser.id)} loading="lazy" />
+            <img 
+              src={formattedUser.avatar} 
+              alt={formattedUser.name}
+              onError={() => handleAvatarError(formattedUser.id)}
+              loading="lazy"
+            />
           ) : (
-            <span className="avatar-initial">{formattedUser.avatarInitial}</span>
+            <span className={styles.avatarInitial}>{formattedUser.avatarInitial}</span>
           )}
-          <div className={`online-indicator ${formattedUser.online ? 'online' : 'offline'}`}>
+          <div className={`${styles.onlineIndicator} ${formattedUser.online ? styles.online : styles.offline}`}>
             {formattedUser.online ? <FaCircle /> : <FaRegCircle />}
           </div>
         </div>
-        <div className="connection-panel-user-info">
-          <div className="user-name">
+        
+        <div className={styles.userInfo}>
+          <div className={styles.userName}>
             <strong>{formattedUser.name}</strong>
+            {formattedUser.followsBack && (
+              <FaHandshake className={styles.mutualIcon} title="Follows you back" />
+            )}
           </div>
-          <span className="user-username">@{formattedUser.username}</span>
+          <span className={styles.userUsername}>@{formattedUser.username}</span>
           {formattedUser.country && (
-            <div className="user-location"><FaMapMarkerAlt /> {formattedUser.country}</div>
+            <div className={styles.userLocation}>
+              <FaMapMarkerAlt /> {formattedUser.country}
+            </div>
           )}
           {formattedUser.tradingExperience && (
-            <div className={`user-level ${formattedUser.tradingExperience}`}>
+            <div className={`${styles.userLevel} ${formattedUser.tradingExperience}`}>
               <FaChartLine /> {formattedUser.tradingExperience}
             </div>
           )}
-          <div className="user-stats">
-            <span className="user-stat"><FaUsers /> {formattedUser.followersCount} followers</span>
+          {formattedUser.interests && formattedUser.interests.length > 0 && (
+            <div className={styles.userInterests}>
+              {formattedUser.interests.slice(0, 3).map(interest => (
+                <span key={interest} className={styles.interestTag}>{interest}</span>
+              ))}
+              {formattedUser.interests.length > 3 && (
+                <span className={styles.moreInterest}>+{formattedUser.interests.length - 3}</span>
+              )}
+            </div>
+          )}
+          {showMutualInfo && formattedUser.commonInterests && formattedUser.commonInterests.length > 0 && (
+            <div className={styles.commonInterests}>
+              <FaHeart /> {formattedUser.commonInterests.length} common {formattedUser.commonInterests.length === 1 ? 'interest' : 'interests'}
+            </div>
+          )}
+          <div className={styles.userStats}>
+            <span className={styles.userStat}>
+              <FaUsers /> {formattedUser.followersCount} followers
+            </span>
           </div>
         </div>
-        <div className="connection-panel-user-actions">
+        
+        <div className={styles.userActions}>
           {!isCurrentUser && (
             <>
-              <button className={`action-button follow-button ${formattedUser.isFollowing ? 'following' : ''}`} onClick={(e) => handleFollowUser(formattedUser.id, e)}>
+              <button 
+                className={`${styles.actionButton} ${styles.followButton} ${formattedUser.isFollowing ? styles.following : ''}`}
+                onClick={(e) => handleFollowUser(formattedUser.id, e)}
+                title={formattedUser.isFollowing ? 'Unfollow' : 'Follow'}
+              >
                 {formattedUser.isFollowing ? <FaUserCheck /> : <FaUserPlus />}
               </button>
-              <button className="action-button message-button" onClick={(e) => handleMessageUser(formattedUser.id, e)}>
+              <button 
+                className={`${styles.actionButton} ${styles.messageButton}`}
+                onClick={(e) => handleMessageUser(formattedUser.id, e)}
+                title="Start Chat"
+              >
                 <FaRegCommentDots />
               </button>
             </>
           )}
-          {isCurrentUser && <span className="you-badge"><FaUser /> You</span>}
+          {isCurrentUser && (
+            <span className={styles.youBadge}><FaUser /> You</span>
+          )}
         </div>
       </div>
     );
@@ -501,48 +824,178 @@ const ConnectionPanel = ({
 
   // Render chat rooms
   const renderChatRooms = () => {
-    if (chatRooms.length === 0) {
-      return (
-        <div className="connection-panel-chat-rooms-section">
-          <div className="section-header">
-            <span>🎙️ Active Rooms</span>
-            <button className="create-room-button" onClick={handleCreateRoom}><FaPlus /> New Room</button>
-          </div>
-          <div className="empty-state">
-            <FaComments size={48} />
-            <p>Chat rooms coming soon!</p>
-            <span>Connect with traders in real-time conversations</span>
-            <button className="create-first-room" onClick={handleCreateRoom}>
-              Create your first room
-            </button>
-          </div>
-        </div>
-      );
-    }
-    
     return (
-      <div className="connection-panel-chat-rooms-section">
-        <div className="section-header">
-          <span>🎙️ Active Rooms</span>
-          <button className="create-room-button" onClick={handleCreateRoom}><FaPlus /> New Room</button>
+      <div className={styles.chatRoomsSection}>
+        <div className={styles.sectionHeader}>
+          <span>Available Rooms</span>
+          <button 
+            className={styles.createRoomButton}
+            onClick={handleCreateRoom}
+            title="Create new room"
+          >
+            <FaPlus /> Create Room
+          </button>
         </div>
-        <div className="chat-rooms-list">
-          {chatRooms.map(room => (
-            <div key={room.id} className="room-container">
-              <div className={`chat-room-item ${room.isMember ? 'member' : ''}`} onClick={() => handleChatRoomClick(room.id)}>
-                <div className="room-icon">{room.type === 'private' ? <FaLock /> : <FaHashtag />}</div>
-                <div className="room-info">
-                  <div className="room-title"><strong>{room.title}</strong></div>
-                  <span className="room-meta"><FaUsers /> {room.memberCount} members • {room.onlineCount || 0} online</span>
+        
+        <div className={styles.chatRoomsList}>
+          {chatRooms.map((room) => (
+            <div key={room.id} className={styles.roomContainer}>
+              <div
+                className={`${styles.chatRoomItem} ${room.isActive ? styles.active : ''} ${room.isMember ? styles.member : ''} ${hoveredItem === room.id ? styles.hovered : ''}`}
+                onClick={() => handleChatRoomClick(room.id)}
+                onMouseEnter={() => setHoveredItem(room.id)}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                <div className={styles.roomIcon}>
+                  {room.type === 'private' ? <FaLock /> : <FaHashtag />}
+                  {room.isFeatured && <FaStar className={styles.featuredIcon} />}
+                  {room.isPremium && <FaGem className={styles.premiumIcon} />}
                 </div>
-                <div className="room-actions">
-                  <button className={`join-button ${room.isMember ? 'member' : ''}`} onClick={(e) => handleJoinRoom(room.id, e)}>
+                
+                <div className={styles.roomInfo}>
+                  <div className={styles.roomTitle}>
+                    <strong>{room.title}</strong>
+                    {room.type === 'private' && (
+                      <span className={styles.privateBadge}>Private</span>
+                    )}
+                    {room.isPremium && (
+                      <span className={styles.premiumBadge}>Premium</span>
+                    )}
+                  </div>
+                  <span className={styles.roomMeta}>
+                    <FaUsers /> {room.memberCount} members
+                    {room.onlineCount > 0 && (
+                      <span className={styles.onlineCount}>
+                        <FaCircle /> {room.onlineCount} online
+                      </span>
+                    )}
+                  </span>
+                  {room.lastMessage && (
+                    <span className={styles.lastMessage}>
+                      💬 {room.lastMessage.substring(0, 40)}...
+                    </span>
+                  )}
+                </div>
+                
+                <div className={styles.roomActions}>
+                  {typingUsers[room.id] && (
+                    <span className={styles.typingIndicator} title={`${typingUsers[room.id].username} is typing...`}>
+                      typing...
+                    </span>
+                  )}
+                  
+                  {unreadCounts[room.id] > 0 && (
+                    <span className={styles.unreadCount}>{unreadCounts[room.id]}</span>
+                  )}
+                  
+                  <button 
+                    className={`${styles.expandButton} ${expandedRooms[room.id] ? styles.expanded : ''}`}
+                    onClick={(e) => toggleRoomExpand(room.id, e)}
+                  >
+                    {expandedRooms[room.id] ? <FaChevronUp /> : <FaChevronDown />}
+                  </button>
+                  
+                  <button 
+                    className={`${styles.joinButton} ${room.isMember ? styles.member : ''}`}
+                    onClick={(e) => handleJoinRoom(room.id, e)}
+                    title={room.isMember ? 'Leave room' : 'Join room'}
+                  >
                     {room.isMember ? <FaSignOutAlt /> : <FaSignInAlt />}
                   </button>
                 </div>
               </div>
+              
+              {expandedRooms[room.id] && (
+                <div className={styles.roomDetails}>
+                  <p className={styles.roomDescription}>{room.description}</p>
+                  
+                  {room.tags && room.tags.length > 0 && (
+                    <div className={styles.roomTags}>
+                      {room.tags.map(tag => (
+                        <span key={tag} className={styles.tag}>#{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className={styles.roomMembers}>
+                    <h4>
+                      <FaUsers /> Members ({room.memberCount})
+                      {room.onlineCount > 0 && (
+                        <span className={styles.onlineMemberCount}>
+                          {room.onlineCount} online
+                        </span>
+                      )}
+                    </h4>
+                    <div className={styles.membersList}>
+                      {(roomMembers[room.id] || room.members || []).slice(0, 6).map(member => {
+                        const memberId = member.id || member._id;
+                        const isOnline = onlineUsers[memberId]?.online || false;
+                        
+                        return (
+                          <div 
+                            key={memberId} 
+                            className={styles.memberItem}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUserClick(memberId);
+                            }}
+                          >
+                            <div className={styles.memberAvatar}>
+                              {member.avatar ? (
+                                <img 
+                                  src={isCloudinaryUrl(member.avatar) ? getOptimizedCloudinaryUrl(member.avatar, 'small') : formatAvatarUrl(member.avatar)} 
+                                  alt={member.name}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span>{member.name?.charAt(0) || '?'}</span>
+                              )}
+                              <span className={`${styles.memberOnline} ${isOnline ? styles.online : ''}`} />
+                            </div>
+                            <span className={styles.memberName}>{member.name}</span>
+                            {member.isAdmin && <FaShieldAlt className={styles.adminBadge} />}
+                          </div>
+                        );
+                      })}
+                      {room.memberCount > 6 && (
+                        <div className={styles.moreMembers}>
+                          +{room.memberCount - 6} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className={styles.roomStats}>
+                    <div className={styles.stat}>
+                      <span>Created</span>
+                      <span>{new Date(room.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className={styles.stat}>
+                      <span>Activity</span>
+                      <span>{room.messageCount || 0} messages</span>
+                    </div>
+                    <div className={styles.stat}>
+                      <span>Language</span>
+                      <span>{room.language || 'English'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
+          
+          {chatRooms.length === 0 && (
+            <div className={styles.emptyState}>
+              <FaComments size={32} />
+              <p>No chat rooms available</p>
+              <button 
+                className={styles.createFirstRoom}
+                onClick={handleCreateRoom}
+              >
+                Create your first room
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -554,36 +1007,89 @@ const ConnectionPanel = ({
       return renderChatRooms();
     }
     
-    const tabsData = { followers, following, suggestions, search: searchResults };
-    const currentData = tabsData[activeMainTab] || [];
+    const currentData = {
+      followers,
+      following,
+      suggestions,
+      search: searchResults
+    }[activeMainTab];
+    
+    const currentPagination = pagination[activeMainTab];
+    const hasMore = currentPagination.page * currentPagination.limit < currentPagination.total;
     
     return (
       <>
-        <div className="content-header">
+        <div className={styles.contentHeader}>
           <h4>
-            {activeMainTab === 'followers' && `👥 Followers (${followers.length})`}
-            {activeMainTab === 'following' && `🤝 Following (${following.length})`}
-            {activeMainTab === 'suggestions' && `✨ Suggestions (${suggestions.length})`}
-            {activeMainTab === 'search' && `🔍 Search Results (${searchResults.length})`}
+            {activeMainTab === 'followers' && <>👥 Followers ({pagination.followers.total})</>}
+            {activeMainTab === 'following' && <>🤝 Following ({pagination.following.total})</>}
+            {activeMainTab === 'suggestions' && <>💡 Suggestions ({pagination.suggestions.total})</>}
+            {activeMainTab === 'search' && <>🔍 Search Results ({pagination.search.total})</>}
           </h4>
           {activeMainTab === 'suggestions' && (
-            <button onClick={fetchSuggestions} className="refresh-button"><FaSyncAlt /></button>
+            <button onClick={fetchSuggestions} className={styles.refreshButton}>
+              <FaSyncAlt /> Refresh
+            </button>
           )}
         </div>
-        <div className="users-list">
+        
+        <div className={styles.usersList}>
           {loading && currentData.length === 0 ? (
-            <div className="loading-state"><div className="spinner"></div><span>Loading...</span></div>
+            <div className={styles.loadingState}>
+              <div className={styles.spinner}></div>
+              <span>Loading users...</span>
+            </div>
           ) : currentData.length > 0 ? (
-            currentData.map(user => renderUserCard(user))
-          ) : (
-            <div className="empty-state">
-              <FaUserFriends size={48} />
-              <p>No users found</p>
-              <span>Explore and connect with traders</span>
-              {activeMainTab === 'suggestions' && (
-                <button onClick={fetchSuggestions} className="refresh-suggestions-button">
-                  Refresh Suggestions
+            <>
+              {currentData.map(user => renderUserCard(user, activeMainTab === 'suggestions'))}
+              {hasMore && (
+                <button 
+                  className={styles.loadMoreButton}
+                  onClick={() => handleLoadMore(activeMainTab)}
+                  disabled={loading}
+                >
+                  {loading ? 'Loading...' : 'Load More'}
                 </button>
+              )}
+            </>
+          ) : (
+            <div className={styles.emptyState}>
+              {activeMainTab === 'followers' && (
+                <>
+                  <FaUserFriends size={48} />
+                  <p>No followers yet</p>
+                  <span>Share your profile to get more followers</span>
+                </>
+              )}
+              {activeMainTab === 'following' && (
+                <>
+                  <FaUserPlus size={48} />
+                  <p>Not following anyone yet</p>
+                  <button onClick={() => setActiveMainTab('suggestions')}>
+                    Find People to Follow
+                  </button>
+                </>
+              )}
+              {activeMainTab === 'suggestions' && (
+                <>
+                  <FaStar size={48} />
+                  <p>No suggestions available</p>
+                  <span>Complete your profile to get better suggestions</span>
+                </>
+              )}
+              {activeMainTab === 'search' && searchQuery && (
+                <>
+                  <FaSearch size={48} />
+                  <p>No users found matching "{searchQuery}"</p>
+                  <span>Try different keywords or adjust your filters</span>
+                </>
+              )}
+              {activeMainTab === 'search' && !searchQuery && (
+                <>
+                  <FaSearch size={48} />
+                  <p>Search for users</p>
+                  <span>Enter a name, username, or location to find people</span>
+                </>
               )}
             </div>
           )}
@@ -592,164 +1098,300 @@ const ConnectionPanel = ({
     );
   };
 
-  // Helper function to render the main content
-  const renderModalContent = () => (
-    <>
-      {/* Header */}
-      <div className="connection-panel-header">
-        <div className="header-title">
-          <h3>Connect</h3>
-          <span className="header-badge">Live</span>
+  // Collapsed view
+  if (isCollapsed) {
+    return (
+      <aside 
+        className={`${styles.navigationPanel} ${styles.collapsed} ${darkMode ? styles.dark : styles.light}`}
+        ref={panelRef}
+      >
+        <div className={styles.collapsedHeader}>
+          <button 
+            className={styles.expandButton}
+            onClick={() => setIsCollapsed(false)}
+            title="Expand panel"
+          >
+            <FaChevronRight />
+          </button>
         </div>
-        <button className="header-refresh-button" onClick={refreshOnlineStatus} disabled={isRefreshing}>
-          <FaSyncAlt className={isRefreshing ? 'spinning' : ''} />
+        
+        <div className={styles.collapsedIcons}>
+          {['followers', 'following', 'suggestions', 'search', 'rooms'].map(tab => (
+            <button 
+              key={tab}
+              className={`${styles.collapsedIcon} ${activeMainTab === tab ? styles.active : ''}`}
+              onClick={() => { setActiveMainTab(tab); setIsCollapsed(false); }}
+              title={tab.charAt(0).toUpperCase() + tab.slice(1)}
+            >
+              {tab === 'followers' && <FaUsers />}
+              {tab === 'following' && <FaUserFriends />}
+              {tab === 'suggestions' && <FaStar />}
+              {tab === 'search' && <FaSearch />}
+              {tab === 'rooms' && <FaComments />}
+            </button>
+          ))}
+        </div>
+      </aside>
+    );
+  }
+
+  return (
+    <aside 
+      className={`${styles.navigationPanel} ${embedded ? styles.embedded : ''} ${isMobileOpen ? styles.mobileOpen : ''} ${darkMode ? styles.dark : styles.light}`}
+      ref={panelRef}
+    >
+      {/* Close button for overlay mode */}
+      {onClose && (
+        <div className={styles.closeButtonContainer}>
+          <button className={styles.closeButton} onClick={onClose} title="Close panel">
+            <FaTimes />
+          </button>
+        </div>
+      )}
+
+      {/* Panel Header */}
+      <div className={styles.navigationHeader}>
+        <div className={styles.headerTitle}>
+          <FaUserFriends className={styles.headerIcon} />
+          <h3>Connect</h3>
+        </div>
+        <div className={styles.headerActions}>
+          <button 
+            className={`${styles.refreshButton} ${isRefreshing ? styles.refreshing : ''}`}
+            onClick={refreshOnlineStatus}
+            title="Refresh online status"
+            disabled={isRefreshing}
+          >
+            <FaSyncAlt />
+          </button>
+          <button 
+            className={styles.collapseButton}
+            onClick={handleToggleCollapse}
+            title="Collapse panel"
+          >
+            <FaChevronLeft />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Tabs */}
+      <div className={styles.mainTabs}>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'followers' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('followers')}
+        >
+          <FaUsers /> Followers
+        </button>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'following' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('following')}
+        >
+          <FaUserFriends /> Following
+        </button>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'suggestions' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('suggestions')}
+        >
+          <FaStar /> Suggestions
+        </button>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'search' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('search')}
+        >
+          <FaSearch /> Search
+        </button>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'rooms' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('rooms')}
+        >
+          <FaComments /> Rooms
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="connection-panel-tabs">
-        {['followers', 'following', 'suggestions', 'search', 'rooms'].map(tab => (
-          <button 
-            key={tab} 
-            className={`connection-panel-tab ${activeMainTab === tab ? 'active' : ''}`} 
-            onClick={() => setActiveMainTab(tab)}
-          >
-            {tab === 'followers' && <FaUsers />}
-            {tab === 'following' && <FaUserFriends />}
-            {tab === 'suggestions' && <FaStar />}
-            {tab === 'search' && <FaSearch />}
-            {tab === 'rooms' && <FaComments />}
-            <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Search Section */}
+      {/* Search and Filters (only for search tab) */}
       {activeMainTab === 'search' && (
-        <div className="connection-panel-search-section">
-          <div className="search-container">
-            <FaSearch className="search-icon" />
-            <input 
-              ref={searchInputRef} 
-              type="text" 
-              placeholder="Search by name, username..." 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              className="search-input" 
+        <div className={styles.searchSection}>
+          <div className={styles.searchContainer}>
+            <FaSearch className={styles.searchIcon} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search by name, username, or location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={styles.searchInput}
             />
             {searchQuery && (
-              <button className="clear-search" onClick={handleClearSearch}>
+              <button className={styles.clearSearch} onClick={handleClearSearch}>
                 <FaTimes />
               </button>
             )}
           </div>
+          
           <button 
-            className={`filter-button ${showFilters ? 'active' : ''}`} 
+            className={`${styles.filterButton} ${showFilters ? styles.active : ''}`}
             onClick={() => setShowFilters(!showFilters)}
           >
-            <FaFilter /> Filters
+            <FaFilter /> Advanced Filters
           </button>
+          
           {showFilters && (
-            <div className="filter-panel">
-              <div className="filter-group">
+            <div className={styles.filterPanel}>
+              {/* Location Filter */}
+              <div className={styles.filterGroup}>
                 <label><FaMapMarkerAlt /> Location</label>
-                <input 
-                  type="text" 
-                  placeholder="City or country" 
-                  value={filters.location} 
-                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))} 
-                  className="filter-input" 
+                <input
+                  type="text"
+                  placeholder="Country or city..."
+                  value={filters.location}
+                  onChange={(e) => handleFilterChange('location', e.target.value)}
+                  className={styles.filterInput}
                 />
               </div>
-              <div className="filter-group">
-                <label><FaChartLine /> Experience</label>
-                <select 
-                  value={filters.tradingExperience} 
-                  onChange={(e) => setFilters(prev => ({ ...prev, tradingExperience: e.target.value }))} 
-                  className="filter-select"
+              
+              {/* Trading Experience Filter */}
+              <div className={styles.filterGroup}>
+                <label><FaChartLine /> Trading Experience</label>
+                <select
+                  value={filters.tradingExperience}
+                  onChange={(e) => handleFilterChange('tradingExperience', e.target.value)}
+                  className={styles.filterSelect}
                 >
-                  <option value="">All</option>
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                  <option value="expert">Expert</option>
+                  <option value="">All Levels</option>
+                  {tradingExperienceOptions.map(exp => (
+                    <option key={exp} value={exp}>{exp.charAt(0).toUpperCase() + exp.slice(1)}</option>
+                  ))}
                 </select>
               </div>
+              
+              {/* Interests Filter */}
+              <div className={styles.filterGroup}>
+                <label><FaHeart /> Interests</label>
+                <div className={styles.interestsGrid}>
+                  {interestOptions.map(interest => (
+                    <button
+                      key={interest}
+                      className={`${styles.interestOption} ${filters.interests.includes(interest) ? styles.active : ''}`}
+                      onClick={() => toggleInterest(interest)}
+                    >
+                      {interest}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Followers Count Filter */}
+              <div className={styles.filterGroup}>
+                <label><FaUsers /> Followers Count</label>
+                <div className={styles.rangeInputs}>
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.minFollowers}
+                    onChange={(e) => handleFilterChange('minFollowers', e.target.value)}
+                    className={styles.rangeInput}
+                  />
+                  <span>-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.maxFollowers}
+                    onChange={(e) => handleFilterChange('maxFollowers', e.target.value)}
+                    className={styles.rangeInput}
+                  />
+                </div>
+              </div>
+              
+              {/* Sort By */}
+              <div className={styles.filterGroup}>
+                <label>Sort By</label>
+                <div className={styles.sortOptions}>
+                  {sortOptions.map(option => (
+                    <button
+                      key={option.value}
+                      className={`${styles.sortOption} ${filters.sortBy === option.value ? styles.active : ''}`}
+                      onClick={() => handleFilterChange('sortBy', option.value)}
+                    >
+                      <option.icon /> {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Reset Filters */}
               <button 
-                className="reset-filters-button" 
-                onClick={() => setFilters({ location: '', tradingExperience: '', interests: [], sortBy: 'relevance' })}
+                className={styles.resetFiltersButton}
+                onClick={() => {
+                  setFilters({
+                    location: '',
+                    tradingExperience: '',
+                    interests: [],
+                    minFollowers: '',
+                    maxFollowers: '',
+                    sortBy: 'relevance'
+                  });
+                  setSearchQuery('');
+                }}
               >
-                Reset Filters
+                Reset All Filters
               </button>
             </div>
           )}
         </div>
       )}
-
-      {/* Content Area */}
-      <div className="connection-panel-content">
+      
+      {/* Content */}
+      <div className={styles.contentArea}>
         {renderContent()}
       </div>
 
-      {/* Recent Activity */}
+      {/* Recent Activity Footer */}
       {recentActivity.length > 0 && (
-        <div className="connection-panel-activity">
-          <div className="activity-header">
+        <div className={styles.recentActivity}>
+          <div className={styles.activityHeader}>
             <FaInfoCircle />
             <span>Recent Activity</span>
-            <FaFire className="activity-icon" />
+            <FaFire className={styles.activityIcon} />
           </div>
-          <div className="activity-list">
-            {recentActivity.slice(0, 3).map((act, idx) => (
-              <div key={idx} className="activity-item">
-                {act.type === 'follow' && <FaUserPlus />}
-                {act.type === 'room-join' && <FaSignInAlt />}
-                {act.type === 'user-online' && <FaCircle className="online-icon" />}
-                <span className="activity-text">
-                  {act.type === 'follow' ? 'Followed a trader' : 
-                   act.type === 'room-join' ? `Joined ${act.roomName || 'a room'}` : 
-                   `${act.userName || 'Someone'} came online`}
+          <div className={styles.activityList}>
+            {recentActivity.map((activity, index) => (
+              <div key={index} className={styles.activityItem}>
+                {activity.type === 'follow' && <FaUserPlus className={styles.activityTypeIcon} />}
+                {activity.type === 'unfollow' && <FaUserMinus className={styles.activityTypeIcon} />}
+                {activity.type === 'room-join' && <FaSignInAlt className={styles.activityTypeIcon} />}
+                {activity.type === 'room-leave' && <FaSignOutAlt className={styles.activityTypeIcon} />}
+                {activity.type === 'room-created' && <FaPlus className={styles.activityTypeIcon} />}
+                {activity.type === 'user-online' && <FaCircle className={styles.onlineIcon} />}
+                {activity.type === 'user-offline' && <FaRegCircle className={styles.offlineIcon} />}
+                {activity.type === 'member-joined' && <FaUserPlus className={styles.activityTypeIcon} />}
+                
+                <span className={styles.activityText}>
+                  {activity.type === 'follow' && `You followed a user`}
+                  {activity.type === 'unfollow' && `You unfollowed a user`}
+                  {activity.type === 'room-join' && `You joined ${activity.roomName}`}
+                  {activity.type === 'room-leave' && `You left ${activity.roomName}`}
+                  {activity.type === 'room-created' && `You created ${activity.roomName}`}
+                  {activity.type === 'user-online' && `${activity.userName || 'A user'} came online`}
+                  {activity.type === 'user-offline' && `${activity.userName || 'A user'} went offline`}
+                  {activity.type === 'member-joined' && `${activity.userName} joined ${activity.roomName}`}
                 </span>
-                <span className="activity-time">
-                  {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <span className={styles.activityTime}>
+                  {new Date(activity.timestamp).toLocaleTimeString()}
                 </span>
               </div>
             ))}
           </div>
         </div>
       )}
-    </>
-  );
 
-  // If embedded mode, return directly
-  if (embedded) {
-    return (
-      <div className={`connection-panel-embedded ${darkMode ? 'dark' : 'light'}`}>
-        {renderModalContent()}
-      </div>
-    );
-  }
-
-  // Modal mode with fullscreen center + scale animation
-  if (!shouldRender) return null;
-
-  return (
-    <div 
-      className={`connection-panel-modal-overlay ${isVisible ? 'visible' : ''} ${isClosing ? 'closing' : ''}`} 
-      onClick={onClose}
-    >
-      <div 
-        className={`connection-panel-modal-container ${isVisible ? 'visible' : ''} ${isClosing ? 'closing' : ''} ${darkMode ? 'dark' : 'light'}`}
-        onClick={(e) => e.stopPropagation()}
+      {/* Mobile Toggle Button */}
+      <button 
+        className={styles.mobileToggle}
+        onClick={() => setIsMobileOpen(!isMobileOpen)}
       >
-        {/* Close Button */}
-        <button className="connection-panel-close-button" onClick={onClose}>
-          <FaTimes />
-        </button>
-
-        {renderModalContent()}
-      </div>
-    </div>
+        {isMobileOpen ? <FaChevronLeft /> : <FaChevronRight />}
+      </button>
+    </aside>
   );
 };
 
