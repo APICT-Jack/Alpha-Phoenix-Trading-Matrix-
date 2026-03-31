@@ -1004,3 +1004,410 @@ export const searchUsers = async (req, res) => {
     });
   }
 };
+// controllers/userController.js - Add these new endpoints
+
+// ✅ Get suggested friends based on interests and trading experience
+export const getSuggestedFriends = async (req, res) => {
+  try {
+    const currentUserId = req.user._id;
+    const { limit = 20, page = 1 } = req.query;
+
+    // Get current user's profile for matching
+    const currentUserProfile = await UserProfile.findOne({ userId: currentUserId });
+    
+    if (!currentUserProfile) {
+      return res.status(404).json({
+        success: false,
+        message: 'User profile not found'
+      });
+    }
+
+    // Find users that are not already followed and not the current user
+    const followedUsers = await Follow.find({ follower: currentUserId }).select('following');
+    const followedIds = followedUsers.map(f => f.following.toString());
+    
+    let matchCriteria = {
+      _id: { 
+        $nin: [currentUserId, ...followedIds]
+      },
+      isActive: true
+    };
+
+    // Add matching criteria based on interests
+    if (currentUserProfile.interests && currentUserProfile.interests.length > 0) {
+      matchCriteria.interests = { $in: currentUserProfile.interests };
+    }
+
+    // Add matching criteria based on trading experience
+    if (currentUserProfile.tradingExperience) {
+      matchCriteria.tradingExperience = currentUserProfile.tradingExperience;
+    }
+
+    const suggestedUsers = await User.aggregate([
+      { $match: matchCriteria },
+      {
+        $lookup: {
+          from: 'userprofiles',
+          localField: '_id',
+          foreignField: 'userId',
+          as: 'profile'
+        }
+      },
+      { $unwind: { path: '$profile', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          matchScore: {
+            $add: [
+              { $cond: [{ $in: [currentUserProfile.tradingExperience, '$profile.tradingExperience'] }, 3, 0] },
+              { $size: { $setIntersection: [currentUserProfile.interests || [], '$profile.interests' || []] } },
+              { $cond: ['$profile.country', 1, 0] },
+              { $cond: ['$profile.bio', 1, 0] }
+            ]
+          }
+        }
+      },
+      { $sort: { matchScore: -1, 'profile.stats.followersCount': -1 } },
+      { $limit: parseInt(limit) * parseInt(page) },
+      { $skip: (parseInt(page) - 1) * parseInt(limit) },
+      { $limit: parseInt(limit) }
+    ]);
+
+    const usersWithDetails = suggestedUsers.map(user => ({
+      id: user._id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      isActive: user.isActive,
+      tradingExperience: user.profile?.tradingExperience || 'beginner',
+      interests: user.profile?.interests || [],
+      bio: user.profile?.bio,
+      country: user.profile?.country,
+      followersCount: user.profile?.stats?.followersCount || 0,
+      matchScore: user.matchScore,
+      commonInterests: user.profile?.interests?.filter(i => 
+        currentUserProfile.interests?.includes(i)
+      ) || []
+    }));
+
+    res.status(200).json({
+      success: true,
+      users: usersWithDetails,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: usersWithDetails.length
+      }
+    });
+  } catch (error) {
+    console.error('Error getting suggested friends:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting suggestions: ' + error.message
+    });
+  }
+};
+
+// ✅ Get user's followers with details
+export const getUserFollowers = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 50, page = 1, sortBy = 'latest' } = req.query;
+    const currentUserId = req.user._id;
+
+    let sortOptions = {};
+    switch (sortBy) {
+      case 'latest':
+        sortOptions = { createdAt: -1 };
+        break;
+      case 'oldest':
+        sortOptions = { createdAt: 1 };
+        break;
+      case 'most-active':
+        sortOptions = { 'profile.stats.lastActive': -1 };
+        break;
+      default:
+        sortOptions = { createdAt: -1 };
+    }
+
+    const followers = await Follow.find({ following: userId })
+      .populate('follower', 'name username email avatar')
+      .sort({ createdAt: -1 })
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit))
+      .lean();
+
+    // Get profiles and follow status for each follower
+    const followersWithDetails = await Promise.all(
+      followers.map(async (follow) => {
+        const profile = await UserProfile.findOne({ userId: follow.follower._id });
+        const isFollowing = await Follow.findOne({
+          follower: currentUserId,
+          following: follow.follower._id
+        });
+        
+        return {
+          id: follow.follower._id,
+          name: follow.follower.name,
+          username: follow.follower.username,
+          email: follow.follower.email,
+          avatar: follow.follower.avatar,
+          tradingExperience: profile?.tradingExperience || 'beginner',
+          interests: profile?.interests || [],
+          bio: profile?.bio,
+          country: profile?.country,
+          followersCount: profile?.stats?.followersCount || 0,
+          followedAt: follow.createdAt,
+          isFollowing: !!isFollowing,
+          isMutual: await Follow.findOne({
+            follower: follow.follower._id,
+            following: userId
+          }) ? true : false
+        };
+      })
+    );
+
+    const total = await Follow.countDocuments({ following: userId });
+
+    res.status(200).json({
+      success: true,
+      followers: followersWithDetails,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching followers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching followers: ' + error.message
+    });
+  }
+};
+
+// ✅ Get users followed by user with details
+export const getUserFollowing = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 50, page = 1, sortBy = 'latest' } = req.query;
+    const currentUserId = req.user._id;
+
+    let sortOptions = {};
+    switch (sortBy) {
+      case 'latest':
+        sortOptions = { createdAt: -1 };
+        break;
+      case 'oldest':
+        sortOptions = { createdAt: 1 };
+        break;
+      case 'most-active':
+        sortOptions = { 'profile.stats.lastActive': -1 };
+        break;
+      default:
+        sortOptions = { createdAt: -1 };
+    }
+
+    const following = await Follow.find({ follower: userId })
+      .populate('following', 'name username email avatar')
+      .sort({ createdAt: -1 })
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit))
+      .lean();
+
+    const followingWithDetails = await Promise.all(
+      following.map(async (follow) => {
+        const profile = await UserProfile.findOne({ userId: follow.following._id });
+        const isFollowingBack = await Follow.findOne({
+          follower: follow.following._id,
+          following: userId
+        });
+        
+        return {
+          id: follow.following._id,
+          name: follow.following.name,
+          username: follow.following.username,
+          email: follow.following.email,
+          avatar: follow.following.avatar,
+          tradingExperience: profile?.tradingExperience || 'beginner',
+          interests: profile?.interests || [],
+          bio: profile?.bio,
+          country: profile?.country,
+          followersCount: profile?.stats?.followersCount || 0,
+          followedAt: follow.createdAt,
+          followsBack: !!isFollowingBack
+        };
+      })
+    );
+
+    const total = await Follow.countDocuments({ follower: userId });
+
+    res.status(200).json({
+      success: true,
+      following: followingWithDetails,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching following:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching following: ' + error.message
+    });
+  }
+};
+
+// ✅ Search users with advanced filters
+export const advancedSearchUsers = async (req, res) => {
+  try {
+    const currentUserId = req.user._id;
+    const {
+      q,
+      location,
+      tradingExperience,
+      interests,
+      minFollowers,
+      maxFollowers,
+      sortBy = 'relevance',
+      limit = 50,
+      page = 1
+    } = req.query;
+
+    let searchQuery = { 
+      _id: { $ne: currentUserId },
+      isActive: true
+    };
+
+    // Text search
+    if (q && q.length >= 2) {
+      searchQuery.$or = [
+        { name: { $regex: q, $options: 'i' } },
+        { username: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } }
+      ];
+    }
+
+    // Location filter
+    if (location) {
+      searchQuery['profile.country'] = { $regex: location, $options: 'i' };
+    }
+
+    // Trading experience filter
+    if (tradingExperience) {
+      searchQuery['profile.tradingExperience'] = tradingExperience;
+    }
+
+    // Interests filter
+    if (interests) {
+      const interestsArray = interests.split(',').map(i => i.trim());
+      searchQuery['profile.interests'] = { $in: interestsArray };
+    }
+
+    const users = await User.aggregate([
+      { $match: searchQuery },
+      {
+        $lookup: {
+          from: 'userprofiles',
+          localField: '_id',
+          foreignField: 'userId',
+          as: 'profile'
+        }
+      },
+      { $unwind: { path: '$profile', preserveNullAndEmptyArrays: true } },
+      {
+        $match: {
+          $and: [
+            minFollowers ? { 'profile.stats.followersCount': { $gte: parseInt(minFollowers) } } : {},
+            maxFollowers ? { 'profile.stats.followersCount': { $lte: parseInt(maxFollowers) } } : {}
+          ]
+        }
+      },
+      {
+        $lookup: {
+          from: 'follows',
+          let: { userId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$follower', currentUserId] },
+                    { $eq: ['$following', '$$userId'] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'followStatus'
+        }
+      },
+      {
+        $addFields: {
+          isFollowing: { $gt: [{ $size: '$followStatus' }, 0] },
+          relevanceScore: {
+            $add: [
+              { $cond: [q && { $regexMatch: { input: '$name', regex: q, options: 'i' } }, 10, 0] },
+              { $cond: [q && { $regexMatch: { input: '$username', regex: q, options: 'i' } }, 8, 0] },
+              { $cond: [tradingExperience && { $eq: ['$profile.tradingExperience', tradingExperience] }, 5, 0] },
+              { $multiply: [{ $divide: ['$profile.stats.followersCount', 100] }, 1] }
+            ]
+          }
+        }
+      },
+      {
+        $sort: sortBy === 'relevance' 
+          ? { relevanceScore: -1 } 
+          : sortBy === 'followers' 
+            ? { 'profile.stats.followersCount': -1 }
+            : sortBy === 'newest' 
+              ? { createdAt: -1 }
+              : { 'profile.stats.lastActive': -1 }
+      },
+      { $skip: (parseInt(page) - 1) * parseInt(limit) },
+      { $limit: parseInt(limit) }
+    ]);
+
+    const formattedUsers = users.map(user => ({
+      id: user._id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      tradingExperience: user.profile?.tradingExperience || 'beginner',
+      interests: user.profile?.interests || [],
+      bio: user.profile?.bio,
+      country: user.profile?.country,
+      followersCount: user.profile?.stats?.followersCount || 0,
+      joinDate: user.createdAt,
+      lastActive: user.profile?.stats?.lastActive,
+      isFollowing: user.isFollowing,
+      relevanceScore: user.relevanceScore
+    }));
+
+    const total = await User.countDocuments(searchQuery);
+
+    res.status(200).json({
+      success: true,
+      users: formattedUsers,
+      filters: { q, location, tradingExperience, interests, minFollowers, maxFollowers, sortBy },
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error in advanced search:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error searching users: ' + error.message
+    });
+  }
+};

@@ -1,4 +1,4 @@
-// ConnectionPanel.jsx - UPDATED WITH CLOUDINARY SUPPORT
+// src/components/navigation/ConnectionPanel.jsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -6,84 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { userStatusService } from '../../services/userStatusService';
 import styles from './ConnectionPanel.module.css';
 
-// ============================================
-// Helper functions with Cloudinary support
-// ============================================
-
-// API URL for local development
-const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-
-// Check if URL is from Cloudinary
-const isCloudinaryUrl = (url) => {
-  return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
-};
-
-// Format avatar URL with Cloudinary support
-const formatAvatarUrl = (avatar) => {
-  if (!avatar) return null;
-  
-  // If it's already a full URL (Cloudinary or other CDN), return as is
-  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
-  }
-  
-  // If it's a data URL, return as is
-  if (avatar.startsWith('data:')) {
-    return avatar;
-  }
-  
-  // For local development paths
-  let cleanPath = avatar;
-  if (avatar.includes('/')) {
-    cleanPath = avatar.split('/').pop();
-  }
-  
-  return `${API_URL}/uploads/avatars/${cleanPath}`;
-};
-
-// Get optimized Cloudinary URL for avatars
-const getOptimizedCloudinaryUrl = (url, size = 'small') => {
-  if (!url || !isCloudinaryUrl(url)) return url;
-  
-  // Size mapping for avatars in connection panel
-  const dimensions = {
-    small: { width: 32, height: 32 },
-    medium: { width: 48, height: 48 },
-    large: { width: 64, height: 64 }
-  };
-  
-  const { width, height } = dimensions[size] || dimensions.small;
-  
-  // Add transformations for Cloudinary
-  const transformations = [
-    `w_${width}`,
-    `h_${height}`,
-    'c_fill',
-    'g_face',
-    'q_auto',
-    'f_auto'
-  ];
-  
-  return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
-};
-
-// Get avatar initial
-const getAvatarInitial = (user) => {
-  if (!user) return 'U';
-  if (user.name) return user.name.charAt(0).toUpperCase();
-  if (user.firstName) return user.firstName.charAt(0).toUpperCase();
-  if (user.username) return user.username.charAt(0).toUpperCase();
-  if (user.displayName) return user.displayName.charAt(0).toUpperCase();
-  if (user.email) return user.email.charAt(0).toUpperCase();
-  return 'U';
-};
-
-// Check if user has valid avatar
-const hasValidAvatar = (avatar) => {
-  return avatar && !avatar.startsWith('data:');
-};
-
-// Import React Icons (same as before)
+// Import icons
 import {
   FaUserFriends, FaSearch, FaCircle, FaRegCircle, 
   FaRegCommentDots, FaComments, FaUserPlus, FaUserCheck,
@@ -92,30 +15,95 @@ import {
   FaUser, FaSignInAlt, FaSignOutAlt, FaInfoCircle,
   FaPlus, FaFilter, FaBell, FaCheckCircle, FaStar,
   FaGem, FaFire, FaClock, FaShieldAlt, FaCrown,
-  FaUserMinus, FaSyncAlt
+  FaUserMinus, FaSyncAlt, FaUserFriends as FaSuggestions,
+  FaMapMarkerAlt, FaChartLine, FaHeart, FaExchangeAlt,
+  FaTrophy, FaHandshake, FaChartBar, FaDollarSign
 } from 'react-icons/fa';
 
-const ConnectionPanel = () => {
+// Helper functions
+const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+const isCloudinaryUrl = (url) => {
+  return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
+};
+
+const formatAvatarUrl = (avatar) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
+  if (avatar.startsWith('data:')) return avatar;
+  let cleanPath = avatar;
+  if (avatar.includes('/')) cleanPath = avatar.split('/').pop();
+  return `${API_URL}/uploads/avatars/${cleanPath}`;
+};
+
+const getOptimizedCloudinaryUrl = (url, size = 'small') => {
+  if (!url || !isCloudinaryUrl(url)) return url;
+  const dimensions = { 
+    small: { width: 32, height: 32 }, 
+    medium: { width: 48, height: 48 }, 
+    large: { width: 64, height: 64 } 
+  };
+  const { width, height } = dimensions[size] || dimensions.small;
+  return url.replace('/upload/', `/upload/w_${width},h_${height},c_fill,g_face,q_auto,f_auto/`);
+};
+
+const getAvatarInitial = (user) => {
+  if (!user) return 'U';
+  if (user.name) return user.name.charAt(0).toUpperCase();
+  if (user.username) return user.username.charAt(0).toUpperCase();
+  return 'U';
+};
+
+const hasValidAvatar = (avatar) => {
+  return avatar && !avatar.startsWith('data:');
+};
+
+const ConnectionPanel = ({ 
+  initialTab = 'followers', 
+  onClose, 
+  onTabChange,
+  embedded = false 
+}) => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { darkMode } = useTheme();
 
-  // Navigation panel states
+  // Panel states
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeMainTab, setActiveMainTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
-  const [users, setUsers] = useState([]);
-  const [followingStatus, setFollowingStatus] = useState({});
   const [loading, setLoading] = useState(true);
   const [chatRooms, setChatRooms] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState({});
-  const [roomFilters, setRoomFilters] = useState({
-    type: 'all',
-    category: 'all',
-    sortBy: 'activity'
-  });
+  const [followingStatus, setFollowingStatus] = useState({});
+  
+  // Data states
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  
+  // Filter states
   const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    location: '',
+    tradingExperience: '',
+    interests: [],
+    minFollowers: '',
+    maxFollowers: '',
+    sortBy: 'relevance'
+  });
+  
+  // Pagination states
+  const [pagination, setPagination] = useState({
+    followers: { page: 1, total: 0, limit: 20 },
+    following: { page: 1, total: 0, limit: 20 },
+    suggestions: { page: 1, total: 0, limit: 20 },
+    search: { page: 1, total: 0, limit: 20 }
+  });
+  
+  // UI states
   const [expandedRooms, setExpandedRooms] = useState({});
   const [roomMembers, setRoomMembers] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
@@ -131,126 +119,34 @@ const ConnectionPanel = () => {
   const panelRef = useRef(null);
   const notificationsRef = useRef(null);
 
+  // Available filter options
+  const tradingExperienceOptions = ['beginner', 'intermediate', 'advanced', 'expert'];
+  const interestOptions = ['Forex', 'Stocks', 'Crypto', 'Commodities', 'Indices', 'Options', 'Futures', 'Technical Analysis', 'Fundamental Analysis', 'Day Trading', 'Swing Trading', 'Long-term Investing'];
+  const sortOptions = [
+    { value: 'relevance', label: 'Most Relevant', icon: FaStar },
+    { value: 'followers', label: 'Most Followers', icon: FaUsers },
+    { value: 'newest', label: 'Newest', icon: FaClock },
+    { value: 'active', label: 'Most Active', icon: FaFire }
+  ];
+
+  // Update parent when tab changes
+  useEffect(() => {
+    if (onTabChange) {
+      onTabChange(activeMainTab);
+    }
+  }, [activeMainTab, onTabChange]);
+
+  // Set initial tab
+  useEffect(() => {
+    setActiveMainTab(initialTab);
+  }, [initialTab]);
+
   // Dispatch panel state change
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('panelStateChange', { 
       detail: { collapsed: isCollapsed }
     }));
   }, [isCollapsed]);
-
-  // ============ USER STATUS SERVICE SETUP ============
-  useEffect(() => {
-    if (!currentUser) {
-      console.log('❌ No current user, skipping user status service');
-      return;
-    }
-    
-    console.log('🔌 ConnectionPanel initializing user status service');
-
-    userStatusService.init(currentUser, {
-      onConnect: () => {
-        console.log('✅ ConnectionPanel: User status service connected');
-        
-        setTimeout(() => {
-          userStatusService.getOnlineUsers();
-          
-          users.forEach(user => {
-            userStatusService.getUserStatus(user.id || user._id);
-          });
-        }, 500);
-      },
-      onDisconnect: () => {
-        console.log('❌ ConnectionPanel: User status service disconnected');
-      },
-      onOnlineUsers: (users) => {
-        console.log('📊 ConnectionPanel: Online users received');
-        setOnlineUsers(users);
-        
-        setUsers(prevUsers => 
-          prevUsers.map(user => {
-            const userId = user.id || user._id;
-            return {
-              ...user,
-              online: users[userId]?.online || false
-            };
-          })
-        );
-      },
-      onUserOnline: (data) => {
-        console.log('🟢 ConnectionPanel: User online:', data);
-        setOnlineUsers(prev => ({ 
-          ...prev, 
-          [data.userId]: { online: true, userData: data.userData } 
-        }));
-        
-        setUsers(prevUsers => 
-          prevUsers.map(user => {
-            const userId = user.id || user._id;
-            if (userId === data.userId) {
-              return { ...user, online: true };
-            }
-            return user;
-          })
-        );
-        
-        addRecentActivity({
-          type: 'user-online',
-          userId: data.userId,
-          userName: data.userData?.name,
-          timestamp: new Date().toISOString()
-        });
-      },
-      onUserOffline: (data) => {
-        console.log('🔴 ConnectionPanel: User offline:', data);
-        setOnlineUsers(prev => {
-          const newState = { ...prev };
-          delete newState[data.userId];
-          return newState;
-        });
-        
-        setUsers(prevUsers => 
-          prevUsers.map(user => {
-            const userId = user.id || user._id;
-            if (userId === data.userId) {
-              return { ...user, online: false };
-            }
-            return user;
-          })
-        );
-        
-        addRecentActivity({
-          type: 'user-offline',
-          userId: data.userId,
-          timestamp: new Date().toISOString()
-        });
-      },
-      onUserStatusResponse: (data) => {
-        console.log('📡 ConnectionPanel: User status response:', data);
-        setOnlineUsers(prev => ({
-          ...prev,
-          [data.userId]: { online: data.isOnline, userData: data.userData }
-        }));
-        
-        setUsers(prevUsers => 
-          prevUsers.map(user => {
-            const userId = user.id || user._id;
-            if (userId === data.userId) {
-              return { ...user, online: data.isOnline };
-            }
-            return user;
-          })
-        );
-      }
-    });
-
-    return () => {
-      console.log('🧹 ConnectionPanel cleaning up user status service');
-      userStatusService.offUserOnline();
-      userStatusService.offUserOffline();
-      userStatusService.offUsersOnline();
-      userStatusService.offUserStatusResponse();
-    };
-  }, [currentUser, users.length]);
 
   // Handle click outside for mobile panel
   useEffect(() => {
@@ -267,84 +163,201 @@ const ConnectionPanel = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMobileOpen, showNotifications]);
 
-  // Add recent activity
-  const addRecentActivity = (activity) => {
-    setRecentActivity(prev => [activity, ...prev].slice(0, 10));
-  };
-
-  // Fetch all users from database
+  // ============ USER STATUS SERVICE SETUP ============
   useEffect(() => {
-    const fetchUsersData = async () => {
-      try {
-        setLoading(true);
+    if (!currentUser) {
+      console.log('❌ No current user, skipping user status service');
+      return;
+    }
+    
+    console.log('🔌 ConnectionPanel initializing user status service');
+
+    userStatusService.init(currentUser, {
+      onConnect: () => {
+        console.log('✅ ConnectionPanel: User status service connected');
         
-        const usersResponse = await fetch(`${API_URL}/api/users/all`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
+        setTimeout(() => {
+          userStatusService.getOnlineUsers();
+        }, 500);
+      },
+      onDisconnect: () => {
+        console.log('❌ ConnectionPanel: User status service disconnected');
+      },
+      onOnlineUsers: (users) => {
+        console.log('📊 ConnectionPanel: Online users received');
+        setOnlineUsers(users);
+      },
+      onUserOnline: (data) => {
+        console.log('🟢 ConnectionPanel: User online:', data);
+        setOnlineUsers(prev => ({ 
+          ...prev, 
+          [data.userId]: { online: true, userData: data.userData } 
+        }));
+        
+        addRecentActivity({
+          type: 'user-online',
+          userId: data.userId,
+          userName: data.userData?.name,
+          timestamp: new Date().toISOString()
+        });
+      },
+      onUserOffline: (data) => {
+        console.log('🔴 ConnectionPanel: User offline:', data);
+        setOnlineUsers(prev => {
+          const newState = { ...prev };
+          delete newState[data.userId];
+          return newState;
         });
         
-        if (usersResponse.ok) {
-          const usersData = await usersResponse.json();
-          if (usersData.success) {
-            const fetchedUsers = usersData.users || [];
-            console.log('📥 Fetched users:', fetchedUsers.length);
-            
-            // Add online status from socket
-            const usersWithOnline = fetchedUsers.map(user => {
-              const userId = user.id || user._id;
-              const isOnline = onlineUsers[userId]?.online || false;
-              return {
-                ...user,
-                online: isOnline
-              };
-            });
-            
-            setUsers(usersWithOnline);
-            
-            // Initialize following status
-            const statusMap = {};
-            usersWithOnline.forEach(user => {
-              statusMap[user.id || user._id] = user.isFollowing || false;
-            });
-            setFollowingStatus(statusMap);
-            
-            // Request status for each user
-            if (userStatusService.isConnected()) {
-              setTimeout(() => {
-                usersWithOnline.forEach(user => {
-                  userStatusService.getUserStatus(user.id || user._id);
-                });
-              }, 500);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching users:', error);
-      } finally {
-        setLoading(false);
+        addRecentActivity({
+          type: 'user-offline',
+          userId: data.userId,
+          timestamp: new Date().toISOString()
+        });
+      },
+      onUserStatusResponse: (data) => {
+        console.log('📡 ConnectionPanel: User status response:', data);
+        setOnlineUsers(prev => ({
+          ...prev,
+          [data.userId]: { online: data.isOnline, userData: data.userData }
+        }));
       }
-    };
+    });
 
-    fetchUsersData();
+    return () => {
+      console.log('🧹 ConnectionPanel cleaning up user status service');
+      userStatusService.offUserOnline();
+      userStatusService.offUserOffline();
+      userStatusService.offUsersOnline();
+      userStatusService.offUserStatusResponse();
+    };
   }, [currentUser]);
 
-  // Update online status when onlineUsers changes
-  useEffect(() => {
-    setUsers(prevUsers => {
-      const updatedUsers = prevUsers.map(user => {
-        const userId = user.id || user._id;
-        const isOnline = onlineUsers[userId]?.online || false;
-        return {
-          ...user,
-          online: isOnline
-        };
-      });
-      return updatedUsers;
-    });
-  }, [onlineUsers]);
+  // Fetch followers
+  const fetchFollowers = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_URL}/api/users/followers/${currentUser.id}?page=${pagination.followers.page}&limit=${pagination.followers.limit}&sortBy=latest`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setFollowers(data.followers);
+        setPagination(prev => ({
+          ...prev,
+          followers: { ...prev.followers, total: data.pagination.total }
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser, pagination.followers.page, pagination.followers.limit]);
 
-  // Fetch chat rooms (same as before)
+  // Fetch following
+  const fetchFollowing = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_URL}/api/users/following/${currentUser.id}?page=${pagination.following.page}&limit=${pagination.following.limit}&sortBy=latest`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setFollowing(data.following);
+        setPagination(prev => ({
+          ...prev,
+          following: { ...prev.following, total: data.pagination.total }
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching following:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser, pagination.following.page, pagination.following.limit]);
+
+  // Fetch suggestions
+  const fetchSuggestions = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_URL}/api/users/suggestions?page=${pagination.suggestions.page}&limit=${pagination.suggestions.limit}`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestions(data.users);
+        setPagination(prev => ({
+          ...prev,
+          suggestions: { ...prev.suggestions, total: data.pagination.total }
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser, pagination.suggestions.page, pagination.suggestions.limit]);
+
+  // Advanced search
+  const performAdvancedSearch = useCallback(async () => {
+    if (!searchQuery && !filters.location && !filters.tradingExperience && !filters.interests.length) return;
+    
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: pagination.search.page,
+        limit: pagination.search.limit,
+        sortBy: filters.sortBy
+      });
+      if (searchQuery) params.append('q', searchQuery);
+      if (filters.location) params.append('location', filters.location);
+      if (filters.tradingExperience) params.append('tradingExperience', filters.tradingExperience);
+      if (filters.interests.length) params.append('interests', filters.interests.join(','));
+      if (filters.minFollowers) params.append('minFollowers', filters.minFollowers);
+      if (filters.maxFollowers) params.append('maxFollowers', filters.maxFollowers);
+      
+      const response = await fetch(
+        `${API_URL}/api/users/advanced-search?${params.toString()}`,
+        {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.users);
+        setPagination(prev => ({
+          ...prev,
+          search: { ...prev.search, total: data.pagination.total }
+        }));
+        
+        // Update following status for search results
+        const statusMap = {};
+        data.users.forEach(user => {
+          statusMap[user.id] = user.isFollowing || false;
+        });
+        setFollowingStatus(prev => ({ ...prev, ...statusMap }));
+      }
+    } catch (error) {
+      console.error('Error performing search:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, filters, pagination.search.page, pagination.search.limit]);
+
+  // Fetch chat rooms
   useEffect(() => {
     const fetchChatRooms = async () => {
       try {
@@ -387,7 +400,7 @@ const ConnectionPanel = () => {
         }
       } catch (error) {
         console.error('Error fetching chat rooms:', error);
-        // Mock data (same as before)
+        // Mock data
         const mockRooms = [
           { 
             id: 'forex-1', 
@@ -451,94 +464,23 @@ const ConnectionPanel = () => {
     fetchChatRooms();
   }, []);
 
-  // Manual refresh function
-  const refreshOnlineStatus = () => {
-    console.log('🔄 Manually refreshing online status');
-    setIsRefreshing(true);
-    
-    if (userStatusService.isConnected()) {
-      userStatusService.getOnlineUsers();
-      
-      users.forEach(user => {
-        userStatusService.getUserStatus(user.id || user._id);
-      });
+  // Initial data load
+  useEffect(() => {
+    if (activeMainTab === 'followers') fetchFollowers();
+    else if (activeMainTab === 'following') fetchFollowing();
+    else if (activeMainTab === 'suggestions') fetchSuggestions();
+  }, [activeMainTab, fetchFollowers, fetchFollowing, fetchSuggestions]);
+
+  // Search when query or filters change
+  useEffect(() => {
+    if (activeMainTab === 'search' && (searchQuery || filters.location || filters.tradingExperience || filters.interests.length)) {
+      performAdvancedSearch();
     }
-    
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
-  };
+  }, [activeMainTab, searchQuery, filters, pagination.search.page, performAdvancedSearch]);
 
-  // Memoized filtered users
-  const filteredUsersMemo = useMemo(() => {
-    let filtered = users;
-
-    if (searchQuery.trim() !== '' && activeTab === 'users') {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(user => 
-        user.name?.toLowerCase().includes(query) ||
-        user.username?.toLowerCase().includes(query) ||
-        user.email?.toLowerCase().includes(query) ||
-        user.tradingExperience?.toLowerCase().includes(query)
-      );
-    }
-
-    filtered.sort((a, b) => {
-      if (a.online && !b.online) return -1;
-      if (!a.online && b.online) return 1;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-
-    return filtered;
-  }, [users, searchQuery, activeTab]);
-
-  // Memoized filtered rooms (same as before)
-  const filteredRoomsMemo = useMemo(() => {
-    let filtered = chatRooms;
-
-    if (activeTab !== 'rooms') return filtered;
-
-    if (searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(room =>
-        room.title?.toLowerCase().includes(query) ||
-        room.description?.toLowerCase().includes(query) ||
-        room.category?.toLowerCase().includes(query) ||
-        room.tags?.some(tag => tag.toLowerCase().includes(query))
-      );
-    }
-
-    if (roomFilters.type !== 'all') {
-      filtered = filtered.filter(room => room.type === roomFilters.type);
-    }
-
-    if (roomFilters.category !== 'all') {
-      filtered = filtered.filter(room => room.category === roomFilters.category);
-    }
-
-    filtered.sort((a, b) => {
-      if (a.isFeatured && !b.isFeatured) return -1;
-      if (!a.isFeatured && b.isFeatured) return 1;
-
-      switch (roomFilters.sortBy) {
-        case 'activity':
-          return (b.onlineCount || 0) - (a.onlineCount || 0);
-        case 'members':
-          return (b.memberCount || 0) - (a.memberCount || 0);
-        case 'newest':
-          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  }, [chatRooms, searchQuery, roomFilters, activeTab]);
-
-  // Handle follow/unfollow user
+  // Handle follow/unfollow
   const handleFollowUser = async (userId, e) => {
     e.stopPropagation();
-    
     try {
       const isCurrentlyFollowing = followingStatus[userId];
       const action = isCurrentlyFollowing ? 'unfollow' : 'follow';
@@ -552,19 +494,23 @@ const ConnectionPanel = () => {
       });
 
       if (response.ok) {
-        setFollowingStatus(prev => ({
-          ...prev,
-          [userId]: !isCurrentlyFollowing
-        }));
+        setFollowingStatus(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
         
-        if (userStatusService.isConnected()) {
-          userStatusService.getSocket().emit('user-followed', {
-            followerId: currentUser.id,
-            followingId: userId,
-            action
-          });
+        // Update local data
+        if (activeMainTab === 'followers') {
+          setFollowers(prev => prev.map(f => 
+            f.id === userId ? { ...f, isFollowing: !isCurrentlyFollowing } : f
+          ));
+        } else if (activeMainTab === 'following') {
+          setFollowing(prev => prev.filter(f => f.id !== userId));
+        } else if (activeMainTab === 'suggestions') {
+          setSuggestions(prev => prev.filter(s => s.id !== userId));
+        } else if (activeMainTab === 'search') {
+          setSearchResults(prev => prev.map(u => 
+            u.id === userId ? { ...u, isFollowing: !isCurrentlyFollowing } : u
+          ));
         }
-
+        
         addRecentActivity({
           type: action,
           userId,
@@ -621,7 +567,7 @@ const ConnectionPanel = () => {
         });
       }
     } catch (error) {
-      console.error(`Error ${room.isMember ? 'leaving' : 'joining'} room:`, error);
+      console.error(`Error ${room?.isMember ? 'leaving' : 'joining'} room:`, error);
     }
   };
 
@@ -701,29 +647,62 @@ const ConnectionPanel = () => {
     setAvatarErrors(prev => ({ ...prev, [userId]: true }));
   };
 
-  // ============================================
-  // UPDATED: Format user data for display with Cloudinary support
-  // ============================================
-  const formatUserForDisplay = (user) => {
-    let rawAvatar = user.avatar;
+  // Handle filter change
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    // Reset search pagination when filters change
+    setPagination(prev => ({ ...prev, search: { ...prev.search, page: 1 } }));
+  };
+
+  // Handle interest toggle
+  const toggleInterest = (interest) => {
+    setFilters(prev => ({
+      ...prev,
+      interests: prev.interests.includes(interest)
+        ? prev.interests.filter(i => i !== interest)
+        : [...prev.interests, interest]
+    }));
+  };
+
+  // Handle pagination
+  const handleLoadMore = (tab) => {
+    setPagination(prev => ({
+      ...prev,
+      [tab]: { ...prev[tab], page: prev[tab].page + 1 }
+    }));
+  };
+
+  // Add recent activity
+  const addRecentActivity = (activity) => {
+    setRecentActivity(prev => [activity, ...prev].slice(0, 10));
+  };
+
+  // Manual refresh function
+  const refreshOnlineStatus = () => {
+    console.log('🔄 Manually refreshing online status');
+    setIsRefreshing(true);
     
-    if (rawAvatar && typeof rawAvatar === 'object') {
-      rawAvatar = rawAvatar.url || rawAvatar.avatarUrl || null;
+    if (userStatusService.isConnected()) {
+      userStatusService.getOnlineUsers();
     }
     
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1000);
+  };
+
+  // Format user for display
+  const formatUserForDisplay = (user) => {
+    let rawAvatar = user.avatar;
+    if (rawAvatar && typeof rawAvatar === 'object') rawAvatar = rawAvatar.url || rawAvatar.avatarUrl || null;
     const userId = user.id || user._id;
-    const isOnline = user.online || onlineUsers[userId]?.online || false;
+    const isOnline = onlineUsers[userId]?.online || false;
     const hasError = avatarErrors[userId];
     
-    // Format avatar URL
     let formattedAvatar = null;
     if (rawAvatar && !hasError) {
       formattedAvatar = formatAvatarUrl(rawAvatar);
-      
-      // Apply Cloudinary optimization if it's a Cloudinary URL
-      if (isCloudinaryUrl(formattedAvatar)) {
-        formattedAvatar = getOptimizedCloudinaryUrl(formattedAvatar, 'small');
-      }
+      if (isCloudinaryUrl(formattedAvatar)) formattedAvatar = getOptimizedCloudinaryUrl(formattedAvatar, 'small');
     }
     
     return {
@@ -735,58 +714,388 @@ const ConnectionPanel = () => {
       avatarInitial: getAvatarInitial(user),
       hasAvatar: hasValidAvatar(rawAvatar) && !hasError,
       online: isOnline,
-      followersCount: user.followersCount || user.profile?.followersCount || 0,
-      isFollowing: followingStatus[userId] || false,
-      tradingExperience: user.tradingExperience || user.profile?.tradingExperience || 'beginner',
-      lastActive: user.lastActive || user.profile?.lastActive,
-      isVerified: user.isVerified || false,
-      isPremium: user.isPremium || false
+      followersCount: user.followersCount || 0,
+      isFollowing: followingStatus[userId] || user.isFollowing || false,
+      tradingExperience: user.tradingExperience || 'beginner',
+      country: user.country,
+      interests: user.interests || [],
+      bio: user.bio,
+      followsBack: user.followsBack,
+      matchScore: user.matchScore,
+      commonInterests: user.commonInterests || []
     };
   };
 
-  // Get online count
-  const onlineCount = useMemo(() => {
-    return users.filter(u => u.online).length;
-  }, [users]);
-
-  // Get total unread count
-  const totalUnread = useMemo(() => {
-    return Object.values(unreadCounts).reduce((a, b) => a + b, 0);
-  }, [unreadCounts]);
-
-  // Get room categories for filter
-  const roomCategories = useMemo(() => {
-    const categories = new Set(chatRooms.map(room => room.category).filter(Boolean));
-    return ['all', ...Array.from(categories)];
-  }, [chatRooms]);
-
-  // Get room types for filter
-  const roomTypes = [
-    { value: 'all', label: 'All Rooms', icon: FaGlobe },
-    { value: 'public', label: 'Public', icon: FaGlobe },
-    { value: 'private', label: 'Private', icon: FaLock }
-  ];
-
-  // Sort options
-  const sortOptions = [
-    { value: 'activity', label: 'Most Active', icon: FaFire },
-    { value: 'members', label: 'Most Members', icon: FaUsers },
-    { value: 'newest', label: 'Newest', icon: FaClock }
-  ];
-
-  // Handle notification click
-  const handleNotificationClick = (notification) => {
-    setShowNotifications(false);
-    if (notification.roomId) {
-      navigate(`/chat/room/${notification.roomId}`);
-    } else if (notification.userId) {
-      navigate(`/profile/${notification.userId}`);
-    }
+  // Render user card
+  const renderUserCard = (user, showMutualInfo = false) => {
+    const formattedUser = formatUserForDisplay(user);
+    const isCurrentUser = currentUser?.id === formattedUser.id;
+    
+    return (
+      <div
+        key={formattedUser.id}
+        className={`${styles.userItem} ${formattedUser.online ? styles.online : ''} ${hoveredItem === formattedUser.id ? styles.hovered : ''}`}
+        onClick={() => handleUserClick(formattedUser.id)}
+        onMouseEnter={() => setHoveredItem(formattedUser.id)}
+        onMouseLeave={() => setHoveredItem(null)}
+      >
+        <div className={styles.userAvatar}>
+          {formattedUser.hasAvatar ? (
+            <img 
+              src={formattedUser.avatar} 
+              alt={formattedUser.name}
+              onError={() => handleAvatarError(formattedUser.id)}
+              loading="lazy"
+            />
+          ) : (
+            <span className={styles.avatarInitial}>{formattedUser.avatarInitial}</span>
+          )}
+          <div className={`${styles.onlineIndicator} ${formattedUser.online ? styles.online : styles.offline}`}>
+            {formattedUser.online ? <FaCircle /> : <FaRegCircle />}
+          </div>
+        </div>
+        
+        <div className={styles.userInfo}>
+          <div className={styles.userName}>
+            <strong>{formattedUser.name}</strong>
+            {formattedUser.followsBack && (
+              <FaHandshake className={styles.mutualIcon} title="Follows you back" />
+            )}
+          </div>
+          <span className={styles.userUsername}>@{formattedUser.username}</span>
+          {formattedUser.country && (
+            <div className={styles.userLocation}>
+              <FaMapMarkerAlt /> {formattedUser.country}
+            </div>
+          )}
+          {formattedUser.tradingExperience && (
+            <div className={`${styles.userLevel} ${formattedUser.tradingExperience}`}>
+              <FaChartLine /> {formattedUser.tradingExperience}
+            </div>
+          )}
+          {formattedUser.interests && formattedUser.interests.length > 0 && (
+            <div className={styles.userInterests}>
+              {formattedUser.interests.slice(0, 3).map(interest => (
+                <span key={interest} className={styles.interestTag}>{interest}</span>
+              ))}
+              {formattedUser.interests.length > 3 && (
+                <span className={styles.moreInterest}>+{formattedUser.interests.length - 3}</span>
+              )}
+            </div>
+          )}
+          {showMutualInfo && formattedUser.commonInterests && formattedUser.commonInterests.length > 0 && (
+            <div className={styles.commonInterests}>
+              <FaHeart /> {formattedUser.commonInterests.length} common {formattedUser.commonInterests.length === 1 ? 'interest' : 'interests'}
+            </div>
+          )}
+          <div className={styles.userStats}>
+            <span className={styles.userStat}>
+              <FaUsers /> {formattedUser.followersCount} followers
+            </span>
+          </div>
+        </div>
+        
+        <div className={styles.userActions}>
+          {!isCurrentUser && (
+            <>
+              <button 
+                className={`${styles.actionButton} ${styles.followButton} ${formattedUser.isFollowing ? styles.following : ''}`}
+                onClick={(e) => handleFollowUser(formattedUser.id, e)}
+                title={formattedUser.isFollowing ? 'Unfollow' : 'Follow'}
+              >
+                {formattedUser.isFollowing ? <FaUserCheck /> : <FaUserPlus />}
+              </button>
+              <button 
+                className={`${styles.actionButton} ${styles.messageButton}`}
+                onClick={(e) => handleMessageUser(formattedUser.id, e)}
+                title="Start Chat"
+              >
+                <FaRegCommentDots />
+              </button>
+            </>
+          )}
+          {isCurrentUser && (
+            <span className={styles.youBadge}><FaUser /> You</span>
+          )}
+        </div>
+      </div>
+    );
   };
 
-  // Clear all notifications
-  const clearNotifications = () => {
-    setNotifications([]);
+  // Render chat rooms
+  const renderChatRooms = () => {
+    return (
+      <div className={styles.chatRoomsSection}>
+        <div className={styles.sectionHeader}>
+          <span>Available Rooms</span>
+          <button 
+            className={styles.createRoomButton}
+            onClick={handleCreateRoom}
+            title="Create new room"
+          >
+            <FaPlus /> Create Room
+          </button>
+        </div>
+        
+        <div className={styles.chatRoomsList}>
+          {chatRooms.map((room) => (
+            <div key={room.id} className={styles.roomContainer}>
+              <div
+                className={`${styles.chatRoomItem} ${room.isActive ? styles.active : ''} ${room.isMember ? styles.member : ''} ${hoveredItem === room.id ? styles.hovered : ''}`}
+                onClick={() => handleChatRoomClick(room.id)}
+                onMouseEnter={() => setHoveredItem(room.id)}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                <div className={styles.roomIcon}>
+                  {room.type === 'private' ? <FaLock /> : <FaHashtag />}
+                  {room.isFeatured && <FaStar className={styles.featuredIcon} />}
+                  {room.isPremium && <FaGem className={styles.premiumIcon} />}
+                </div>
+                
+                <div className={styles.roomInfo}>
+                  <div className={styles.roomTitle}>
+                    <strong>{room.title}</strong>
+                    {room.type === 'private' && (
+                      <span className={styles.privateBadge}>Private</span>
+                    )}
+                    {room.isPremium && (
+                      <span className={styles.premiumBadge}>Premium</span>
+                    )}
+                  </div>
+                  <span className={styles.roomMeta}>
+                    <FaUsers /> {room.memberCount} members
+                    {room.onlineCount > 0 && (
+                      <span className={styles.onlineCount}>
+                        <FaCircle /> {room.onlineCount} online
+                      </span>
+                    )}
+                  </span>
+                  {room.lastMessage && (
+                    <span className={styles.lastMessage}>
+                      💬 {room.lastMessage.substring(0, 40)}...
+                    </span>
+                  )}
+                </div>
+                
+                <div className={styles.roomActions}>
+                  {typingUsers[room.id] && (
+                    <span className={styles.typingIndicator} title={`${typingUsers[room.id].username} is typing...`}>
+                      typing...
+                    </span>
+                  )}
+                  
+                  {unreadCounts[room.id] > 0 && (
+                    <span className={styles.unreadCount}>{unreadCounts[room.id]}</span>
+                  )}
+                  
+                  <button 
+                    className={`${styles.expandButton} ${expandedRooms[room.id] ? styles.expanded : ''}`}
+                    onClick={(e) => toggleRoomExpand(room.id, e)}
+                  >
+                    {expandedRooms[room.id] ? <FaChevronUp /> : <FaChevronDown />}
+                  </button>
+                  
+                  <button 
+                    className={`${styles.joinButton} ${room.isMember ? styles.member : ''}`}
+                    onClick={(e) => handleJoinRoom(room.id, e)}
+                    title={room.isMember ? 'Leave room' : 'Join room'}
+                  >
+                    {room.isMember ? <FaSignOutAlt /> : <FaSignInAlt />}
+                  </button>
+                </div>
+              </div>
+              
+              {expandedRooms[room.id] && (
+                <div className={styles.roomDetails}>
+                  <p className={styles.roomDescription}>{room.description}</p>
+                  
+                  {room.tags && room.tags.length > 0 && (
+                    <div className={styles.roomTags}>
+                      {room.tags.map(tag => (
+                        <span key={tag} className={styles.tag}>#{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className={styles.roomMembers}>
+                    <h4>
+                      <FaUsers /> Members ({room.memberCount})
+                      {room.onlineCount > 0 && (
+                        <span className={styles.onlineMemberCount}>
+                          {room.onlineCount} online
+                        </span>
+                      )}
+                    </h4>
+                    <div className={styles.membersList}>
+                      {(roomMembers[room.id] || room.members || []).slice(0, 6).map(member => {
+                        const memberId = member.id || member._id;
+                        const isOnline = onlineUsers[memberId]?.online || false;
+                        
+                        return (
+                          <div 
+                            key={memberId} 
+                            className={styles.memberItem}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUserClick(memberId);
+                            }}
+                          >
+                            <div className={styles.memberAvatar}>
+                              {member.avatar ? (
+                                <img 
+                                  src={isCloudinaryUrl(member.avatar) ? getOptimizedCloudinaryUrl(member.avatar, 'small') : formatAvatarUrl(member.avatar)} 
+                                  alt={member.name}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span>{member.name?.charAt(0) || '?'}</span>
+                              )}
+                              <span className={`${styles.memberOnline} ${isOnline ? styles.online : ''}`} />
+                            </div>
+                            <span className={styles.memberName}>{member.name}</span>
+                            {member.isAdmin && <FaShieldAlt className={styles.adminBadge} />}
+                          </div>
+                        );
+                      })}
+                      {room.memberCount > 6 && (
+                        <div className={styles.moreMembers}>
+                          +{room.memberCount - 6} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className={styles.roomStats}>
+                    <div className={styles.stat}>
+                      <span>Created</span>
+                      <span>{new Date(room.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className={styles.stat}>
+                      <span>Activity</span>
+                      <span>{room.messageCount || 0} messages</span>
+                    </div>
+                    <div className={styles.stat}>
+                      <span>Language</span>
+                      <span>{room.language || 'English'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          
+          {chatRooms.length === 0 && (
+            <div className={styles.emptyState}>
+              <FaComments size={32} />
+              <p>No chat rooms available</p>
+              <button 
+                className={styles.createFirstRoom}
+                onClick={handleCreateRoom}
+              >
+                Create your first room
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render content based on active tab
+  const renderContent = () => {
+    if (activeMainTab === 'rooms') {
+      return renderChatRooms();
+    }
+    
+    const currentData = {
+      followers,
+      following,
+      suggestions,
+      search: searchResults
+    }[activeMainTab];
+    
+    const currentPagination = pagination[activeMainTab];
+    const hasMore = currentPagination.page * currentPagination.limit < currentPagination.total;
+    
+    return (
+      <>
+        <div className={styles.contentHeader}>
+          <h4>
+            {activeMainTab === 'followers' && <>👥 Followers ({pagination.followers.total})</>}
+            {activeMainTab === 'following' && <>🤝 Following ({pagination.following.total})</>}
+            {activeMainTab === 'suggestions' && <>💡 Suggestions ({pagination.suggestions.total})</>}
+            {activeMainTab === 'search' && <>🔍 Search Results ({pagination.search.total})</>}
+          </h4>
+          {activeMainTab === 'suggestions' && (
+            <button onClick={fetchSuggestions} className={styles.refreshButton}>
+              <FaSyncAlt /> Refresh
+            </button>
+          )}
+        </div>
+        
+        <div className={styles.usersList}>
+          {loading && currentData.length === 0 ? (
+            <div className={styles.loadingState}>
+              <div className={styles.spinner}></div>
+              <span>Loading users...</span>
+            </div>
+          ) : currentData.length > 0 ? (
+            <>
+              {currentData.map(user => renderUserCard(user, activeMainTab === 'suggestions'))}
+              {hasMore && (
+                <button 
+                  className={styles.loadMoreButton}
+                  onClick={() => handleLoadMore(activeMainTab)}
+                  disabled={loading}
+                >
+                  {loading ? 'Loading...' : 'Load More'}
+                </button>
+              )}
+            </>
+          ) : (
+            <div className={styles.emptyState}>
+              {activeMainTab === 'followers' && (
+                <>
+                  <FaUserFriends size={48} />
+                  <p>No followers yet</p>
+                  <span>Share your profile to get more followers</span>
+                </>
+              )}
+              {activeMainTab === 'following' && (
+                <>
+                  <FaUserPlus size={48} />
+                  <p>Not following anyone yet</p>
+                  <button onClick={() => setActiveMainTab('suggestions')}>
+                    Find People to Follow
+                  </button>
+                </>
+              )}
+              {activeMainTab === 'suggestions' && (
+                <>
+                  <FaStar size={48} />
+                  <p>No suggestions available</p>
+                  <span>Complete your profile to get better suggestions</span>
+                </>
+              )}
+              {activeMainTab === 'search' && searchQuery && (
+                <>
+                  <FaSearch size={48} />
+                  <p>No users found matching "{searchQuery}"</p>
+                  <span>Try different keywords or adjust your filters</span>
+                </>
+              )}
+              {activeMainTab === 'search' && !searchQuery && (
+                <>
+                  <FaSearch size={48} />
+                  <p>Search for users</p>
+                  <span>Enter a name, username, or location to find people</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </>
+    );
   };
 
   // Collapsed view
@@ -799,7 +1108,7 @@ const ConnectionPanel = () => {
         <div className={styles.collapsedHeader}>
           <button 
             className={styles.expandButton}
-            onClick={handleToggleCollapse}
+            onClick={() => setIsCollapsed(false)}
             title="Expand panel"
           >
             <FaChevronRight />
@@ -807,97 +1116,44 @@ const ConnectionPanel = () => {
         </div>
         
         <div className={styles.collapsedIcons}>
-          <button 
-            className={`${styles.collapsedIcon} ${activeTab === 'users' ? styles.active : ''}`}
-            onClick={() => {
-              setActiveTab('users');
-              setIsCollapsed(false);
-            }}
-            title="Users"
-          >
-            <FaUsers />
-            {onlineCount > 0 && (
-              <span className={styles.onlineBadge}>{onlineCount}</span>
-            )}
-          </button>
-          
-          <button 
-            className={`${styles.collapsedIcon} ${activeTab === 'rooms' ? styles.active : ''}`}
-            onClick={() => {
-              setActiveTab('rooms');
-              setIsCollapsed(false);
-            }}
-            title="Chat Rooms"
-          >
-            <FaComments />
-            {totalUnread > 0 && (
-              <span className={styles.unreadBadge}>{totalUnread}</span>
-            )}
-          </button>
-
-          <button 
-            className={styles.collapsedIcon}
-            onClick={() => setShowNotifications(!showNotifications)}
-            title="Notifications"
-          >
-            <FaBell />
-            {notifications.length > 0 && (
-              <span className={styles.notificationBadge}>{notifications.length}</span>
-            )}
-          </button>
+          {['followers', 'following', 'suggestions', 'search', 'rooms'].map(tab => (
+            <button 
+              key={tab}
+              className={`${styles.collapsedIcon} ${activeMainTab === tab ? styles.active : ''}`}
+              onClick={() => { setActiveMainTab(tab); setIsCollapsed(false); }}
+              title={tab.charAt(0).toUpperCase() + tab.slice(1)}
+            >
+              {tab === 'followers' && <FaUsers />}
+              {tab === 'following' && <FaUserFriends />}
+              {tab === 'suggestions' && <FaStar />}
+              {tab === 'search' && <FaSearch />}
+              {tab === 'rooms' && <FaComments />}
+            </button>
+          ))}
         </div>
-
-        {showNotifications && (
-          <div className={styles.notificationsDropdown} ref={notificationsRef}>
-            <div className={styles.notificationsHeader}>
-              <h4>Notifications</h4>
-              <button onClick={clearNotifications}>Clear all</button>
-            </div>
-            <div className={styles.notificationsList}>
-              {notifications.length > 0 ? (
-                notifications.map((notif, index) => (
-                  <div 
-                    key={index} 
-                    className={styles.notificationItem}
-                    onClick={() => handleNotificationClick(notif)}
-                  >
-                    <div className={styles.notificationIcon}>
-                      {notif.type === 'message' && <FaRegCommentDots />}
-                      {notif.type === 'follow' && <FaUserPlus />}
-                      {notif.type === 'room' && <FaComments />}
-                    </div>
-                    <div className={styles.notificationContent}>
-                      <strong>{notif.title}</strong>
-                      <p>{notif.body}</p>
-                      <span>{new Date(notif.timestamp).toLocaleTimeString()}</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className={styles.noNotifications}>No notifications</div>
-              )}
-            </div>
-          </div>
-        )}
       </aside>
     );
   }
 
   return (
     <aside 
-      className={`${styles.navigationPanel} ${isMobileOpen ? styles.mobileOpen : ''} ${darkMode ? styles.dark : styles.light}`}
+      className={`${styles.navigationPanel} ${embedded ? styles.embedded : ''} ${isMobileOpen ? styles.mobileOpen : ''} ${darkMode ? styles.dark : styles.light}`}
       ref={panelRef}
     >
-      {/* Panel Header with Collapse Button */}
+      {/* Close button for overlay mode */}
+      {onClose && (
+        <div className={styles.closeButtonContainer}>
+          <button className={styles.closeButton} onClick={onClose} title="Close panel">
+            <FaTimes />
+          </button>
+        </div>
+      )}
+
+      {/* Panel Header */}
       <div className={styles.navigationHeader}>
         <div className={styles.headerTitle}>
           <FaUserFriends className={styles.headerIcon} />
-          <h3>
-            {activeTab === 'users' ? 'Community' : 'Chat Rooms'}
-          </h3>
-          {activeTab === 'users' && onlineCount > 0 && (
-            <span className={styles.headerBadge}>{onlineCount} online</span>
-          )}
+          <h3>Connect</h3>
         </div>
         <div className={styles.headerActions}>
           <button 
@@ -909,16 +1165,6 @@ const ConnectionPanel = () => {
             <FaSyncAlt />
           </button>
           <button 
-            className={styles.notificationButton}
-            onClick={() => setShowNotifications(!showNotifications)}
-            title="Notifications"
-          >
-            <FaBell />
-            {notifications.length > 0 && (
-              <span className={styles.notificationBadge}>{notifications.length}</span>
-            )}
-          </button>
-          <button 
             className={styles.collapseButton}
             onClick={handleToggleCollapse}
             title="Collapse panel"
@@ -926,440 +1172,178 @@ const ConnectionPanel = () => {
             <FaChevronLeft />
           </button>
         </div>
+      </div>
 
-        {showNotifications && (
-          <div className={styles.notificationsDropdown} ref={notificationsRef}>
-            <div className={styles.notificationsHeader}>
-              <h4>Notifications</h4>
-              <button onClick={clearNotifications}>Clear all</button>
-            </div>
-            <div className={styles.notificationsList}>
-              {notifications.length > 0 ? (
-                notifications.map((notif, index) => (
-                  <div 
-                    key={index} 
-                    className={styles.notificationItem}
-                    onClick={() => handleNotificationClick(notif)}
-                  >
-                    <div className={styles.notificationIcon}>
-                      {notif.type === 'message' && <FaRegCommentDots />}
-                      {notif.type === 'follow' && <FaUserPlus />}
-                      {notif.type === 'room' && <FaComments />}
-                    </div>
-                    <div className={styles.notificationContent}>
-                      <strong>{notif.title}</strong>
-                      <p>{notif.body}</p>
-                      <span>{new Date(notif.timestamp).toLocaleTimeString()}</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className={styles.noNotifications}>No notifications</div>
-              )}
-            </div>
+      {/* Main Tabs */}
+      <div className={styles.mainTabs}>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'followers' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('followers')}
+        >
+          <FaUsers /> Followers
+        </button>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'following' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('following')}
+        >
+          <FaUserFriends /> Following
+        </button>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'suggestions' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('suggestions')}
+        >
+          <FaStar /> Suggestions
+        </button>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'search' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('search')}
+        >
+          <FaSearch /> Search
+        </button>
+        <button
+          className={`${styles.mainTab} ${activeMainTab === 'rooms' ? styles.active : ''}`}
+          onClick={() => setActiveMainTab('rooms')}
+        >
+          <FaComments /> Rooms
+        </button>
+      </div>
+
+      {/* Search and Filters (only for search tab) */}
+      {activeMainTab === 'search' && (
+        <div className={styles.searchSection}>
+          <div className={styles.searchContainer}>
+            <FaSearch className={styles.searchIcon} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search by name, username, or location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={styles.searchInput}
+            />
+            {searchQuery && (
+              <button className={styles.clearSearch} onClick={handleClearSearch}>
+                <FaTimes />
+              </button>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Tab Navigation */}
-      <div className={styles.tabNavigation}>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'users' ? styles.active : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          <FaUsers />
-          <span>Users</span>
-          {onlineCount > 0 && (
-            <span className={styles.tabBadge}>{onlineCount}</span>
-          )}
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'rooms' ? styles.active : ''}`}
-          onClick={() => setActiveTab('rooms')}
-        >
-          <FaComments />
-          <span>Rooms</span>
-          {totalUnread > 0 && (
-            <span className={styles.tabBadge}>{totalUnread}</span>
-          )}
-        </button>
-      </div>
-
-      {/* Search Bar */}
-      <div className={styles.searchContainer}>
-        <FaSearch className={styles.searchIcon} />
-        <input
-          ref={searchInputRef}
-          type="text"
-          placeholder={activeTab === 'users' ? "Search users..." : "Search rooms..."}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className={styles.searchInput}
-        />
-        {searchQuery && (
-          <button 
-            className={styles.clearSearch}
-            onClick={handleClearSearch}
-          >
-            <FaTimes />
-          </button>
-        )}
-      </div>
-
-      {/* Filter Bar (for rooms) */}
-      {activeTab === 'rooms' && (
-        <div className={styles.filterBar}>
+          
           <button 
             className={`${styles.filterButton} ${showFilters ? styles.active : ''}`}
             onClick={() => setShowFilters(!showFilters)}
           >
-            <FaFilter /> Filters
+            <FaFilter /> Advanced Filters
           </button>
           
           {showFilters && (
             <div className={styles.filterPanel}>
+              {/* Location Filter */}
               <div className={styles.filterGroup}>
-                <label>Room Type</label>
-                <div className={styles.filterOptions}>
-                  {roomTypes.map(type => (
+                <label><FaMapMarkerAlt /> Location</label>
+                <input
+                  type="text"
+                  placeholder="Country or city..."
+                  value={filters.location}
+                  onChange={(e) => handleFilterChange('location', e.target.value)}
+                  className={styles.filterInput}
+                />
+              </div>
+              
+              {/* Trading Experience Filter */}
+              <div className={styles.filterGroup}>
+                <label><FaChartLine /> Trading Experience</label>
+                <select
+                  value={filters.tradingExperience}
+                  onChange={(e) => handleFilterChange('tradingExperience', e.target.value)}
+                  className={styles.filterSelect}
+                >
+                  <option value="">All Levels</option>
+                  {tradingExperienceOptions.map(exp => (
+                    <option key={exp} value={exp}>{exp.charAt(0).toUpperCase() + exp.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Interests Filter */}
+              <div className={styles.filterGroup}>
+                <label><FaHeart /> Interests</label>
+                <div className={styles.interestsGrid}>
+                  {interestOptions.map(interest => (
                     <button
-                      key={type.value}
-                      className={`${styles.filterOption} ${roomFilters.type === type.value ? styles.active : ''}`}
-                      onClick={() => setRoomFilters(prev => ({ ...prev, type: type.value }))}
+                      key={interest}
+                      className={`${styles.interestOption} ${filters.interests.includes(interest) ? styles.active : ''}`}
+                      onClick={() => toggleInterest(interest)}
                     >
-                      <type.icon />
-                      <span>{type.label}</span>
+                      {interest}
                     </button>
                   ))}
                 </div>
               </div>
               
+              {/* Followers Count Filter */}
               <div className={styles.filterGroup}>
-                <label>Category</label>
-                <select 
-                  value={roomFilters.category}
-                  onChange={(e) => setRoomFilters(prev => ({ ...prev, category: e.target.value }))}
-                  className={styles.filterSelect}
-                >
-                  {roomCategories.map(cat => (
-                    <option key={cat} value={cat}>
-                      {cat === 'all' ? 'All Categories' : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </option>
-                  ))}
-                </select>
+                <label><FaUsers /> Followers Count</label>
+                <div className={styles.rangeInputs}>
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.minFollowers}
+                    onChange={(e) => handleFilterChange('minFollowers', e.target.value)}
+                    className={styles.rangeInput}
+                  />
+                  <span>-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.maxFollowers}
+                    onChange={(e) => handleFilterChange('maxFollowers', e.target.value)}
+                    className={styles.rangeInput}
+                  />
+                </div>
               </div>
-
+              
+              {/* Sort By */}
               <div className={styles.filterGroup}>
                 <label>Sort By</label>
                 <div className={styles.sortOptions}>
                   {sortOptions.map(option => (
                     <button
                       key={option.value}
-                      className={`${styles.sortOption} ${roomFilters.sortBy === option.value ? styles.active : ''}`}
-                      onClick={() => setRoomFilters(prev => ({ ...prev, sortBy: option.value }))}
+                      className={`${styles.sortOption} ${filters.sortBy === option.value ? styles.active : ''}`}
+                      onClick={() => handleFilterChange('sortBy', option.value)}
                     >
-                      <option.icon />
-                      <span>{option.label}</span>
+                      <option.icon /> {option.label}
                     </button>
                   ))}
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Content Section */}
-      {activeTab === 'users' ? (
-        <div className={styles.usersSection}>
-          <div className={styles.sectionHeader}>
-            <span>Community Members</span>
-            <span className={styles.onlineStats}>
-              <FaCircle className={styles.onlineDot} /> {onlineCount} online
-            </span>
-          </div>
-          
-          {loading ? (
-            <div className={styles.loadingState}>
-              <div className={styles.spinner}></div>
-              <span>Loading users...</span>
-            </div>
-          ) : (
-            <div className={styles.usersList}>
-              {filteredUsersMemo.map((user) => {
-                const formattedUser = formatUserForDisplay(user);
-                const isCurrentUser = currentUser?.id === formattedUser.id;
-                
-                return (
-                  <div
-                    key={formattedUser.id}
-                    className={`${styles.userItem} ${formattedUser.online ? styles.online : ''} ${hoveredItem === formattedUser.id ? styles.hovered : ''}`}
-                    onClick={() => handleUserClick(formattedUser.id)}
-                    onMouseEnter={() => setHoveredItem(formattedUser.id)}
-                    onMouseLeave={() => setHoveredItem(null)}
-                  >
-                    <div className={styles.userAvatar}>
-                      {formattedUser.hasAvatar ? (
-                        <img 
-                          src={formattedUser.avatar} 
-                          alt={formattedUser.name}
-                          onError={() => handleAvatarError(formattedUser.id)}
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className={styles.avatarInitial}>
-                          {formattedUser.avatarInitial}
-                        </span>
-                      )}
-                      <div className={`${styles.onlineIndicator} ${formattedUser.online ? styles.online : styles.offline}`}>
-                        {formattedUser.online ? <FaCircle /> : <FaRegCircle />}
-                      </div>
-                      {formattedUser.isVerified && (
-                        <FaCheckCircle className={styles.verifiedBadge} />
-                      )}
-                      {formattedUser.isPremium && (
-                        <FaCrown className={styles.premiumBadge} />
-                      )}
-                    </div>
-                    
-                    <div className={styles.userInfo}>
-                      <div className={styles.userName}>
-                        <strong>{formattedUser.name}</strong>
-                        {formattedUser.isVerified && <FaCheckCircle className={styles.verifiedIcon} />}
-                      </div>
-                      <span className={styles.userUsername}>@{formattedUser.username}</span>
-                      <div className={styles.userStats}>
-                        <span className={styles.userStat}>
-                          {formattedUser.followersCount} followers
-                        </span>
-                        <span className={`${styles.userLevel} ${formattedUser.tradingExperience}`}>
-                          {formattedUser.tradingExperience}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className={styles.userActions}>
-                      {!isCurrentUser && (
-                        <>
-                          <button 
-                            className={`${styles.actionButton} ${styles.followButton} ${formattedUser.isFollowing ? styles.following : ''}`}
-                            onClick={(e) => handleFollowUser(formattedUser.id, e)}
-                            title={formattedUser.isFollowing ? 'Unfollow' : 'Follow'}
-                          >
-                            {formattedUser.isFollowing ? <FaUserCheck /> : <FaUserPlus />}
-                          </button>
-                          <button 
-                            className={`${styles.actionButton} ${styles.messageButton}`}
-                            onClick={(e) => handleMessageUser(formattedUser.id, e)}
-                            title="Start Chat"
-                          >
-                            <FaRegCommentDots />
-                          </button>
-                        </>
-                      )}
-                      {isCurrentUser && (
-                        <span className={styles.youBadge}>
-                          <FaUser /> You
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
               
-              {filteredUsersMemo.length === 0 && !loading && (
-                <div className={styles.emptyState}>
-                  <FaSearch size={32} />
-                  <p>No users found matching "{searchQuery}"</p>
-                </div>
-              )}
+              {/* Reset Filters */}
+              <button 
+                className={styles.resetFiltersButton}
+                onClick={() => {
+                  setFilters({
+                    location: '',
+                    tradingExperience: '',
+                    interests: [],
+                    minFollowers: '',
+                    maxFollowers: '',
+                    sortBy: 'relevance'
+                  });
+                  setSearchQuery('');
+                }}
+              >
+                Reset All Filters
+              </button>
             </div>
           )}
         </div>
-      ) : (
-        <div className={styles.chatRoomsSection}>
-          <div className={styles.sectionHeader}>
-            <span>Available Rooms</span>
-            <button 
-              className={styles.createRoomButton}
-              onClick={handleCreateRoom}
-              title="Create new room"
-            >
-              <FaPlus /> Create Room
-            </button>
-          </div>
-          
-          <div className={styles.chatRoomsList}>
-            {filteredRoomsMemo.map((room) => (
-              <div key={room.id} className={styles.roomContainer}>
-                <div
-                  className={`${styles.chatRoomItem} ${room.isActive ? styles.active : ''} ${room.isMember ? styles.member : ''} ${hoveredItem === room.id ? styles.hovered : ''}`}
-                  onClick={() => handleChatRoomClick(room.id)}
-                  onMouseEnter={() => setHoveredItem(room.id)}
-                  onMouseLeave={() => setHoveredItem(null)}
-                >
-                  <div className={styles.roomIcon}>
-                    {room.type === 'private' ? <FaLock /> : <FaHashtag />}
-                    {room.isFeatured && <FaStar className={styles.featuredIcon} />}
-                    {room.isPremium && <FaGem className={styles.premiumIcon} />}
-                  </div>
-                  
-                  <div className={styles.roomInfo}>
-                    <div className={styles.roomTitle}>
-                      <strong>{room.title}</strong>
-                      {room.type === 'private' && (
-                        <span className={styles.privateBadge}>Private</span>
-                      )}
-                      {room.isPremium && (
-                        <span className={styles.premiumBadge}>Premium</span>
-                      )}
-                    </div>
-                    <span className={styles.roomMeta}>
-                      <FaUsers /> {room.memberCount} members
-                      {room.onlineCount > 0 && (
-                        <span className={styles.onlineCount}>
-                          <FaCircle /> {room.onlineCount} online
-                        </span>
-                      )}
-                    </span>
-                    {room.lastMessage && (
-                      <span className={styles.lastMessage}>
-                        💬 {room.lastMessage.substring(0, 40)}...
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className={styles.roomActions}>
-                    {typingUsers[room.id] && (
-                      <span className={styles.typingIndicator} title={`${typingUsers[room.id].username} is typing...`}>
-                        typing...
-                      </span>
-                    )}
-                    
-                    {unreadCounts[room.id] > 0 && (
-                      <span className={styles.unreadCount}>{unreadCounts[room.id]}</span>
-                    )}
-                    
-                    <button 
-                      className={`${styles.expandButton} ${expandedRooms[room.id] ? styles.expanded : ''}`}
-                      onClick={(e) => toggleRoomExpand(room.id, e)}
-                    >
-                      {expandedRooms[room.id] ? <FaChevronUp /> : <FaChevronDown />}
-                    </button>
-                    
-                    <button 
-                      className={`${styles.joinButton} ${room.isMember ? styles.member : ''}`}
-                      onClick={(e) => handleJoinRoom(room.id, e)}
-                      title={room.isMember ? 'Leave room' : 'Join room'}
-                    >
-                      {room.isMember ? <FaSignOutAlt /> : <FaSignInAlt />}
-                    </button>
-                  </div>
-                </div>
-                
-                {expandedRooms[room.id] && (
-                  <div className={styles.roomDetails}>
-                    <p className={styles.roomDescription}>{room.description}</p>
-                    
-                    {room.tags && room.tags.length > 0 && (
-                      <div className={styles.roomTags}>
-                        {room.tags.map(tag => (
-                          <span key={tag} className={styles.tag}>#{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    
-                    <div className={styles.roomMembers}>
-                      <h4>
-                        <FaUsers /> Members ({room.memberCount})
-                        {room.onlineCount > 0 && (
-                          <span className={styles.onlineMemberCount}>
-                            {room.onlineCount} online
-                          </span>
-                        )}
-                      </h4>
-                      <div className={styles.membersList}>
-                        {(roomMembers[room.id] || room.members || []).slice(0, 6).map(member => {
-                          const memberId = member.id || member._id;
-                          const isOnline = onlineUsers[memberId]?.online || false;
-                          
-                          return (
-                            <div 
-                              key={memberId} 
-                              className={styles.memberItem}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUserClick(memberId);
-                              }}
-                            >
-                              <div className={styles.memberAvatar}>
-                                {member.avatar ? (
-                                  <img 
-                                    src={isCloudinaryUrl(member.avatar) ? getOptimizedCloudinaryUrl(member.avatar, 'small') : formatAvatarUrl(member.avatar)} 
-                                    alt={member.name}
-                                    loading="lazy"
-                                  />
-                                ) : (
-                                  <span>{member.name?.charAt(0) || '?'}</span>
-                                )}
-                                <span className={`${styles.memberOnline} ${isOnline ? styles.online : ''}`} />
-                              </div>
-                              <span className={styles.memberName}>{member.name}</span>
-                              {member.isAdmin && <FaShieldAlt className={styles.adminBadge} />}
-                            </div>
-                          );
-                        })}
-                        {room.memberCount > 6 && (
-                          <div className={styles.moreMembers}>
-                            +{room.memberCount - 6} more
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className={styles.roomStats}>
-                      <div className={styles.stat}>
-                        <span>Created</span>
-                        <span>{new Date(room.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <div className={styles.stat}>
-                        <span>Activity</span>
-                        <span>{room.messageCount || 0} messages</span>
-                      </div>
-                      <div className={styles.stat}>
-                        <span>Language</span>
-                        <span>{room.language || 'English'}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            
-            {filteredRoomsMemo.length === 0 && !loading && (
-              <div className={styles.emptyState}>
-                {searchQuery ? (
-                  <>
-                    <FaSearch size={32} />
-                    <p>No rooms match "{searchQuery}"</p>
-                  </>
-                ) : (
-                  <>
-                    <FaComments size={32} />
-                    <p>No chat rooms available</p>
-                    <button 
-                      className={styles.createFirstRoom}
-                      onClick={handleCreateRoom}
-                    >
-                      Create your first room
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
       )}
+      
+      {/* Content */}
+      <div className={styles.contentArea}>
+        {renderContent()}
+      </div>
 
       {/* Recent Activity Footer */}
       {recentActivity.length > 0 && (

@@ -1657,3 +1657,482 @@
     gap: 0.2rem;
   }
 }
+/* Add to ConnectionPanel.module.css */
+
+/* Main Tabs */
+.mainTabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel-secondary);
+  flex-wrap: wrap;
+}
+
+.mainTab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--panel-tertiary);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 12px;
+  color: var(--panel-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mainTab:hover {
+  background: var(--panel-hover);
+  color: var(--panel-text-primary);
+  border-color: var(--panel-accent);
+}
+
+.mainTab.active {
+  background: linear-gradient(135deg, var(--panel-accent), #8b5cf6);
+  color: white;
+  border-color: transparent;
+}
+
+/* Search Section */
+.searchSection {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel-secondary);
+}
+
+.searchContainer {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--panel-text-tertiary);
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.8rem;
+  border: 1.5px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel-tertiary);
+  color: var(--panel-text-primary);
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--panel-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.clearSearch {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--panel-text-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.clearSearch:hover {
+  color: var(--panel-text-primary);
+  background: var(--panel-hover);
+}
+
+.filterButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--panel-tertiary);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 10px;
+  color: var(--panel-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filterButton:hover,
+.filterButton.active {
+  background: var(--panel-hover);
+  color: var(--panel-text-primary);
+  border-color: var(--panel-accent);
+}
+
+.filterPanel {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--panel-tertiary);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 16px;
+  animation: slideDown 0.3s ease;
+}
+
+.filterGroup {
+  margin-bottom: 1.5rem;
+}
+
+.filterGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--panel-text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.filterInput {
+  width: 100%;
+  padding: 0.6rem;
+  background: var(--panel-secondary);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--panel-text-primary);
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.filterInput:focus {
+  outline: none;
+  border-color: var(--panel-accent);
+}
+
+.filterSelect {
+  width: 100%;
+  padding: 0.6rem;
+  background: var(--panel-secondary);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--panel-text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.interestsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0.25rem;
+}
+
+.interestOption {
+  padding: 0.4rem 0.6rem;
+  background: var(--panel-secondary);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 20px;
+  color: var(--panel-text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.interestOption:hover {
+  background: var(--panel-hover);
+  border-color: var(--panel-accent);
+  color: var(--panel-text-primary);
+}
+
+.interestOption.active {
+  background: linear-gradient(135deg, var(--panel-accent), #8b5cf6);
+  color: white;
+  border-color: transparent;
+}
+
+.rangeInputs {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.rangeInput {
+  flex: 1;
+  padding: 0.6rem;
+  background: var(--panel-secondary);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--panel-text-primary);
+  font-size: 0.85rem;
+}
+
+.sortOptions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sortOption {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  background: var(--panel-secondary);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--panel-text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sortOption:hover {
+  background: var(--panel-hover);
+  border-color: var(--panel-accent);
+  color: var(--panel-text-primary);
+}
+
+.sortOption.active {
+  background: linear-gradient(135deg, var(--panel-accent), #8b5cf6);
+  color: white;
+  border-color: transparent;
+}
+
+.resetFiltersButton {
+  width: 100%;
+  padding: 0.6rem;
+  background: var(--panel-tertiary);
+  border: 1.5px solid var(--panel-danger);
+  border-radius: 8px;
+  color: var(--panel-danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.resetFiltersButton:hover {
+  background: var(--panel-danger);
+  color: white;
+}
+
+/* Content Area */
+.contentArea {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.contentHeader {
+  padding: 0.75rem 1.5rem;
+  background: var(--panel-tertiary);
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.contentHeader h4 {
+  margin: 0;
+  color: var(--panel-text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.refreshButton {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--panel-tertiary);
+  border: 1.5px solid var(--panel-border);
+  color: var(--panel-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refreshButton:hover {
+  background: var(--panel-hover);
+  color: var(--panel-accent);
+  border-color: var(--panel-accent);
+  transform: rotate(180deg);
+}
+
+/* User Item Enhancements */
+.userLocation {
+  font-size: 0.7rem;
+  color: var(--panel-text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+.userInterests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.interestTag {
+  font-size: 0.6rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--panel-tertiary);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  color: var(--panel-text-secondary);
+}
+
+.moreInterest {
+  font-size: 0.6rem;
+  padding: 0.15rem 0.4rem;
+  color: var(--panel-text-tertiary);
+}
+
+.commonInterests {
+  font-size: 0.65rem;
+  color: var(--panel-accent);
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-top: 0.2rem;
+}
+
+.mutualIcon {
+  color: var(--panel-success);
+  font-size: 0.7rem;
+  margin-left: 0.25rem;
+}
+
+.loadMoreButton {
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  background: var(--panel-tertiary);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 12px;
+  color: var(--panel-text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.loadMoreButton:hover:not(:disabled) {
+  background: var(--panel-hover);
+  border-color: var(--panel-accent);
+  color: var(--panel-accent);
+}
+
+.loadMoreButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .mainTabs {
+    gap: 0.25rem;
+    padding: 0.75rem;
+  }
+  
+  .mainTab span {
+    display: none;
+  }
+  
+  .mainTab svg {
+    font-size: 1.2rem;
+  }
+  
+  .interestsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    max-height: 150px;
+  }
+  
+  .interestOption {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.5rem;
+  }
+  
+  .userInterests {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .filterPanel {
+    padding: 0.75rem;
+  }
+  
+  .sortOptions {
+    flex-direction: column;
+  }
+  
+  .rangeInputs {
+    flex-direction: column;
+  }
+  
+  .rangeInputs span {
+    display: none;
+  }
+  
+  .rangeInput {
+    width: 100%;
+  }
+}
+/* Add to ConnectionPanel.module.css */
+.closeButtonContainer {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+}
+
+.closeButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--panel-tertiary);
+  border: 1.5px solid var(--panel-border);
+  color: var(--panel-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+  background: var(--panel-hover);
+  color: var(--panel-danger);
+  border-color: var(--panel-danger);
+  transform: scale(1.05);
+}
+
+/* For embedded mode (original sidebar) */
+.navigationPanel.embedded {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  box-shadow: none;
+}
+
+.navigationPanel.embedded .closeButtonContainer {
+  display: none;
+}

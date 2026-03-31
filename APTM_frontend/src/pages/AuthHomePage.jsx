@@ -1,8 +1,9 @@
-// src/pages/AuthHomePage.jsx
+// src/pages/AuthHomePage.jsx - Updated with Connection Panel integration
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useConnectionPanel } from '../context/ConnectionPanelContext';
 import Container from '../components/ui/Container';
 import Footer from '../components/layout/Footer';
 import './AuthHomePage.css';
@@ -10,6 +11,7 @@ import './AuthHomePage.css';
 const AuthHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { openPanel } = useConnectionPanel(); // Import the panel context
   const [showMoreFeatures, setShowMoreFeatures] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [availableFeatures, setAvailableFeatures] = useState([]);
@@ -36,7 +38,8 @@ const AuthHomePage = () => {
       path: '/profile',
       color: '#3b82f6',
       category: 'personal',
-      defaultActive: true
+      defaultActive: true,
+      isPanel: false
     },
     {
       id: 'chat',
@@ -46,7 +49,8 @@ const AuthHomePage = () => {
       path: '/chat',
       color: '#10b981',
       category: 'social',
-      defaultActive: true
+      defaultActive: true,
+      isPanel: false
     },
     {
       id: 'library',
@@ -56,7 +60,8 @@ const AuthHomePage = () => {
       path: '/education',
       color: '#8b5cf6',
       category: 'education',
-      defaultActive: true
+      defaultActive: true,
+      isPanel: false
     },
     {
       id: 'academy',
@@ -66,7 +71,8 @@ const AuthHomePage = () => {
       path: '/education',
       color: '#f59e0b',
       category: 'education',
-      defaultActive: true
+      defaultActive: true,
+      isPanel: false
     },
     {
       id: 'office',
@@ -76,7 +82,8 @@ const AuthHomePage = () => {
       path: '/dashboard',
       color: '#ef4444',
       category: 'tools',
-      defaultActive: true
+      defaultActive: true,
+      isPanel: false
     },
     {
       id: 'tools',
@@ -86,7 +93,8 @@ const AuthHomePage = () => {
       path: '/tools',
       color: '#ec489a',
       category: 'tools',
-      defaultActive: true
+      defaultActive: true,
+      isPanel: false
     },
     {
       id: 'settings',
@@ -96,7 +104,8 @@ const AuthHomePage = () => {
       path: '/profile/settings',
       color: '#6b7280',
       category: 'personal',
-      defaultActive: true
+      defaultActive: true,
+      isPanel: false
     },
     {
       id: 'dashboard',
@@ -106,7 +115,8 @@ const AuthHomePage = () => {
       path: '/dashboard',
       color: '#14b8a6',
       category: 'analytics',
-      defaultActive: false
+      defaultActive: false,
+      isPanel: false
     },
     {
       id: 'cashier',
@@ -116,7 +126,8 @@ const AuthHomePage = () => {
       path: '/cashier',
       color: '#f59e0b',
       category: 'finance',
-      defaultActive: false
+      defaultActive: false,
+      isPanel: false
     },
     {
       id: 'subscription',
@@ -126,7 +137,8 @@ const AuthHomePage = () => {
       path: '/subscription',
       color: '#8b5cf6',
       category: 'finance',
-      defaultActive: false
+      defaultActive: false,
+      isPanel: false
     },
     {
       id: 'charts',
@@ -136,7 +148,8 @@ const AuthHomePage = () => {
       path: '/charts',
       color: '#3b82f6',
       category: 'analytics',
-      defaultActive: false
+      defaultActive: false,
+      isPanel: false
     },
     {
       id: 'news_feed',
@@ -146,7 +159,8 @@ const AuthHomePage = () => {
       path: '/news',
       color: '#10b981',
       category: 'information',
-      defaultActive: false
+      defaultActive: false,
+      isPanel: false
     },
     {
       id: 'friends',
@@ -156,7 +170,9 @@ const AuthHomePage = () => {
       path: '/friends',
       color: '#ec489a',
       category: 'social',
-      defaultActive: false
+      defaultActive: false,
+      isPanel: true, // Mark as panel component
+      panelTab: 'followers' // Default tab to open
     },
     {
       id: 'videos',
@@ -166,11 +182,12 @@ const AuthHomePage = () => {
       path: '/videos',
       color: '#ef4444',
       category: 'education',
-      defaultActive: false
+      defaultActive: false,
+      isPanel: false
     }
   ];
 
-  // Advanced tools array
+  // Advanced tools array (same as before)
   const advancedTools = [
     {
       id: 'scanner',
@@ -283,7 +300,9 @@ const AuthHomePage = () => {
       path: feature.path,
       color: feature.color,
       category: feature.category,
-      defaultActive: feature.defaultActive
+      defaultActive: feature.defaultActive,
+      isPanel: feature.isPanel,
+      panelTab: feature.panelTab
     }));
     localStorage.setItem(`user_layout_${user?.id || 'default'}`, JSON.stringify(layoutToSave));
     setIsEditing(false);
@@ -330,9 +349,16 @@ const AuthHomePage = () => {
     setActiveFeatures(newFeatures);
   };
 
-  const handleCardClick = (path) => {
-    if (!isEditing) {
-      navigate(path);
+  const handleCardClick = (feature) => {
+    if (isEditing) return;
+    
+    // Check if this feature should open a panel
+    if (feature.isPanel) {
+      // Open the connection panel with the specified tab
+      openPanel(feature.panelTab || 'followers');
+    } else {
+      // Navigate to the page
+      navigate(feature.path);
     }
   };
 
@@ -423,8 +449,8 @@ const AuthHomePage = () => {
               {activeFeatures.map((feature, index) => (
                 <div 
                   key={feature.id}
-                  className={`feature-card ${isEditing ? 'editing-mode' : ''}`}
-                  onClick={() => handleCardClick(feature.path)}
+                  className={`feature-card ${isEditing ? 'editing-mode' : ''} ${feature.isPanel ? 'panel-feature' : ''}`}
+                  onClick={() => handleCardClick(feature)}
                 >
                   <div className="feature-card-content">
                     {isEditing && (
@@ -476,7 +502,7 @@ const AuthHomePage = () => {
                     <h3 className="feature-title">{feature.title}</h3>
                     <p className="feature-description">{feature.description}</p>
                     <div className="feature-link">
-                      Access {renderIcon('FaArrowRight', 12, 'link-icon')}
+                      {feature.isPanel ? 'Open Panel' : 'Access'} {renderIcon('FaArrowRight', 12, 'link-icon')}
                     </div>
                   </div>
                 </div>
@@ -488,8 +514,8 @@ const AuthHomePage = () => {
               {activeFeatures.map((feature) => (
                 <div 
                   key={feature.id}
-                  className={`mobile-feature-item ${isEditing ? 'editing-mode' : ''}`}
-                  onClick={() => handleCardClick(feature.path)}
+                  className={`mobile-feature-item ${isEditing ? 'editing-mode' : ''} ${feature.isPanel ? 'panel-feature' : ''}`}
+                  onClick={() => handleCardClick(feature)}
                 >
                   {isEditing && (
                     <button 
@@ -509,6 +535,9 @@ const AuthHomePage = () => {
                     {renderIcon(feature.iconName, 32)}
                   </div>
                   <span className="mobile-feature-label">{feature.title}</span>
+                  {feature.isPanel && (
+                    <span className="panel-indicator">Panel</span>
+                  )}
                 </div>
               ))}
               
