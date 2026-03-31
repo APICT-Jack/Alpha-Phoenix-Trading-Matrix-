@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useConnectionPanel } from '../../context/ConnectionPanelContext';
-import { userStatusService } from '../../services/userStatusService';
-import './ConnectionPanel.module.css'; // Independent CSS file
+import './ConnectionPanel.module.css';
 
 // Import icons
 import {
@@ -16,7 +15,7 @@ import {
   FaUser, FaSignInAlt, FaSignOutAlt, FaInfoCircle,
   FaPlus, FaFilter, FaStar, FaClock, FaFire,
   FaMapMarkerAlt, FaChartLine, FaHeart, FaSyncAlt,
-  FaGlobe
+  FaGlobe, FaExclamationTriangle
 } from 'react-icons/fa';
 
 // Helper functions
@@ -71,6 +70,7 @@ const ConnectionPanel = ({
   const [chatRooms, setChatRooms] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState({});
   const [followingStatus, setFollowingStatus] = useState({});
+  const [error, setError] = useState(null);
   
   // Data states
   const [followers, setFollowers] = useState([]);
@@ -109,7 +109,7 @@ const ConnectionPanel = ({
     if (!embedded && isOpen) {
       setShouldRender(true);
       setIsClosing(false);
-      // Small delay to trigger enter animation
+      setError(null); // Clear any previous errors
       requestAnimationFrame(() => {
         setIsVisible(true);
       });
@@ -141,61 +141,85 @@ const ConnectionPanel = ({
     }
   }, [isOpen, embedded, onClose]);
 
-  // User status service setup
+  // User status service setup (with error handling)
   useEffect(() => {
     if (!currentUser) return;
     
-    if (userStatusService.init) {
-      userStatusService.init(currentUser, {
-        onConnect: () => {
-          setTimeout(() => userStatusService.getOnlineUsers?.(), 500);
-        },
-        onOnlineUsers: (users) => setOnlineUsers(users),
-        onUserOnline: (data) => {
-          setOnlineUsers(prev => ({ ...prev, [data.userId]: { online: true, userData: data.userData } }));
-          addRecentActivity({ type: 'user-online', userId: data.userId, userName: data.userData?.name, timestamp: new Date().toISOString() });
-        },
-        onUserOffline: (data) => {
-          setOnlineUsers(prev => {
-            const newState = { ...prev };
-            delete newState[data.userId];
-            return newState;
-          });
-          addRecentActivity({ type: 'user-offline', userId: data.userId, timestamp: new Date().toISOString() });
-        }
-      });
+    try {
+      if (userStatusService && userStatusService.init) {
+        userStatusService.init(currentUser, {
+          onConnect: () => {
+            console.log('User status service connected');
+            setTimeout(() => {
+              if (userStatusService.getOnlineUsers) {
+                userStatusService.getOnlineUsers();
+              }
+            }, 500);
+          },
+          onOnlineUsers: (users) => {
+            console.log('Online users received:', users);
+            setOnlineUsers(users || {});
+          },
+          onUserOnline: (data) => {
+            setOnlineUsers(prev => ({ ...prev, [data.userId]: { online: true, userData: data.userData } }));
+            addRecentActivity({ type: 'user-online', userId: data.userId, userName: data.userData?.name, timestamp: new Date().toISOString() });
+          },
+          onUserOffline: (data) => {
+            setOnlineUsers(prev => {
+              const newState = { ...prev };
+              delete newState[data.userId];
+              return newState;
+            });
+            addRecentActivity({ type: 'user-offline', userId: data.userId, timestamp: new Date().toISOString() });
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Error initializing user status service:', err);
     }
 
     return () => {
-      if (userStatusService.offUserOnline) userStatusService.offUserOnline();
-      if (userStatusService.offUserOffline) userStatusService.offUserOffline();
+      try {
+        if (userStatusService && userStatusService.offUserOnline) userStatusService.offUserOnline();
+        if (userStatusService && userStatusService.offUserOffline) userStatusService.offUserOffline();
+      } catch (err) {
+        console.error('Error cleaning up user status service:', err);
+      }
     };
   }, [currentUser]);
 
-  // Fetch followers
+  // Fetch followers with error handling
   const fetchFollowers = useCallback(async () => {
     if (!currentUser) return;
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`${API_URL}/api/users/followers/${currentUser.id}?limit=50`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (response.ok) {
         const data = await response.json();
         setFollowers(data.followers || []);
+      } else if (response.status === 404) {
+        console.log('Followers endpoint not available yet');
+        setFollowers([]);
+      } else {
+        throw new Error(`Failed to fetch followers: ${response.status}`);
       }
     } catch (error) {
       console.error('Error fetching followers:', error);
+      setFollowers([]);
     } finally {
       setLoading(false);
     }
   }, [currentUser]);
 
-  // Fetch following
+  // Fetch following with error handling
   const fetchFollowing = useCallback(async () => {
     if (!currentUser) return;
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`${API_URL}/api/users/following/${currentUser.id}?limit=50`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -208,34 +232,48 @@ const ConnectionPanel = ({
           statusMap[user.id] = true;
         });
         setFollowingStatus(prev => ({ ...prev, ...statusMap }));
+      } else if (response.status === 404) {
+        console.log('Following endpoint not available yet');
+        setFollowing([]);
+      } else {
+        throw new Error(`Failed to fetch following: ${response.status}`);
       }
     } catch (error) {
       console.error('Error fetching following:', error);
+      setFollowing([]);
     } finally {
       setLoading(false);
     }
   }, [currentUser]);
 
-  // Fetch suggestions
+  // Fetch suggestions with error handling
   const fetchSuggestions = useCallback(async () => {
     if (!currentUser) return;
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`${API_URL}/api/users/suggestions?limit=20`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (response.ok) {
         const data = await response.json();
         setSuggestions(data.users || []);
+      } else if (response.status === 404) {
+        console.log('Suggestions endpoint not available yet');
+        // Show some placeholder suggestions or empty state
+        setSuggestions([]);
+      } else {
+        throw new Error(`Failed to fetch suggestions: ${response.status}`);
       }
     } catch (error) {
       console.error('Error fetching suggestions:', error);
+      setSuggestions([]);
     } finally {
       setLoading(false);
     }
   }, [currentUser]);
 
-  // Fetch chat rooms
+  // Fetch chat rooms with error handling
   const fetchChatRooms = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/api/chat/rooms`, {
@@ -244,9 +282,16 @@ const ConnectionPanel = ({
       if (response.ok) {
         const data = await response.json();
         setChatRooms(data.rooms || []);
+      } else if (response.status === 404) {
+        console.log('Chat rooms endpoint not available yet');
+        // Set empty array - feature coming soon
+        setChatRooms([]);
+      } else {
+        throw new Error(`Failed to fetch rooms: ${response.status}`);
       }
     } catch (error) {
       console.error('Error fetching rooms:', error);
+      setChatRooms([]);
     }
   }, []);
 
@@ -261,7 +306,7 @@ const ConnectionPanel = ({
     else if (activeMainTab === 'suggestions') fetchSuggestions();
   }, [activeMainTab, fetchFollowers, fetchFollowing, fetchSuggestions]);
 
-  // Handle follow/unfollow
+  // Handle follow/unfollow with error handling
   const handleFollowUser = async (userId, e) => {
     e.stopPropagation();
     try {
@@ -282,13 +327,17 @@ const ConnectionPanel = ({
         }
         
         addRecentActivity({ type: isCurrentlyFollowing ? 'unfollow' : 'follow', userId, timestamp: new Date().toISOString() });
+      } else if (response.status === 404) {
+        console.log('Follow endpoint not available yet');
+        // Show a toast or notification that feature is coming soon
+        alert('Follow feature coming soon!');
       }
     } catch (error) {
       console.error('Error updating follow:', error);
     }
   };
 
-  // Handle join/leave room
+  // Handle join/leave room with error handling
   const handleJoinRoom = async (roomId, e) => {
     e.stopPropagation();
     const room = chatRooms.find(r => r.id === roomId);
@@ -301,6 +350,9 @@ const ConnectionPanel = ({
       if (response.ok) {
         setChatRooms(prev => prev.map(r => r.id === roomId ? { ...r, isMember: !isMember, memberCount: isMember ? r.memberCount - 1 : r.memberCount + 1 } : r));
         addRecentActivity({ type: `room-${isMember ? 'leave' : 'join'}`, roomId, roomName: room?.title, timestamp: new Date().toISOString() });
+      } else if (response.status === 404) {
+        console.log('Room join endpoint not available yet');
+        alert('Chat rooms feature coming soon!');
       }
     } catch (error) {
       console.error('Error joining room:', error);
@@ -343,7 +395,13 @@ const ConnectionPanel = ({
 
   const refreshOnlineStatus = () => {
     setIsRefreshing(true);
-    if (userStatusService.isConnected?.()) userStatusService.getOnlineUsers?.();
+    try {
+      if (userStatusService && userStatusService.isConnected?.() && userStatusService.getOnlineUsers) {
+        userStatusService.getOnlineUsers();
+      }
+    } catch (err) {
+      console.error('Error refreshing status:', err);
+    }
     setTimeout(() => setIsRefreshing(false), 1000);
   };
 
@@ -427,8 +485,27 @@ const ConnectionPanel = ({
     );
   };
 
-  // Render chat rooms
+  // Render chat rooms (with coming soon message if no rooms)
   const renderChatRooms = () => {
+    if (chatRooms.length === 0) {
+      return (
+        <div className="connection-panel-chat-rooms-section">
+          <div className="section-header">
+            <span>🎙️ Active Rooms</span>
+            <button className="create-room-button" onClick={handleCreateRoom}><FaPlus /> New Room</button>
+          </div>
+          <div className="empty-state">
+            <FaComments size={48} />
+            <p>Chat rooms coming soon!</p>
+            <span>Connect with traders in real-time conversations</span>
+            <button className="create-first-room" onClick={handleCreateRoom}>
+              Create your first room
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="connection-panel-chat-rooms-section">
         <div className="section-header">
@@ -452,13 +529,6 @@ const ConnectionPanel = ({
               </div>
             </div>
           ))}
-          {chatRooms.length === 0 && (
-            <div className="empty-state">
-              <FaComments size={48} />
-              <p>No chat rooms available</p>
-              <button className="create-first-room" onClick={handleCreateRoom}>Create your first room</button>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -496,6 +566,11 @@ const ConnectionPanel = ({
               <FaUserFriends size={48} />
               <p>No users found</p>
               <span>Explore and connect with traders</span>
+              {activeMainTab === 'suggestions' && (
+                <button onClick={fetchSuggestions} style={{ marginTop: '16px', padding: '8px 16px', background: '#0a84ff', border: 'none', borderRadius: '20px', color: 'white', cursor: 'pointer' }}>
+                  Refresh Suggestions
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -507,7 +582,7 @@ const ConnectionPanel = ({
   if (embedded) {
     return (
       <div className={`connection-panel-embedded ${darkMode ? 'dark' : 'light'}`}>
-        {panelContent}
+        {renderModalContent()}
       </div>
     );
   }
@@ -515,20 +590,10 @@ const ConnectionPanel = ({
   // Modal mode with fullscreen center + scale animation
   if (!shouldRender) return null;
 
-  return (
-    <div 
-      className={`connection-panel-modal-overlay ${isVisible ? 'visible' : ''} ${isClosing ? 'closing' : ''}`} 
-      onClick={onClose}
-    >
-      <div 
-        className={`connection-panel-modal-container ${isVisible ? 'visible' : ''} ${isClosing ? 'closing' : ''} ${darkMode ? 'dark' : 'light'}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Close Button */}
-        <button className="connection-panel-close-button" onClick={onClose}>
-          <FaTimes />
-        </button>
-
+  // Helper function to render the main content (shared between embedded and modal)
+  function renderModalContent() {
+    return (
+      <>
         {/* Header */}
         <div className="connection-panel-header">
           <div className="header-title">
@@ -652,6 +717,25 @@ const ConnectionPanel = ({
             </div>
           </div>
         )}
+      </>
+    );
+  }
+
+  return (
+    <div 
+      className={`connection-panel-modal-overlay ${isVisible ? 'visible' : ''} ${isClosing ? 'closing' : ''}`} 
+      onClick={onClose}
+    >
+      <div 
+        className={`connection-panel-modal-container ${isVisible ? 'visible' : ''} ${isClosing ? 'closing' : ''} ${darkMode ? 'dark' : 'light'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+        <button className="connection-panel-close-button" onClick={onClose}>
+          <FaTimes />
+        </button>
+
+        {renderModalContent()}
       </div>
     </div>
   );
