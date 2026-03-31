@@ -1,5 +1,5 @@
-// src/context/ConnectionPanelContext.jsx
-import React, { createContext, useState, useContext } from 'react';
+// src/context/ConnectionPanelContext.js
+import React, { createContext, useState, useContext, useCallback } from 'react';
 
 const ConnectionPanelContext = createContext();
 
@@ -13,30 +13,29 @@ export const useConnectionPanel = () => {
 
 export const ConnectionPanelProvider = ({ children }) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [activePanelTab, setActivePanelTab] = useState('followers');
+  const [initialTab, setInitialTab] = useState('followers');
 
-  const openPanel = (tab = 'followers') => {
-    setActivePanelTab(tab);
+  const openPanel = useCallback((tab = 'followers') => {
+    setInitialTab(tab);
     setIsPanelOpen(true);
-  };
+  }, []);
 
-  const closePanel = () => {
+  const closePanel = useCallback(() => {
     setIsPanelOpen(false);
-  };
+  }, []);
 
-  const togglePanel = () => {
-    setIsPanelOpen(!isPanelOpen);
-  };
+  const togglePanel = useCallback(() => {
+    setIsPanelOpen(prev => !prev);
+  }, []);
 
   return (
     <ConnectionPanelContext.Provider
       value={{
         isPanelOpen,
-        activePanelTab,
+        initialTab,
         openPanel,
         closePanel,
-        togglePanel,
-        setActivePanelTab
+        togglePanel
       }}
     >
       {children}

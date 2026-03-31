@@ -2,25 +2,19 @@
 import React from 'react';
 import { useConnectionPanel } from '../context/ConnectionPanelContext';
 import ConnectionPanel from './navigation/ConnectionPanel';
-import './ConnectionPanelOverlay.css';
 
 const ConnectionPanelOverlay = () => {
-  const { isPanelOpen, closePanel, activePanelTab, setActivePanelTab } = useConnectionPanel();
+  const { isPanelOpen, closePanel, initialTab } = useConnectionPanel();
 
   if (!isPanelOpen) return null;
 
   return (
-    <>
-      <div className="connection-panel-overlay" onClick={closePanel} />
-      <div className="connection-panel-container">
-        <ConnectionPanel 
-          initialTab={activePanelTab}
-          onClose={closePanel}
-          onTabChange={setActivePanelTab}
-          embedded={false}
-        />
-      </div>
-    </>
+    <ConnectionPanel
+      isOpen={isPanelOpen}
+      onClose={closePanel}
+      initialTab={initialTab}
+      embedded={false}
+    />
   );
 };
 
