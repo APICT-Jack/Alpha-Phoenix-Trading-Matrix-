@@ -1,4 +1,4 @@
-// components/Chat/MessageBubble.jsx
+// components/Chat/MessageBubble.jsx - Fix media display
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
@@ -45,17 +45,10 @@ const MessageBubble = ({
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
-    
-    if (diff < 3600000) {
-      const minutes = Math.floor(diff / 60000);
-      return `${minutes}m ago`;
-    } else if (diff < 86400000) {
-      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
   };
 
   const getStatusIcon = () => {
@@ -111,6 +104,10 @@ const MessageBubble = ({
   };
 
   const renderMedia = (mediaItem, index) => {
+    if (!mediaItem) return null;
+    
+    console.log('Rendering media:', mediaItem); // Debug log
+    
     if (mediaItem.type === 'chart') {
       return (
         <div key={index} className={styles.chartAttachment}>
@@ -129,7 +126,9 @@ const MessageBubble = ({
           <img 
             src={mediaItem.url} 
             alt="attachment"
+            style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
             onError={(e) => {
+              console.error('Image failed to load:', mediaItem.url);
               e.target.style.display = 'none';
             }}
           />
@@ -143,7 +142,7 @@ const MessageBubble = ({
     if (mediaItem.type === 'video') {
       return (
         <div key={index} className={styles.videoAttachment}>
-          <video controls>
+          <video controls style={{ maxWidth: '100%', maxHeight: '200px' }}>
             <source src={mediaItem.url} type={mediaItem.mimeType} />
           </video>
         </div>
@@ -201,6 +200,10 @@ const MessageBubble = ({
     groupedReactions[r.emoji].count++;
     groupedReactions[r.emoji].users.push(r.userId);
   });
+
+  // Check if message has media
+  const hasMedia = message.media && message.media.length > 0;
+  const hasText = message.text && message.text.trim() !== '';
 
   return (
     <div 
@@ -268,15 +271,15 @@ const MessageBubble = ({
 
         {/* Message bubble */}
         <div className={styles.messageBubble}>
-          {/* Media attachments */}
-          {message.media?.length > 0 && (
+          {/* Media attachments - RENDER FIRST */}
+          {hasMedia && (
             <div className={`${styles.attachments} ${message.media.length > 1 ? styles.grid : ''}`}>
               {message.media.map((media, idx) => renderMedia(media, idx))}
             </div>
           )}
 
           {/* Message text */}
-          {message.text && (
+          {hasText && (
             <div className={styles.messageText}>
               <p>{message.text}</p>
               {message.isEdited && (
