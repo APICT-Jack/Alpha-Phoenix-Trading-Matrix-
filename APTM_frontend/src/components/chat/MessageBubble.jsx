@@ -1,4 +1,4 @@
-// components/Chat/MessageBubble.jsx - UPDATED with reply, react, forward
+// components/Chat/MessageBubble.jsx
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
@@ -14,16 +14,14 @@ import {
   FaTrash,
   FaReply,
   FaCopy,
-  FaShare,
+  FaForward,
+  FaEllipsisH,
   FaRegSmile,
   FaDownload,
   FaEye,
   FaFile,
-  FaMusic,
   FaVideo,
-  FaImage,
-  FaForward,
-  FaEllipsisH
+  FaImage
 } from 'react-icons/fa';
 
 const MessageBubble = ({ 
@@ -47,10 +45,17 @@ const MessageBubble = ({
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 3600000) {
+      const minutes = Math.floor(diff / 60000);
+      return `${minutes}m ago`;
+    } else if (diff < 86400000) {
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
   };
 
   const getStatusIcon = () => {
@@ -76,7 +81,6 @@ const MessageBubble = ({
   const handleCopy = () => {
     navigator.clipboard.writeText(message.text);
     setShowMoreMenu(false);
-    // Show toast notification
   };
 
   const handleForward = () => {
@@ -152,7 +156,7 @@ const MessageBubble = ({
         className={styles.fileAttachment}
         onClick={() => onAttachmentClick(mediaItem)}
       >
-        {mediaItem.type === 'image' ? <FaImage /> : <FaFile />}
+        <FaFile />
         <div className={styles.fileInfo}>
           <span className={styles.fileName}>
             {mediaItem.name || 'File'}

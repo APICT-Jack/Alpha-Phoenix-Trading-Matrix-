@@ -1,4 +1,4 @@
-// components/Chat/MessageInput.jsx - UPDATED with chart support
+// components/Chat/MessageInput.jsx
 import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import ChartWidget from '../profile/ChartWidget';
@@ -13,10 +13,8 @@ import {
   FaTimes,
   FaImage,
   FaFile,
-  FaMusic,
   FaVideo,
   FaChartLine,
-  FaPollH,
   FaSpinner
 } from 'react-icons/fa';
 
@@ -35,10 +33,7 @@ const MessageInput = forwardRef(({
   const [chartData, setChartData] = useState({
     symbol: 'BTCUSDT',
     interval: '30',
-    theme: darkMode ? 'dark' : 'light',
-    indicators: [],
-    hideToolbar: false,
-    hideSideToolbar: false
+    theme: darkMode ? 'dark' : 'light'
   });
   const [uploading, setUploading] = useState(false);
   
@@ -64,7 +59,6 @@ const MessageInput = forwardRef(({
     { value: 'D', label: '1d' }
   ];
 
-  // Handle editing
   useEffect(() => {
     if (editingMessage) {
       setMessage(editingMessage.text);
@@ -72,7 +66,6 @@ const MessageInput = forwardRef(({
     }
   }, [editingMessage]);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -104,29 +97,23 @@ const MessageInput = forwardRef(({
   };
 
   const handleSend = async () => {
-    if ((!message.trim() && attachments.length === 0 && !chartData.sent) || uploading) return;
+    if ((!message.trim() && attachments.length === 0 && !showChartCreator) || uploading) return;
     
-    let mediaToSend = [...attachments];
     let chartToSend = null;
     
-    // If chart creator is open and we have chart data, send as chart
     if (showChartCreator && chartData.symbol) {
       chartToSend = { ...chartData };
       setShowChartCreator(false);
     }
     
-    // Send message with chart
-    await onSendMessage(message, mediaToSend, chartToSend);
+    await onSendMessage(message, attachments, chartToSend);
     
     setMessage('');
     setAttachments([]);
     setChartData({
       symbol: 'BTCUSDT',
       interval: '30',
-      theme: darkMode ? 'dark' : 'light',
-      indicators: [],
-      hideToolbar: false,
-      hideSideToolbar: false
+      theme: darkMode ? 'dark' : 'light'
     });
     
     if (onTyping) onTyping(false);
@@ -149,7 +136,6 @@ const MessageInput = forwardRef(({
     setAttachments(prev => [...prev, ...newAttachments]);
     setShowAttachmentMenu(false);
     
-    // Simulate upload (replace with actual upload)
     setTimeout(() => {
       setAttachments(prev => 
         prev.map(att => ({ ...att, uploading: false }))
@@ -165,7 +151,6 @@ const MessageInput = forwardRef(({
   const getAttachmentIcon = (type) => {
     if (type?.startsWith('image/')) return <FaImage />;
     if (type?.startsWith('video/')) return <FaVideo />;
-    if (type?.startsWith('audio/')) return <FaMusic />;
     return <FaFile />;
   };
 
@@ -176,19 +161,10 @@ const MessageInput = forwardRef(({
 
   const removeChart = () => {
     setShowChartCreator(false);
-    setChartData({
-      symbol: 'BTCUSDT',
-      interval: '30',
-      theme: darkMode ? 'dark' : 'light',
-      indicators: [],
-      hideToolbar: false,
-      hideSideToolbar: false
-    });
   };
 
   return (
     <div className={`${styles.messageInput} ${darkMode ? styles.dark : styles.light}`}>
-      {/* Editing indicator */}
       {editingMessage && (
         <div className={styles.editingIndicator}>
           <span>Editing message</span>
@@ -198,7 +174,6 @@ const MessageInput = forwardRef(({
         </div>
       )}
 
-      {/* Chart Creator */}
       {showChartCreator && (
         <div className={styles.chartCreator}>
           <div className={styles.chartHeader}>
@@ -228,16 +203,12 @@ const MessageInput = forwardRef(({
           <div className={styles.chartPreview}>
             <ChartWidget chartData={chartData} isExpanded={false} />
           </div>
-          <button 
-            className={styles.sendChartBtn}
-            onClick={handleSend}
-          >
+          <button className={styles.sendChartBtn} onClick={handleSend}>
             <FaChartLine /> Send Chart
           </button>
         </div>
       )}
 
-      {/* Attachments preview */}
       {attachments.length > 0 && !showChartCreator && (
         <div className={styles.attachmentsPreview}>
           {attachments.map((att, index) => (
@@ -266,14 +237,9 @@ const MessageInput = forwardRef(({
         </div>
       )}
 
-      {/* Input area */}
       {!showChartCreator && (
         <div className={styles.inputArea}>
-          <button 
-            className={styles.emojiButton}
-            type="button"
-            title="Emoji"
-          >
+          <button className={styles.emojiButton} type="button" title="Emoji">
             <FaRegSmile />
           </button>
 
@@ -325,7 +291,6 @@ const MessageInput = forwardRef(({
             )}
           </div>
 
-          {/* Attachment menu */}
           {showAttachmentMenu && (
             <div className={styles.attachmentMenu}>
               <button onClick={() => fileInputRef.current?.click()}>
@@ -346,7 +311,7 @@ const MessageInput = forwardRef(({
             multiple
             onChange={handleFileSelect}
             style={{ display: 'none' }}
-            accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept="image/*,video/*,application/pdf"
           />
         </div>
       )}
