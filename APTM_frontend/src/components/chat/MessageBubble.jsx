@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
-import ChartWidget from '../ChartWidget';
+import ChartWidget from '../profile/ChartWidget';
 import styles from './MessageBubble.module.css';
 
 // Import icons
