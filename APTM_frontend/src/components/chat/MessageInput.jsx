@@ -1,7 +1,7 @@
 // components/Chat/MessageInput.jsx - UPDATED with chart support
 import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import ChartWidget from '../ChartWidget';
+import ChartWidget from '../profile/ChartWidget';
 import styles from './MessageInput.module.css';
 
 // Import icons
