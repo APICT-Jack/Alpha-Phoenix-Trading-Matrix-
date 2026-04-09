@@ -1,6 +1,8 @@
+// components/Chat/MessageBubble.jsx - UPDATED with reply, react, forward
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
+import ChartWidget from '../ChartWidget';
 import styles from './MessageBubble.module.css';
 
 // Import icons
@@ -19,7 +21,9 @@ import {
   FaFile,
   FaMusic,
   FaVideo,
-  FaImage
+  FaImage,
+  FaForward,
+  FaEllipsisH
 } from 'react-icons/fa';
 
 const MessageBubble = ({ 
@@ -29,6 +33,7 @@ const MessageBubble = ({
   onDelete, 
   onReact, 
   onReply,
+  onForward,
   onAttachmentClick,
   previousMessage,
   nextMessage,
@@ -37,9 +42,9 @@ const MessageBubble = ({
   const { darkMode } = useTheme();
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [imgError, setImgError] = useState({});
 
-  // Format time
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('en-US', { 
@@ -48,7 +53,6 @@ const MessageBubble = ({
     });
   };
 
-  // Get message status icon
   const getStatusIcon = () => {
     switch(message.status) {
       case 'sending':
@@ -64,13 +68,34 @@ const MessageBubble = ({
     }
   };
 
-  // Handle reaction
   const handleReaction = (emoji) => {
     onReact(message._id, emoji);
     setShowReactions(false);
   };
 
-  // Check if message is part of a group
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.text);
+    setShowMoreMenu(false);
+    // Show toast notification
+  };
+
+  const handleForward = () => {
+    onForward(message);
+    setShowMoreMenu(false);
+  };
+
+  const handleEdit = () => {
+    onEdit(message);
+    setShowMoreMenu(false);
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('Delete this message?')) {
+      onDelete(message._id);
+    }
+    setShowMoreMenu(false);
+  };
+
   const isFirstInGroup = () => {
     if (!previousMessage) return true;
     return previousMessage.senderId !== message.senderId;
@@ -81,62 +106,74 @@ const MessageBubble = ({
     return nextMessage.senderId !== message.senderId;
   };
 
-  // Render attachment
-  const renderAttachment = (attachment) => {
-    const getIcon = () => {
-      if (attachment.type?.startsWith('image/')) return <FaImage />;
-      if (attachment.type?.startsWith('video/')) return <FaVideo />;
-      if (attachment.type?.startsWith('audio/')) return <FaMusic />;
-      return <FaFile />;
-    };
-
+  const renderMedia = (mediaItem, index) => {
+    if (mediaItem.type === 'chart') {
+      return (
+        <div key={index} className={styles.chartAttachment}>
+          <ChartWidget chartData={mediaItem.chartData} isExpanded={false} />
+        </div>
+      );
+    }
+    
+    if (mediaItem.type === 'image') {
+      return (
+        <div 
+          key={index} 
+          className={styles.imageAttachment}
+          onClick={() => onAttachmentClick(mediaItem)}
+        >
+          <img 
+            src={mediaItem.url} 
+            alt="attachment"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+          <div className={styles.imageOverlay}>
+            <FaEye />
+          </div>
+        </div>
+      );
+    }
+    
+    if (mediaItem.type === 'video') {
+      return (
+        <div key={index} className={styles.videoAttachment}>
+          <video controls>
+            <source src={mediaItem.url} type={mediaItem.mimeType} />
+          </video>
+        </div>
+      );
+    }
+    
     return (
       <div 
-        key={attachment.url}
-        className={styles.attachment}
-        onClick={() => onAttachmentClick(attachment)}
+        key={index}
+        className={styles.fileAttachment}
+        onClick={() => onAttachmentClick(mediaItem)}
       >
-        {attachment.type?.startsWith('image/') ? (
-          <div className={styles.imageAttachment}>
-            <img 
-              src={attachment.url} 
-              alt="attachment"
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
-            <div className={styles.imageOverlay}>
-              <FaEye />
-            </div>
-          </div>
-        ) : (
-          <div className={styles.fileAttachment}>
-            {getIcon()}
-            <div className={styles.fileInfo}>
-              <span className={styles.fileName}>
-                {attachment.name || 'File'}
-              </span>
-              {attachment.size && (
-                <span className={styles.fileSize}>
-                  {formatFileSize(attachment.size)}
-                </span>
-              )}
-            </div>
-            <FaDownload className={styles.downloadIcon} />
-          </div>
-        )}
+        {mediaItem.type === 'image' ? <FaImage /> : <FaFile />}
+        <div className={styles.fileInfo}>
+          <span className={styles.fileName}>
+            {mediaItem.name || 'File'}
+          </span>
+          {mediaItem.size && (
+            <span className={styles.fileSize}>
+              {formatFileSize(mediaItem.size)}
+            </span>
+          )}
+        </div>
+        <FaDownload className={styles.downloadIcon} />
       </div>
     );
   };
 
-  // Format file size
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  // Check if message is deleted
   if (message.isDeleted) {
     return (
       <div className={`${styles.messageWrapper} ${isOwn ? styles.own : styles.other}`}>
@@ -147,10 +184,19 @@ const MessageBubble = ({
     );
   }
 
-  // Get sender info
   const sender = message.sender || {};
   const senderName = sender.name || 'User';
   const senderId = sender._id || sender.id || message.senderId;
+
+  // Group reactions by emoji
+  const groupedReactions = {};
+  (message.reactions || []).forEach(r => {
+    if (!groupedReactions[r.emoji]) {
+      groupedReactions[r.emoji] = { count: 0, users: [] };
+    }
+    groupedReactions[r.emoji].count++;
+    groupedReactions[r.emoji].users.push(r.userId);
+  });
 
   return (
     <div 
@@ -162,9 +208,13 @@ const MessageBubble = ({
         ${darkMode ? styles.dark : styles.light}
       `}
       onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+      onMouseLeave={() => {
+        setShowActions(false);
+        setShowMoreMenu(false);
+        setShowReactions(false);
+      }}
     >
-      {/* Avatar for other users (first in group) */}
+      {/* Avatar for other users */}
       {!isOwn && isFirstInGroup() && (
         <div className={styles.avatar}>
           {sender.avatar && !imgError[senderId] ? (
@@ -185,30 +235,39 @@ const MessageBubble = ({
       )}
 
       <div className={styles.messageContainer}>
-        {/* Sender name (first in group) */}
+        {/* Sender name */}
         {!isOwn && isFirstInGroup() && (
           <span className={styles.senderName}>{senderName}</span>
         )}
 
+        {/* Forward indicator */}
+        {message.isForwarded && (
+          <div className={styles.forwardIndicator}>
+            <FaForward /> Forwarded
+          </div>
+        )}
+
         {/* Reply preview */}
-        {message.replyTo && (
+        {message.replyToMessage && (
           <div className={styles.replyPreview}>
             <div className={styles.replyBar}></div>
             <div className={styles.replyContent}>
               <span className={styles.replySender}>
-                {message.replyTo.senderName}
+                {message.replyToMessage.senderName}
               </span>
-              <p className={styles.replyText}>{message.replyTo.text}</p>
+              <p className={styles.replyText}>
+                {message.replyToMessage.text || (message.replyToMessage.media?.length > 0 ? '📎 Media' : '')}
+              </p>
             </div>
           </div>
         )}
 
         {/* Message bubble */}
         <div className={styles.messageBubble}>
-          {/* Attachments */}
-          {message.attachments?.length > 0 && (
-            <div className={styles.attachments}>
-              {message.attachments.map(renderAttachment)}
+          {/* Media attachments */}
+          {message.media?.length > 0 && (
+            <div className={`${styles.attachments} ${message.media.length > 1 ? styles.grid : ''}`}>
+              {message.media.map((media, idx) => renderMedia(media, idx))}
             </div>
           )}
 
@@ -216,25 +275,25 @@ const MessageBubble = ({
           {message.text && (
             <div className={styles.messageText}>
               <p>{message.text}</p>
-              {message.edited && (
+              {message.isEdited && (
                 <span className={styles.edited}>edited</span>
               )}
             </div>
           )}
 
           {/* Reactions */}
-          {message.reactions?.length > 0 && (
+          {Object.keys(groupedReactions).length > 0 && (
             <div className={styles.reactions}>
-              {message.reactions.map((reaction, idx) => (
+              {Object.entries(groupedReactions).map(([emoji, data]) => (
                 <button 
-                  key={idx}
+                  key={emoji}
                   className={`${styles.reaction} ${
-                    reaction.users?.includes(currentUserId) ? styles.active : ''
+                    data.users.includes(currentUserId) ? styles.active : ''
                   }`}
-                  onClick={() => onReact(message._id, reaction.emoji)}
+                  onClick={() => onReact(message._id, emoji)}
                 >
-                  <span>{reaction.emoji}</span>
-                  <span className={styles.reactionCount}>{reaction.count}</span>
+                  <span>{emoji}</span>
+                  <span className={styles.reactionCount}>{data.count}</span>
                 </button>
               ))}
             </div>
@@ -275,45 +334,42 @@ const MessageBubble = ({
                   <button onClick={() => handleReaction('😮')}>😮</button>
                   <button onClick={() => handleReaction('😢')}>😢</button>
                   <button onClick={() => handleReaction('😡')}>😡</button>
+                  <button onClick={() => handleReaction('🎉')}>🎉</button>
+                  <button onClick={() => handleReaction('🔥')}>🔥</button>
                 </div>
               )}
             </div>
 
-            
-{isOwn && (
-  <span className={styles.messageStatus}>
-    {message.status === 'sending' && <FaClock className={styles.statusSending} />}
-    {message.status === 'sent' && <FaCheck className={styles.statusSent} />}
-    {message.status === 'delivered' && <FaCheckDouble className={styles.statusDelivered} />}
-    {message.status === 'read' && <FaCheckDouble className={styles.statusRead} />}
-  </span>
-)}
-            
-            <button 
-              className={styles.actionButton}
-              onClick={() => {
-                navigator.clipboard.writeText(message.text);
-                alert('Message copied!');
-              }}
-              title="Copy"
-            >
-              <FaCopy />
-            </button>
-            
-            <button 
-              className={styles.actionButton}
-              onClick={() => {
-                if (navigator.share) {
-                  navigator.share({
-                    title: 'Message',
-                    text: message.text
-                  });
-                }
-              }}
-              title="Share"
-            >
-              <FaShare />
-            </button>
+            <div className={styles.moreMenuWrapper}>
+              <button 
+                className={styles.actionButton}
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                title="More"
+              >
+                <FaEllipsisH />
+              </button>
+              
+              {showMoreMenu && (
+                <div className={styles.moreMenu}>
+                  <button onClick={handleCopy}>
+                    <FaCopy /> Copy
+                  </button>
+                  <button onClick={handleForward}>
+                    <FaForward /> Forward
+                  </button>
+                  {isOwn && (
+                    <>
+                      <button onClick={handleEdit}>
+                        <FaEdit /> Edit
+                      </button>
+                      <button onClick={handleDelete} className={styles.deleteOption}>
+                        <FaTrash /> Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

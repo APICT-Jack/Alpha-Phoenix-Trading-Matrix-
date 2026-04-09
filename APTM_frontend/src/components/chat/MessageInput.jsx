@@ -1,5 +1,7 @@
+// components/Chat/MessageInput.jsx - UPDATED with chart support
 import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import ChartWidget from '../ChartWidget';
 import styles from './MessageInput.module.css';
 
 // Import icons
@@ -12,7 +14,10 @@ import {
   FaImage,
   FaFile,
   FaMusic,
-  FaVideo
+  FaVideo,
+  FaChartLine,
+  FaPollH,
+  FaSpinner
 } from 'react-icons/fa';
 
 const MessageInput = forwardRef(({ 
@@ -26,10 +31,38 @@ const MessageInput = forwardRef(({
   const [attachments, setAttachments] = useState([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [showChartCreator, setShowChartCreator] = useState(false);
+  const [chartData, setChartData] = useState({
+    symbol: 'BTCUSDT',
+    interval: '30',
+    theme: darkMode ? 'dark' : 'light',
+    indicators: [],
+    hideToolbar: false,
+    hideSideToolbar: false
+  });
+  const [uploading, setUploading] = useState(false);
   
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+
+  const chartSymbols = [
+    { value: 'BTCUSDT', label: 'BTC/USDT' },
+    { value: 'ETHUSDT', label: 'ETH/USDT' },
+    { value: 'BNBUSDT', label: 'BNB/USDT' },
+    { value: 'SOLUSDT', label: 'SOL/USDT' },
+    { value: 'ADAUSDT', label: 'ADA/USDT' }
+  ];
+
+  const chartIntervals = [
+    { value: '1', label: '1m' },
+    { value: '5', label: '5m' },
+    { value: '15', label: '15m' },
+    { value: '30', label: '30m' },
+    { value: '60', label: '1h' },
+    { value: '240', label: '4h' },
+    { value: 'D', label: '1d' }
+  ];
 
   // Handle editing
   useEffect(() => {
@@ -47,11 +80,9 @@ const MessageInput = forwardRef(({
     }
   }, [message]);
 
-  // Handle input change
   const handleChange = (e) => {
     setMessage(e.target.value);
     
-    // Typing indicator
     if (onTyping) {
       onTyping(e.target.value.length > 0);
       
@@ -65,7 +96,6 @@ const MessageInput = forwardRef(({
     }
   };
 
-  // Handle key press
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -73,21 +103,39 @@ const MessageInput = forwardRef(({
     }
   };
 
-  // Handle send
-  const handleSend = () => {
-    if (!message.trim() && attachments.length === 0) return;
+  const handleSend = async () => {
+    if ((!message.trim() && attachments.length === 0 && !chartData.sent) || uploading) return;
     
-    onSendMessage(message, attachments);
+    let mediaToSend = [...attachments];
+    let chartToSend = null;
+    
+    // If chart creator is open and we have chart data, send as chart
+    if (showChartCreator && chartData.symbol) {
+      chartToSend = { ...chartData };
+      setShowChartCreator(false);
+    }
+    
+    // Send message with chart
+    await onSendMessage(message, mediaToSend, chartToSend);
+    
     setMessage('');
     setAttachments([]);
+    setChartData({
+      symbol: 'BTCUSDT',
+      interval: '30',
+      theme: darkMode ? 'dark' : 'light',
+      indicators: [],
+      hideToolbar: false,
+      hideSideToolbar: false
+    });
     
     if (onTyping) onTyping(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
 
-  // Handle file selection
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files);
+    setUploading(true);
     
     const newAttachments = files.map(file => ({
       file,
@@ -106,20 +154,36 @@ const MessageInput = forwardRef(({
       setAttachments(prev => 
         prev.map(att => ({ ...att, uploading: false }))
       );
-    }, 2000);
+      setUploading(false);
+    }, 1000);
   };
 
-  // Remove attachment
   const removeAttachment = (index) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Get attachment icon
   const getAttachmentIcon = (type) => {
     if (type?.startsWith('image/')) return <FaImage />;
     if (type?.startsWith('video/')) return <FaVideo />;
     if (type?.startsWith('audio/')) return <FaMusic />;
     return <FaFile />;
+  };
+
+  const addChartToMessage = () => {
+    setShowChartCreator(true);
+    setShowAttachmentMenu(false);
+  };
+
+  const removeChart = () => {
+    setShowChartCreator(false);
+    setChartData({
+      symbol: 'BTCUSDT',
+      interval: '30',
+      theme: darkMode ? 'dark' : 'light',
+      indicators: [],
+      hideToolbar: false,
+      hideSideToolbar: false
+    });
   };
 
   return (
@@ -134,8 +198,47 @@ const MessageInput = forwardRef(({
         </div>
       )}
 
+      {/* Chart Creator */}
+      {showChartCreator && (
+        <div className={styles.chartCreator}>
+          <div className={styles.chartHeader}>
+            <h4>Add Trading Chart</h4>
+            <button onClick={removeChart} type="button">
+              <FaTimes />
+            </button>
+          </div>
+          <div className={styles.chartControls}>
+            <select
+              value={chartData.symbol}
+              onChange={(e) => setChartData(prev => ({ ...prev, symbol: e.target.value }))}
+            >
+              {chartSymbols.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <select
+              value={chartData.interval}
+              onChange={(e) => setChartData(prev => ({ ...prev, interval: e.target.value }))}
+            >
+              {chartIntervals.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.chartPreview}>
+            <ChartWidget chartData={chartData} isExpanded={false} />
+          </div>
+          <button 
+            className={styles.sendChartBtn}
+            onClick={handleSend}
+          >
+            <FaChartLine /> Send Chart
+          </button>
+        </div>
+      )}
+
       {/* Attachments preview */}
-      {attachments.length > 0 && (
+      {attachments.length > 0 && !showChartCreator && (
         <div className={styles.attachmentsPreview}>
           {attachments.map((att, index) => (
             <div key={index} className={styles.attachmentPreview}>
@@ -149,7 +252,7 @@ const MessageInput = forwardRef(({
               )}
               {att.uploading && (
                 <div className={styles.uploadProgress}>
-                  <div className={styles.spinner}></div>
+                  <FaSpinner className={styles.spinning} />
                 </div>
               )}
               <button 
@@ -164,80 +267,89 @@ const MessageInput = forwardRef(({
       )}
 
       {/* Input area */}
-      <div className={styles.inputArea}>
-        <button 
-          className={styles.emojiButton}
-          type="button"
-          title="Emoji"
-        >
-          <FaRegSmile />
-        </button>
-
-        <div className={styles.textareaWrapper}>
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={handleChange}
-            onKeyDown={handleKeyPress}
-            placeholder={editingMessage ? "Edit message..." : "Type a message..."}
-            rows="1"
-          />
-        </div>
-
-        <div className={styles.actionButtons}>
+      {!showChartCreator && (
+        <div className={styles.inputArea}>
           <button 
-            className={styles.attachButton}
-            onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-            title="Attach file"
+            className={styles.emojiButton}
+            type="button"
+            title="Emoji"
           >
-            <FaPaperclip />
+            <FaRegSmile />
           </button>
 
-          {message.trim() || attachments.length > 0 ? (
-            <button 
-              className={styles.sendButton}
-              onClick={handleSend}
-              title="Send"
-            >
-              <FaPaperPlane />
-            </button>
-          ) : (
-            <button 
-              className={styles.micButton}
-              onClick={() => setIsRecording(!isRecording)}
-              title={isRecording ? "Stop recording" : "Voice message"}
-            >
-              <FaMicrophone />
-            </button>
-          )}
-        </div>
-
-        {/* Attachment menu */}
-        {showAttachmentMenu && (
-          <div className={styles.attachmentMenu}>
-            <button onClick={() => fileInputRef.current?.click()}>
-              <FaImage /> Image
-            </button>
-            <button onClick={() => fileInputRef.current?.click()}>
-              <FaFile /> Document
-            </button>
-            <button onClick={() => fileInputRef.current?.click()}>
-              <FaMusic /> Audio
-            </button>
-            <button onClick={() => fileInputRef.current?.click()}>
-              <FaVideo /> Video
-            </button>
+          <div className={styles.textareaWrapper}>
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={handleChange}
+              onKeyDown={handleKeyPress}
+              placeholder={editingMessage ? "Edit message..." : "Type a message..."}
+              rows="1"
+            />
           </div>
-        )}
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          onChange={handleFileSelect}
-          style={{ display: 'none' }}
-        />
-      </div>
+          <div className={styles.actionButtons}>
+            <button 
+              className={styles.attachButton}
+              onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+              title="Attach file"
+            >
+              <FaPaperclip />
+            </button>
+
+            <button 
+              className={styles.chartButton}
+              onClick={addChartToMessage}
+              title="Add chart"
+            >
+              <FaChartLine />
+            </button>
+
+            {message.trim() || attachments.length > 0 ? (
+              <button 
+                className={styles.sendButton}
+                onClick={handleSend}
+                disabled={uploading}
+                title="Send"
+              >
+                {uploading ? <FaSpinner className={styles.spinning} /> : <FaPaperPlane />}
+              </button>
+            ) : (
+              <button 
+                className={styles.micButton}
+                onClick={() => setIsRecording(!isRecording)}
+                title={isRecording ? "Stop recording" : "Voice message"}
+              >
+                <FaMicrophone />
+              </button>
+            )}
+          </div>
+
+          {/* Attachment menu */}
+          {showAttachmentMenu && (
+            <div className={styles.attachmentMenu}>
+              <button onClick={() => fileInputRef.current?.click()}>
+                <FaImage /> Image
+              </button>
+              <button onClick={() => fileInputRef.current?.click()}>
+                <FaFile /> Document
+              </button>
+              <button onClick={() => fileInputRef.current?.click()}>
+                <FaVideo /> Video
+              </button>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+            accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          />
+        </div>
+      )}
     </div>
   );
 });

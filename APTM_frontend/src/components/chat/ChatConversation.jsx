@@ -1,3 +1,4 @@
+// components/Chat/ChatConversation.jsx - UPDATED with media and reply support
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
@@ -7,48 +8,32 @@ import MessageInput from './MessageInput';
 import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
 import styles from './ChatConversation.module.css';
 
-// Constants for API URLs
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
-// Helper function to format avatar URLs
 const formatAvatarUrl = (avatar) => {
   if (!avatar) return null;
-  
-  // If it's already a full URL, return as is
-  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar;
-  }
-  
-  // If it's a data URL, return as is
-  if (avatar.startsWith('data:')) {
-    return avatar;
-  }
-  
-  // Handle object type avatar
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar;
+  if (avatar.startsWith('data:')) return avatar;
   if (typeof avatar === 'object') {
     avatar = avatar.url || avatar.avatarUrl || null;
     if (!avatar) return null;
   }
-  
-  // Extract just the filename if it contains path
   let cleanPath = avatar;
   if (avatar.includes('/')) {
     cleanPath = avatar.split('/').pop();
   }
-  
   return `${BASE_URL}/uploads/avatars/${cleanPath}`;
 };
 
-// Import icons
 import {
   FaArrowLeft,
   FaPhone,
   FaVideo,
   FaInfoCircle,
-  FaCheckDouble,
-  FaCheck,
-  FaClock
+  FaImage,
+  FaFile,
+  FaChartLine
 } from 'react-icons/fa';
 
 const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online }) => {
@@ -63,6 +48,8 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   const [loadingMore, setLoadingMore] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
+  const [forwardMessage, setForwardMessage] = useState(null);
+  const [showForwardModal, setShowForwardModal] = useState(false);
   const [showUserInfo, setShowUserInfo] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   
@@ -72,10 +59,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   const typingTimeoutRef = useRef(null);
   const processedMessageIds = useRef(new Set());
 
-  // Format conversation user avatar
   const formattedUserAvatar = formatAvatarUrl(conversation.userAvatar);
-  
-  // Format current user avatar
   const formattedCurrentUserAvatar = formatAvatarUrl(currentUser?.avatar);
 
   // Load messages
@@ -90,7 +74,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         const data = await chatService.getMessages(conversation.id, 1);
         console.log('📥 Loaded messages:', data);
         
-        // Track message IDs
         const messagesList = data.messages || [];
         messagesList.forEach(msg => {
           if (msg._id) processedMessageIds.current.add(msg._id);
@@ -100,7 +83,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         setHasMore(data.hasMore || false);
         setPage(1);
         
-        // Mark as read
         chatService.markMessagesAsRead(conversation.id, conversation.userId);
         
         scrollToBottom();
@@ -112,8 +94,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     };
 
     loadMessages();
-
-    // Join conversation room
     chatService.joinConversation(conversation.id);
 
     return () => {
@@ -127,24 +107,13 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     if (!conversation?.id) return;
 
     const handleNewMessage = (message) => {
-      console.log('📨 New message received:', message);
-      
-      // Check if message belongs to this conversation
       if (message.conversationId !== conversation.id) return;
+      if (processedMessageIds.current.has(message._id)) return;
       
-      // Check for duplicates
-      if (processedMessageIds.current.has(message._id)) {
-        console.log('⏭️ Duplicate message ignored:', message._id);
-        return;
-      }
-      
-      // Add to processed IDs
       processedMessageIds.current.add(message._id);
       
-      // Format sender avatar
       const senderAvatar = formatAvatarUrl(message.sender?.avatar || message.senderAvatar);
       
-      // Format the message
       const formattedMessage = {
         ...message,
         _id: message._id || message.id,
@@ -158,35 +127,24 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         status: message.status || 'delivered'
       };
       
-      // Add to messages
       setMessages(prev => [...prev, formattedMessage]);
       
-      // Mark as read if it's from other user
       if (formattedMessage.senderId !== currentUser?.id) {
         chatService.markMessagesAsRead(conversation.id, conversation.userId);
       }
       
-      // Scroll to bottom
       setTimeout(scrollToBottom, 100);
     };
 
     const handleMessageSent = (message) => {
-      console.log('✅ Message sent confirmation:', message);
-      
       if (message.conversationId !== conversation.id) return;
       
-      // Format sender avatar
       const senderAvatar = formatAvatarUrl(message.sender?.avatar || currentUser?.avatar);
       
       setMessages(prev => {
-        // Find and update the temp message
         const updatedMessages = prev.map(m => {
           if (m._id === message.tempId) {
-            // Add to processed IDs
-            if (message._id) {
-              processedMessageIds.current.add(message._id);
-            }
-            
+            if (message._id) processedMessageIds.current.add(message._id);
             return {
               ...message,
               _id: message._id || message.id,
@@ -202,13 +160,11 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           return m;
         });
         
-        // Remove any potential duplicates
         return updatedMessages.filter((msg, index, self) => 
           index === self.findIndex(m => m._id === msg._id)
         );
       });
       
-      // Scroll to bottom
       setTimeout(scrollToBottom, 100);
     };
 
@@ -237,18 +193,13 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     };
 
     const handleTypingStart = ({ userId, username }) => {
-      if (userId === conversation.userId) {
-        setIsTyping(true);
-      }
+      if (userId === conversation.userId) setIsTyping(true);
     };
 
     const handleTypingStop = ({ userId }) => {
-      if (userId === conversation.userId) {
-        setIsTyping(false);
-      }
+      if (userId === conversation.userId) setIsTyping(false);
     };
 
-    // Subscribe to events
     chatService.onMessageReceived(handleNewMessage);
     chatService.onMessageSent(handleMessageSent);
     chatService.onMessageUpdated(handleMessageUpdated);
@@ -268,7 +219,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     };
   }, [conversation.id, currentUser?.id]);
 
-  // Load more messages on scroll
   const loadMoreMessages = async () => {
     if (!hasMore || loadingMore) return;
     
@@ -276,7 +226,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       setLoadingMore(true);
       const data = await chatService.getMessages(conversation.id, page + 1);
       
-      // Track new message IDs
       const messagesList = data.messages || [];
       messagesList.forEach(msg => {
         if (msg._id) processedMessageIds.current.add(msg._id);
@@ -292,25 +241,23 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     }
   };
 
-  // Handle scroll
   const handleScroll = useCallback((e) => {
     if (e.target.scrollTop === 0 && hasMore && !loadingMore) {
       loadMoreMessages();
     }
   }, [hasMore, loadingMore]);
 
-  // Scroll to bottom
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
 
-  // Send message
-  const handleSendMessage = async (text, attachments = []) => {
-    if (!text.trim() && attachments.length === 0) return;
+  const handleSendMessage = async (text, attachments = [], chart = null) => {
+    if ((!text.trim() && attachments.length === 0 && !chart) || loading) return;
 
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const tempMessage = {
       _id: tempId,
       text: text.trim(),
@@ -323,54 +270,64 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       createdAt: new Date().toISOString(),
       status: 'sending',
       attachments,
-      replyTo: replyTo ? {
-        id: replyTo._id,
+      media: chart ? [{
+        type: 'chart',
+        chartData: chart,
+        url: '/api/charts/widget'
+      }] : attachments.map(a => ({ type: a.type, url: a.url })),
+      replyTo: replyTo ? replyTo._id : null,
+      replyToMessage: replyTo ? {
         text: replyTo.text,
         senderName: replyTo.sender?.name
       } : null,
       conversationId: conversation.id
     };
 
-    // Add optimistically
     setMessages(prev => [...prev, tempMessage]);
     processedMessageIds.current.add(tempId);
     scrollToBottom();
-
-    // Clear reply
     setReplyTo(null);
 
-    // Send via service
-    const sent = chatService.sendMessage({
+    // Send via service with chart support
+    const sent = await chatService.sendMessage({
       conversationId: conversation.id,
       receiverId: conversation.userId,
       text: text.trim(),
       attachments,
+      chart,
       replyTo: replyTo?._id,
       tempId
     });
 
-    // If sending failed (socket disconnected), try REST API fallback
     if (!sent) {
+      // Fallback to REST API
       try {
-        console.log('📤 Sending message via REST API fallback');
+        const formData = new FormData();
+        formData.append('receiverId', conversation.userId);
+        formData.append('text', text.trim());
+        
+        attachments.forEach(file => {
+          formData.append('media', file.file);
+        });
+        
+        if (chart) {
+          formData.append('chart', JSON.stringify(chart));
+        }
+        if (replyTo?._id) {
+          formData.append('replyToId', replyTo._id);
+        }
+        
         const response = await fetch(`${API_URL}/chat/messages`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
-          body: JSON.stringify({
-            receiverId: conversation.userId,
-            text: text.trim(),
-            type: 'text'
-          }),
+          body: formData
         });
 
         if (response.ok) {
           const data = await response.json();
-          const newMsg = data.message || data;
-          
-          // Format avatar URL
+          const newMsg = data.message;
           const newMsgAvatar = formatAvatarUrl(newMsg.sender?.avatar);
           
           setMessages(prev => prev.map(m => {
@@ -394,7 +351,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         }
       } catch (error) {
         console.error('Error sending message via REST:', error);
-        // Remove failed message
         setMessages(prev => prev.filter(m => m._id !== tempId));
         processedMessageIds.current.delete(tempId);
         alert('Failed to send message. Please try again.');
@@ -402,11 +358,48 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     }
   };
 
-  // Handle typing
+  const handleEditMessage = (message) => {
+    setEditingMessage(message);
+    inputRef.current?.focus();
+  };
+
+  const handleEditSubmit = async (messageId, newText) => {
+    await chatService.editMessage(messageId, newText);
+    setEditingMessage(null);
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    await chatService.deleteMessage(messageId);
+  };
+
+  const handleReactToMessage = async (messageId, emoji) => {
+    await chatService.reactToMessage(messageId, emoji);
+  };
+
+  const handleForwardMessage = (message) => {
+    setForwardMessage(message);
+    setShowForwardModal(true);
+  };
+
+  const handleForwardSubmit = async (targetUserId) => {
+    if (forwardMessage) {
+      await chatService.forwardMessage(forwardMessage._id, targetUserId);
+      setShowForwardModal(false);
+      setForwardMessage(null);
+    }
+  };
+
+  const handleAttachmentClick = (attachment) => {
+    let url = attachment.url;
+    if (url && !url.startsWith('http') && !url.startsWith('data:')) {
+      url = `${BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+    }
+    window.open(url, '_blank');
+  };
+
   const handleTyping = (isTyping) => {
     if (isTyping) {
       chatService.sendTypingStart(conversation.id, conversation.userId);
-      
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
         chatService.sendTypingStop(conversation.id, conversation.userId);
@@ -417,42 +410,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     }
   };
 
-  // Edit message
-  const handleEditMessage = (messageId, newText) => {
-    chatService.editMessage(messageId, newText);
-    setEditingMessage(null);
-  };
-
-  // Delete message
-  const handleDeleteMessage = (messageId) => {
-    if (window.confirm('Delete this message?')) {
-      chatService.deleteMessage(messageId, conversation.id, conversation.userId);
-    }
-  };
-
-  // React to message
-  const handleReactToMessage = (messageId, reaction) => {
-    chatService.reactToMessage(messageId, reaction);
-  };
-
-  // Handle attachment click
-  const handleAttachmentClick = (attachment) => {
-    let url = attachment.url;
-    
-    // Format attachment URL if needed
-    if (url && !url.startsWith('http') && !url.startsWith('data:')) {
-      const folder = attachment.type?.startsWith('image/') ? 'gallery' : 'documents';
-      let cleanPath = url;
-      if (url.includes('/')) {
-        cleanPath = url.split('/').pop();
-      }
-      url = `${BASE_URL}/uploads/${folder}/${cleanPath}`;
-    }
-    
-    window.open(url, '_blank');
-  };
-
-  // Group messages by date
   const groupMessagesByDate = () => {
     const groups = {};
     messages.forEach(message => {
@@ -463,9 +420,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     return groups;
   };
 
-  const messageGroups = groupMessagesByDate();
-
-  // Format date header
   const formatDateHeader = (dateStr) => {
     const date = new Date(dateStr);
     const today = new Date();
@@ -481,6 +435,8 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       day: 'numeric' 
     });
   };
+
+  const messageGroups = groupMessagesByDate();
 
   return (
     <div className={`${styles.conversation} ${darkMode ? styles.dark : styles.light}`}>
@@ -569,10 +525,11 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
                     key={message._id}
                     message={message}
                     isOwn={message.senderId === currentUser?.id}
-                    onEdit={handleEditMessage}
+                    onEdit={handleEditSubmit}
                     onDelete={handleDeleteMessage}
                     onReact={handleReactToMessage}
                     onReply={setReplyTo}
+                    onForward={handleForwardMessage}
                     onAttachmentClick={handleAttachmentClick}
                     previousMessage={index > 0 ? groupMessages[index - 1] : null}
                     nextMessage={index < groupMessages.length - 1 ? groupMessages[index + 1] : null}
@@ -623,6 +580,22 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         editingMessage={editingMessage}
         onCancelEdit={() => setEditingMessage(null)}
       />
+
+      {/* Forward Modal (simplified) */}
+      {showForwardModal && (
+        <div className={styles.forwardModal}>
+          <div className={styles.forwardModalContent}>
+            <h3>Forward to...</h3>
+            <div className={styles.forwardUserList}>
+              {/* Add user search and selection here */}
+              <button onClick={() => handleForwardSubmit('user-id')}>
+                Select User
+              </button>
+            </div>
+            <button onClick={() => setShowForwardModal(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
