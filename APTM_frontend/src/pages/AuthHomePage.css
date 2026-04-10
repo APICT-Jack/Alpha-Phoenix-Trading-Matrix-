@@ -1,31 +1,15 @@
-/* src/pages/AuthHomePage.css - Premium macOS/iOS Edition */
+/* src/pages/AuthHomePage.css - Premium macOS/iOS Edition with Theme Support */
 
 /* ============================================
-   GLOBAL VARIABLES & RESET
-   ============================================ */
-:root {
-  --macos-blur: saturate(180%) blur(20px);
-  --ios-blur: saturate(180%) blur(30px);
-  --transition-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --transition-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  --transition-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.2);
-  --shadow-glow: 0 0 20px rgba(0, 122, 255, 0.3);
-}
-
-/* ============================================
-   MAIN CONTAINER WITH WALLPAPER SUPPORT
+   GLOBAL VARIABLES (Using your theme system)
    ============================================ */
 .auth-homepage {
   min-height: 100vh;
   position: relative;
-  transition: all 0.5s var(--transition-smooth);
+  transition: all 0.3s var(--transition-easing);
 }
 
-/* Wallpaper Background System */
+/* Wallpaper Background System - Theme Aware */
 .auth-homepage::before {
   content: '';
   position: fixed;
@@ -39,8 +23,9 @@
   background-repeat: no-repeat;
   background-attachment: fixed;
   filter: brightness(var(--wallpaper-brightness, 0.6)) blur(var(--wallpaper-blur, 0px));
-  transition: all 0.6s var(--transition-smooth);
+  transition: all 0.6s var(--transition-easing);
   z-index: -2;
+  opacity: var(--wallpaper-opacity, 0.8);
 }
 
 .auth-homepage::after {
@@ -50,30 +35,17 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--wallpaper-overlay, linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 100%));
+  background: var(--wallpaper-overlay, linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%));
   z-index: -1;
 }
 
-/* Desktop Mode (macOS) */
-@media (min-width: 1024px) {
-  .auth-homepage.desktop-mode {
-    background: transparent;
-  }
-  
-  .auth-homepage.desktop-mode::before {
-    background-attachment: fixed;
-  }
-}
-
-/* Mobile Mode (iOS) */
-@media (max-width: 768px) {
-  .auth-homepage.mobile-mode::before {
-    background-attachment: scroll;
-  }
+/* Light mode adjustments */
+body.light-mode .auth-homepage::after {
+  background: var(--wallpaper-overlay-light, linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%));
 }
 
 /* ============================================
-   WALLPAPER CONTROLS - macOS Style
+   WALLPAPER CONTROLS - Theme Aware
    ============================================ */
 .wallpaper-controls {
   position: fixed;
@@ -82,17 +54,22 @@
   z-index: 1000;
   display: flex;
   gap: 12px;
-  backdrop-filter: var(--macos-blur);
-  background: rgba(0, 0, 0, 0.6);
-  padding: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
+  padding: 10px;
   border-radius: 100px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s var(--transition-smooth);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.3s var(--transition-easing);
+}
+
+body.light-mode .wallpaper-controls {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.1);
 }
 
 .wallpaper-controls:hover {
-  background: rgba(0, 0, 0, 0.8);
   transform: scale(1.05);
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .wallpaper-btn {
@@ -100,28 +77,27 @@
   height: 40px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s var(--transition-spring);
-  backdrop-filter: blur(10px);
+}
+
+body.light-mode .wallpaper-btn {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: var(--color-text);
 }
 
 .wallpaper-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
   transform: scale(1.1);
-}
-
-.wallpaper-btn.active {
   background: var(--color-primary);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-glow);
 }
 
-/* Wallpaper Modal - iOS Style */
+/* Wallpaper Modal */
 .wallpaper-modal {
   position: fixed;
   top: 0;
@@ -134,11 +110,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fadeIn 0.4s var(--transition-smooth);
+  animation: fadeIn 0.4s var(--transition-easing);
 }
 
 .wallpaper-modal-content {
-  background: rgba(30, 30, 35, 0.95);
+  background: var(--color-card);
   backdrop-filter: blur(40px);
   border-radius: 32px;
   width: 90%;
@@ -146,7 +122,7 @@
   max-height: 80vh;
   overflow-y: auto;
   padding: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--color-border);
   box-shadow: var(--shadow-xl);
   animation: slideUp 0.5s var(--transition-spring);
 }
@@ -157,23 +133,23 @@
   align-items: center;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .wallpaper-modal-header h3 {
   font-size: 1.5rem;
-  font-weight: 600;
-  color: white;
-  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
 }
 
 .close-modal {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -182,7 +158,8 @@
 }
 
 .close-modal:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--color-primary);
+  color: white;
   transform: rotate(90deg);
 }
 
@@ -211,7 +188,7 @@
 .wallpaper-option.selected {
   border-color: var(--color-primary);
   transform: scale(1.02);
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.3);
 }
 
 .wallpaper-settings {
@@ -219,7 +196,7 @@
   gap: 16px;
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--color-border);
 }
 
 .wallpaper-setting {
@@ -228,35 +205,25 @@
 
 .wallpaper-setting label {
   display: block;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   font-size: 0.8rem;
   margin-bottom: 8px;
 }
 
 .wallpaper-setting input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px;
-  color: white;
+  color: var(--color-text);
 }
 
 /* ============================================
-   DESKTOP MODE (macOS) - Premium Cards
+   WELCOME SECTION - Premium Hero
    ============================================ */
-.auth-main-content {
-  padding-bottom: 2rem;
-  position: relative;
-  z-index: 1;
-}
-
-/* Desktop Welcome Section - macOS Style */
 .welcome-section {
   padding: 80px 0 60px;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   position: relative;
   overflow: hidden;
 }
@@ -268,7 +235,7 @@
   left: -20%;
   width: 140%;
   height: 200%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(41, 121, 255, 0.08) 0%, transparent 70%);
   pointer-events: none;
   animation: slowRotate 20s linear infinite;
 }
@@ -288,37 +255,31 @@
   font-size: 3rem;
   font-weight: 700;
   margin-bottom: 20px;
-  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.8) 100%);
+  background: linear-gradient(135deg, var(--color-text) 0%, var(--color-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   letter-spacing: -0.02em;
-  animation: fadeInUp 0.8s var(--transition-smooth);
+  animation: fadeInUp 0.8s var(--transition-easing);
 }
 
 .user-name {
-  background: linear-gradient(135deg, var(--color-primary), #60a5fa, var(--color-accent));
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   position: relative;
   display: inline-block;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
 }
 
 .welcome-description {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--color-text-secondary);
   font-size: 1.2rem;
   max-width: 600px;
   margin: 0 auto;
   font-weight: 400;
   letter-spacing: -0.01em;
-  animation: fadeInUp 0.8s var(--transition-smooth) 0.1s backwards;
+  animation: fadeInUp 0.8s var(--transition-easing) 0.1s backwards;
 }
 
 @keyframes fadeInUp {
@@ -332,7 +293,140 @@
   }
 }
 
-/* Desktop Features - macOS Card Design */
+/* ============================================
+   RECENT ACTIVITY SECTION - NEW
+   ============================================ */
+.recent-activity-section {
+  padding: 40px 0;
+  position: relative;
+}
+
+.activity-container {
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 24px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+}
+
+body.light-mode .activity-container {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.section-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, var(--color-text) 0%, var(--color-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.activity-tabs {
+  display: flex;
+  gap: 12px;
+}
+
+.activity-tab {
+  padding: 8px 20px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 100px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.3s var(--transition-easing);
+  font-weight: 500;
+}
+
+.activity-tab:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.activity-tab.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  transition: all 0.3s var(--transition-easing);
+  cursor: pointer;
+}
+
+body.light-mode .activity-item {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.activity-item:hover {
+  transform: translateX(8px);
+  border-color: var(--color-primary);
+  background: rgba(41, 121, 255, 0.05);
+}
+
+.activity-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  flex-shrink: 0;
+}
+
+.activity-icon svg {
+  font-size: 24px;
+  color: white;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-title {
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.activity-description {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.activity-time {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+/* ============================================
+   DESKTOP FEATURES - Glass Cards (No solid backgrounds)
+   ============================================ */
 .main-features-section {
   padding: 60px 0 40px;
 }
@@ -346,20 +440,24 @@
 
 .feature-card {
   cursor: pointer;
-  transition: all 0.4s var(--transition-smooth);
+  transition: all 0.4s var(--transition-easing);
   position: relative;
 }
 
 .feature-card-content {
-  background: rgba(30, 30, 35, 0.85);
+  background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--color-border);
   border-radius: 24px;
   padding: 32px;
   transition: all 0.5s var(--transition-spring);
   height: 100%;
   position: relative;
   overflow: hidden;
+}
+
+body.light-mode .feature-card-content {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .feature-card-content::before {
@@ -369,16 +467,27 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.feature-card:hover .feature-card-content::before {
+  opacity: 1;
 }
 
 .feature-card:hover .feature-card-content {
   transform: translateY(-8px) scale(1.02);
-  background: rgba(40, 40, 45, 0.95);
-  border-color: rgba(0, 122, 255, 0.4);
-  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0, 122, 255, 0.2);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-xl);
+  background: rgba(0, 0, 0, 0.4);
 }
 
+body.light-mode .feature-card:hover .feature-card-content {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* Glass Gradient Icons - No solid background */
 .feature-icon-wrapper {
   width: 72px;
   height: 72px;
@@ -389,7 +498,13 @@
   margin-bottom: 28px;
   transition: all 0.4s var(--transition-spring);
   position: relative;
-  overflow: hidden;
+  background: linear-gradient(135deg, rgba(41, 121, 255, 0.2) 0%, rgba(0, 198, 255, 0.2) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+body.light-mode .feature-icon-wrapper {
+  background: linear-gradient(135deg, rgba(41, 121, 255, 0.1) 0%, rgba(0, 198, 255, 0.1) 100%);
 }
 
 .feature-icon-wrapper::after {
@@ -399,8 +514,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
   pointer-events: none;
+  border-radius: 20px;
 }
 
 .feature-card:hover .feature-icon-wrapper {
@@ -410,23 +526,22 @@
 .feature-icon-wrapper svg {
   font-size: 36px;
   color: white;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
 }
 
 .feature-title {
   font-size: 1.4rem;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 14px;
-  color: white;
+  color: var(--color-text);
   letter-spacing: -0.01em;
 }
 
 .feature-description {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   line-height: 1.6;
   margin-bottom: 24px;
   font-size: 0.9rem;
-  font-weight: 400;
 }
 
 .feature-link {
@@ -434,15 +549,15 @@
   align-items: center;
   gap: 8px;
   color: var(--color-primary);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.9rem;
-  transition: all 0.3s var(--transition-smooth);
+  transition: all 0.3s var(--transition-easing);
   padding: 8px 0;
 }
 
 .feature-card:hover .feature-link {
   gap: 14px;
-  color: #60a5fa;
+  color: var(--color-accent);
 }
 
 .link-icon {
@@ -454,23 +569,24 @@
   transform: translateX(6px);
 }
 
-/* Card Badge System */
+/* Feature Badge */
 .feature-badge {
   position: absolute;
   top: 20px;
   right: 20px;
-  background: rgba(0, 122, 255, 0.2);
+  background: rgba(41, 121, 255, 0.2);
   backdrop-filter: blur(10px);
-  padding: 4px 10px;
-  border-radius: 12px;
+  padding: 4px 12px;
+  border-radius: 100px;
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--color-primary);
-  border: 1px solid rgba(0, 122, 255, 0.3);
+  border: 1px solid rgba(41, 121, 255, 0.3);
+  letter-spacing: 0.5px;
 }
 
 /* ============================================
-   MOBILE MODE (iOS) - Home Screen Style
+   MOBILE MODE - iOS Style
    ============================================ */
 @media (max-width: 768px) {
   .desktop-features {
@@ -483,9 +599,13 @@
     gap: 20px;
     padding: 20px;
     background: rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(20px);
     border-radius: 32px;
     margin: 20px;
+  }
+  
+  body.light-mode .mobile-features-grid {
+    background: rgba(255, 255, 255, 0.3);
   }
   
   .mobile-feature-item {
@@ -499,9 +619,10 @@
   }
   
   .mobile-feature-item:active {
-    transform: scale(0.92);
+    transform: scale(0.94);
   }
   
+  /* Glass Gradient Icons for Mobile */
   .mobile-feature-icon {
     width: 70px;
     height: 70px;
@@ -509,13 +630,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.15);
+    background: linear-gradient(135deg, rgba(41, 121, 255, 0.2) 0%, rgba(0, 198, 255, 0.2) 100%);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     transition: all 0.3s var(--transition-spring);
     position: relative;
     overflow: hidden;
     box-shadow: var(--shadow-md);
+  }
+  
+  body.light-mode .mobile-feature-icon {
+    background: linear-gradient(135deg, rgba(41, 121, 255, 0.15) 0%, rgba(0, 198, 255, 0.15) 100%);
   }
   
   .mobile-feature-icon::before {
@@ -525,7 +650,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
     pointer-events: none;
   }
   
@@ -538,33 +663,19 @@
   .mobile-feature-label {
     font-size: 0.75rem;
     font-weight: 500;
-    color: white;
+    color: var(--color-text);
     text-align: center;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     letter-spacing: -0.01em;
-  }
-  
-  /* iOS Haptic Touch Effect */
-  .mobile-feature-item.long-press {
-    animation: hapticFeedback 0.2s var(--transition-spring);
-  }
-  
-  @keyframes hapticFeedback {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(0.95); }
   }
 }
 
 /* ============================================
-   ADVANCED TOOLS - Premium Design
+   ADVANCED TOOLS - Premium Glass Design
    ============================================ */
 .advanced-tools-section {
   padding: 80px 0;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(20px);
   position: relative;
   overflow: hidden;
-  margin-top: 40px;
 }
 
 .advanced-tools-section::before {
@@ -574,7 +685,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
 }
 
 .tools-grid {
@@ -589,13 +700,17 @@
   align-items: flex-start;
   gap: 20px;
   padding: 28px;
-  background: rgba(30, 30, 35, 0.7);
+  background: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-border);
   border-radius: 20px;
-  transition: all 0.4s var(--transition-smooth);
+  transition: all 0.4s var(--transition-easing);
   position: relative;
   overflow: hidden;
+}
+
+body.light-mode .tool-card {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .tool-card::before {
@@ -605,7 +720,7 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(41, 121, 255, 0.1), transparent);
   transition: left 0.5s;
 }
 
@@ -615,9 +730,13 @@
 
 .tool-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(0, 122, 255, 0.3);
+  border-color: var(--color-primary);
   box-shadow: var(--shadow-lg);
-  background: rgba(40, 40, 45, 0.85);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+body.light-mode .tool-card:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .tool-icon {
@@ -636,26 +755,56 @@
 
 .tool-content h4 {
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 10px;
-  color: white;
+  color: var(--color-text);
   letter-spacing: -0.01em;
 }
 
 .tool-content p {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   line-height: 1.5;
+  margin: 0;
+}
+
+/* Show More Button */
+.show-more-container {
+  text-align: center;
+  margin-top: 24px;
+}
+
+.show-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 28px;
+  background: rgba(41, 121, 255, 0.1);
+  border: 1px solid rgba(41, 121, 255, 0.3);
+  border-radius: 100px;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: all 0.3s var(--transition-easing);
+  font-weight: 600;
+  font-size: 0.9rem;
+  backdrop-filter: blur(10px);
+}
+
+.show-more-btn:hover {
+  background: rgba(41, 121, 255, 0.2);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(41, 121, 255, 0.2);
 }
 
 /* ============================================
-   EDIT MODE - macOS/iOS Integration
+   EDIT MODE CONTROLS
    ============================================ */
 .customize-bar {
   padding: 20px 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -666,7 +815,7 @@
   align-items: center;
   gap: 10px;
   padding: 12px 28px;
-  background: linear-gradient(135deg, var(--color-primary) 0%, #0055aa 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
   border: none;
   border-radius: 100px;
@@ -678,19 +827,18 @@
 
 .customize-btn:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  box-shadow: var(--shadow-lg);
 }
 
 .edit-mode-bar {
   padding: 20px 0;
-  background: rgba(0, 122, 255, 0.95);
+  background: rgba(41, 121, 255, 0.95);
   backdrop-filter: blur(20px);
   color: white;
   position: sticky;
   top: 0;
   z-index: 100;
   animation: slideDown 0.5s var(--transition-spring);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 @keyframes slideDown {
@@ -717,7 +865,6 @@
   align-items: center;
   gap: 10px;
   font-weight: 600;
-  font-size: 1rem;
 }
 
 .edit-buttons {
@@ -741,7 +888,6 @@
 .add-btn {
   background: rgba(255, 255, 255, 0.2);
   color: white;
-  backdrop-filter: blur(10px);
 }
 
 .add-btn:hover {
@@ -757,7 +903,6 @@
 .save-btn:hover {
   background: #30b753;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
 }
 
 .cancel-btn {
@@ -773,26 +918,15 @@
 /* Add Features Panel */
 .add-features-panel {
   padding: 48px 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(30px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  animation: fadeIn 0.5s var(--transition-smooth);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  border-bottom: 1px solid var(--color-border);
+  animation: fadeIn 0.5s var(--transition-easing);
 }
 
 .add-features-panel h3 {
   margin-bottom: 32px;
-  color: white;
+  color: var(--color-text);
   font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -809,21 +943,22 @@
   align-items: center;
   gap: 20px;
   padding: 24px;
-  background: rgba(30, 30, 35, 0.8);
+  background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-border);
   border-radius: 20px;
   cursor: pointer;
   transition: all 0.3s var(--transition-spring);
-  position: relative;
-  overflow: hidden;
+}
+
+body.light-mode .available-feature-card {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .available-feature-card:hover {
   transform: translateX(8px);
   border-color: var(--color-primary);
-  background: rgba(40, 40, 45, 0.9);
-  box-shadow: var(--shadow-lg);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .available-icon {
@@ -839,21 +974,20 @@
   font-size: 1.05rem;
   font-weight: 600;
   margin-bottom: 6px;
-  color: white;
+  color: var(--color-text);
 }
 
 .available-info p {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--color-text-secondary);
   margin: 0;
-  line-height: 1.4;
 }
 
 .add-feature-btn {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--color-primary) 0%, #0055aa 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
   border: none;
   cursor: pointer;
@@ -865,10 +999,9 @@
 
 .add-feature-btn:hover {
   transform: scale(1.1);
-  box-shadow: var(--shadow-glow);
 }
 
-/* Card Controls in Edit Mode */
+/* Card Controls */
 .card-controls {
   position: absolute;
   top: 16px;
@@ -880,15 +1013,7 @@
   backdrop-filter: blur(20px);
   padding: 8px 14px;
   border-radius: 100px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: var(--shadow-lg);
-}
-
-.drag-handle {
-  cursor: move;
-  color: rgba(255, 255, 255, 0.6);
-  display: flex;
-  align-items: center;
+  border: 1px solid var(--color-border);
 }
 
 .remove-card-btn {
@@ -902,17 +1027,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s var(--transition-spring);
+  transition: all 0.2s;
 }
 
 .remove-card-btn:hover {
   transform: scale(1.1);
-  background: #ff2d1f;
-}
-
-.move-buttons {
-  display: flex;
-  gap: 6px;
 }
 
 .move-btn {
@@ -927,16 +1046,13 @@
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  transition: all 0.2s var(--transition-spring);
+  transition: all 0.2s;
 }
 
 .move-btn:hover {
   background: var(--color-primary);
-  border-color: var(--color-primary);
-  transform: scale(1.05);
 }
 
-/* Mobile Remove Button */
 .mobile-remove-btn {
   position: absolute;
   top: -12px;
@@ -952,88 +1068,39 @@
   align-items: center;
   justify-content: center;
   z-index: 10;
-  transition: all 0.2s var(--transition-spring);
+  transition: all 0.2s;
   box-shadow: var(--shadow-md);
 }
 
-.mobile-remove-btn:hover {
-  transform: scale(1.15);
-  background: #ff2d1f;
+/* Panel Feature Indicator */
+.feature-card.panel-feature .feature-link {
+  color: var(--color-accent);
 }
 
-/* ============================================
-   ANIMATIONS & EFFECTS
-   ============================================ */
-@keyframes glowPulse {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(0, 122, 255, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(0, 122, 255, 0.5);
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-/* Loading Skeleton */
-.skeleton-card {
-  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 24px;
-  height: 300px;
+.mobile-feature-item .panel-indicator {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--color-accent);
+  color: white;
+  border-radius: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  z-index: 5;
 }
 
 /* ============================================
    RESPONSIVE DESIGN
    ============================================ */
-@media (min-width: 1024px) {
-  .mobile-features-grid {
-    display: none;
+@media (max-width: 1024px) {
+  .desktop-features {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
   
   .welcome-title {
-    font-size: 3.5rem;
-  }
-  
-  .feature-card-content {
-    padding: 36px;
-  }
-}
-
-@media (max-width: 1024px) and (min-width: 769px) {
-  .desktop-features {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 24px;
-  }
-  
-  .feature-card-content {
-    padding: 24px;
-  }
-  
-  .feature-icon-wrapper {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .feature-title {
-    font-size: 1.2rem;
+    font-size: 2.5rem;
   }
 }
 
@@ -1048,39 +1115,29 @@
   
   .welcome-description {
     font-size: 0.9rem;
-    padding: 0 20px;
   }
   
-  .section-title {
-    font-size: 1.6rem;
+  .activity-container {
+    margin: 0 16px;
   }
   
-  .main-features-section {
-    padding: 30px 0;
+  .activity-item {
+    flex-wrap: wrap;
+  }
+  
+  .activity-time {
+    width: 100%;
+    margin-left: 64px;
   }
   
   .tools-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
     padding: 0 16px;
-  }
-  
-  .tool-card {
-    padding: 20px;
-  }
-  
-  .advanced-tools-section {
-    padding: 50px 0;
   }
   
   .wallpaper-controls {
     bottom: 20px;
     right: 16px;
-  }
-  
-  .wallpaper-btn {
-    width: 36px;
-    height: 36px;
   }
 }
 
@@ -1089,7 +1146,6 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     padding: 16px;
-    margin: 16px;
   }
   
   .mobile-feature-icon {
@@ -1101,74 +1157,56 @@
     font-size: 28px;
   }
   
-  .mobile-feature-label {
-    font-size: 0.7rem;
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
 /* ============================================
-   PANEL FEATURE INDICATORS
+   ANIMATIONS
    ============================================ */
-.feature-card.panel-feature {
-  position: relative;
-  overflow: hidden;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.feature-card.panel-feature::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 0 60px 60px 0;
-  border-color: transparent var(--panel-accent) transparent transparent;
-  opacity: 0.15;
-  pointer-events: none;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.feature-card.panel-feature .feature-link {
-  color: var(--panel-accent);
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
 }
 
-.mobile-feature-item.panel-feature {
-  position: relative;
-}
-
-.mobile-feature-item .panel-indicator {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  font-size: 0.7rem;
-  padding: 0.15rem 0.4rem;
-  background: var(--panel-accent);
-  color: white;
-  border-radius: 12px;
-  font-weight: 600;
-  backdrop-filter: blur(4px);
-  box-shadow: var(--shadow-sm);
-  z-index: 5;
-}
-
-/* ============================================
-   SCROLLBAR STYLING - macOS Style
-   ============================================ */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-bg-tertiary);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--color-primary);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--color-primary-hover);
 }
