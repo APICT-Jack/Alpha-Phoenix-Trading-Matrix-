@@ -1,4 +1,4 @@
-// server.js - COMPLETE UNIFIED SERVER WITH CHAT SOCKET HANDLERS
+// server.js - COMPLETE FIXED VERSION (NO DUPLICATES)
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
@@ -37,12 +37,9 @@ const __dirname = path.dirname(__filename);
 
 // Create HTTP server
 const httpServer = createServer(app);
-const io = initializeSockets(httpServer);
 
-// Make io available to routes
-app.set('io', io);
 // ============================================
-// SOCKET.IO CONFIGURATION
+// SOCKET.IO CONFIGURATION - SINGLE INSTANCE
 // ============================================
 const io = new Server(httpServer, {
   cors: {
@@ -56,6 +53,7 @@ const io = new Server(httpServer, {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.log('❌ CORS blocked:', origin);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -68,96 +66,158 @@ const io = new Server(httpServer, {
 // Store online users
 const onlineUsers = new Map();
 
-// Socket middleware for authentication
+// ============================================
+// FIXED AUTHENTICATION MIDDLEWARE
+// ============================================
 io.use(async (socket, next) => {
   try {
-    const token = socket.handshake.auth.token || socket.handshake.query.token;
+    // Try multiple sources for token
+    let token = socket.handshake.auth?.token;
+    
+    if (!token && socket.handshake.query?.token) {
+      token = socket.handshake.query.token;
+    }
+    
+    if (!token && socket.handshake.headers?.authorization) {
+      token = socket.handshake.headers.authorization.replace('Bearer ', '');
+    }
+    
+    console.log('🔐 Socket auth - Token present:', !!token);
+    
     if (!token) {
-      return next(new Error('Authentication required'));
+      console.log('❌ No token provided');
+      return next(new Error('Authentication required: No token'));
     }
     
-    const jwt = await import('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+    // Verify JWT
+    let decoded;
+    try {
+      const jwt = await import('jsonwebtoken');
+      const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+      decoded = jwt.verify(token, JWT_SECRET);
+      console.log('✅ Token verified for user:', decoded.userId || decoded.id);
+    } catch (jwtError) {
+      console.error('❌ JWT verification failed:', jwtError.message);
+      return next(new Error('Authentication failed: Invalid token'));
+    }
     
-    const user = await User.findById(decoded.userId || decoded.id).select('_id name username avatar email isOnline');
+    const userId = decoded.userId || decoded.id;
+    if (!userId) {
+      return next(new Error('Authentication failed: No user ID in token'));
+    }
+    
+    // Get user from database
+    const user = await User.findById(userId).select('_id name username avatar email');
     if (!user) {
-      return next(new Error('User not found'));
+      console.log('❌ User not found:', userId);
+      return next(new Error('Authentication failed: User not found'));
     }
     
+    // Attach to socket
     socket.userId = user._id.toString();
-    socket.user = user;
+    socket.user = {
+      _id: user._id,
+      name: user.name,
+      username: user.username,
+      avatar: user.avatar
+    };
+    
+    console.log('✅ Socket authenticated:', socket.userId, user.name);
     next();
+    
   } catch (error) {
-    console.error('Socket auth error:', error.message);
-    next(new Error('Authentication failed'));
+    console.error('❌ Socket auth error:', error);
+    next(new Error('Authentication failed: ' + error.message));
   }
 });
 
-// Socket connection handler
+// ============================================
+// SOCKET CONNECTION HANDLER
+// ============================================
 io.on('connection', (socket) => {
-  console.log(`🔌 User connected: ${socket.userId} (${socket.user?.name || 'Unknown'})`);
+  const userId = socket.userId;
+  const userData = socket.user;
   
-  // Add to online users
-  onlineUsers.set(socket.userId, {
+  console.log(`🔌 Client connected: ${socket.id} - User: ${userId}`);
+  
+  if (!userId || !userData) {
+    console.log('❌ No user data, disconnecting');
+    socket.disconnect();
+    return;
+  }
+
+  // Update user online status
+  User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() })
+    .catch(err => console.error('Error updating online status:', err));
+
+  // Store online user
+  onlineUsers.set(userId, {
     socketId: socket.id,
-    userId: socket.userId,
-    name: socket.user?.name,
-    username: socket.user?.username,
-    avatar: socket.user?.avatar,
-    online: true,
-    lastSeen: new Date()
+    userData: {
+      _id: userId,
+      name: userData.name,
+      username: userData.username,
+      avatar: userData.avatar
+    },
+    connectedAt: new Date()
   });
-  
-  // Update user's online status in database
-  User.findByIdAndUpdate(socket.userId, { 
-    isOnline: true, 
-    lastSeen: new Date() 
-  }).catch(err => console.error('Error updating online status:', err));
-  
+
   // Join user's personal room
-  socket.join(`user:${socket.userId}`);
-  
-  // Broadcast online status to all users
+  socket.join(`user:${userId}`);
+
+  // Broadcast online status
   socket.broadcast.emit('user:online', {
-    userId: socket.userId,
-    name: socket.user?.name,
-    username: socket.user?.username,
-    avatar: socket.user?.avatar
+    userId,
+    userData: userData,
+    timestamp: new Date()
   });
-  
-  // Send current online users to new user
-  const onlineUsersList = Array.from(onlineUsers.values()).map(u => ({
-    userId: u.userId,
-    name: u.name,
-    username: u.username,
-    avatar: u.avatar,
-    online: u.online
-  }));
+
+  // Send current online users to new client
+  const onlineUsersList = {};
+  onlineUsers.forEach((data, id) => {
+    onlineUsersList[id] = {
+      online: true,
+      userData: data.userData
+    };
+  });
   socket.emit('users:online', onlineUsersList);
-  
+
+  console.log(`👤 User online: ${userId} (${userData.name}) - Total online: ${onlineUsers.size}`);
+
   // ============================================
   // CHAT SOCKET HANDLERS
   // ============================================
+  
+  // Join conversation room
+  socket.on('conversation:join', ({ conversationId }) => {
+    if (!conversationId || !userId) return;
+    socket.join(`conversation:${conversationId}`);
+    console.log(`User ${userId} joined conversation: ${conversationId}`);
+  });
+  
+  // Leave conversation room
+  socket.on('conversation:leave', ({ conversationId }) => {
+    if (!conversationId || !userId) return;
+    socket.leave(`conversation:${conversationId}`);
+    console.log(`User ${userId} left conversation: ${conversationId}`);
+  });
   
   // Send message via socket
   socket.on('message:send', async (data) => {
     try {
       const { receiverId, text, tempId, replyToId, chart, media } = data;
-      const senderId = socket.userId;
+      const senderId = userId;
       
-      console.log('📨 Socket message:send from', senderId, 'to', receiverId);
-      
-      // Get sender info
-      const sender = await User.findById(senderId).select('name username avatar');
-      if (!sender) {
-        socket.emit('message:error', { tempId, error: 'Sender not found' });
+      if (!receiverId) {
+        socket.emit('message:error', { tempId, error: 'Missing receiver' });
         return;
       }
       
-      // Check if receiver exists
-      const receiver = await User.findById(receiverId);
-      if (!receiver) {
-        socket.emit('message:error', { tempId, error: 'Receiver not found' });
+      console.log(`📨 Message from ${senderId} to ${receiverId}`);
+      
+      const sender = await User.findById(senderId).select('name username avatar');
+      if (!sender) {
+        socket.emit('message:error', { tempId, error: 'Sender not found' });
         return;
       }
       
@@ -178,7 +238,7 @@ io.on('connection', (socket) => {
         await conversation.save();
       }
       
-      // Handle reply to message
+      // Handle reply
       let replyToMessage = null;
       if (replyToId) {
         const originalMessage = await Message.findById(replyToId);
@@ -200,7 +260,7 @@ io.on('connection', (socket) => {
         conversationId: conversation._id,
         text: text || '',
         media: media || [],
-        type: chart ? 'chart' : (media?.length > 0 ? (media.length === 1 ? media[0].type : 'mixed') : 'text'),
+        type: chart ? 'chart' : (media?.length > 0 ? 'mixed' : 'text'),
         status: 'sent',
         replyTo: replyToId || null,
         replyToMessage: replyToMessage
@@ -208,7 +268,7 @@ io.on('connection', (socket) => {
       
       await message.save();
       
-      // Format message for sending
+      // Format message
       const formattedMessage = {
         _id: message._id,
         tempId: tempId || message._id,
@@ -245,32 +305,10 @@ io.on('connection', (socket) => {
       // Send to receiver
       io.to(`user:${receiverId}`).emit('message:receive', formattedMessage);
       
-      // Send confirmation back to sender
+      // Send confirmation to sender
       socket.emit('message:sent', formattedMessage);
       
-      // Send conversation updates
-      const senderConversationData = {
-        id: conversation._id,
-        lastMessage: conversation.lastMessageText,
-        lastMessageTime: conversation.lastMessageTime,
-        unreadCount: 0
-      };
-      
-      const receiverConversationData = {
-        id: conversation._id,
-        lastMessage: conversation.lastMessageText,
-        lastMessageTime: conversation.lastMessageTime,
-        unreadCount: receiverUnread + 1,
-        userId: senderId,
-        userName: sender.name,
-        userAvatar: sender.avatar,
-        userUsername: sender.username
-      };
-      
-      io.to(`user:${senderId}`).emit('conversation:update', senderConversationData);
-      io.to(`user:${receiverId}`).emit('conversation:update', receiverConversationData);
-      
-      console.log(`✅ Message sent from ${senderId} to ${receiverId}`);
+      console.log(`✅ Message sent: ${message._id}`);
       
     } catch (error) {
       console.error('Socket message error:', error);
@@ -279,72 +317,50 @@ io.on('connection', (socket) => {
   });
   
   // Edit message
-  socket.on('message:edit', async (data) => {
+  socket.on('message:edit', async ({ messageId, text }) => {
+    if (!messageId || !userId) return;
+    
     try {
-      const { messageId, text, chart } = data;
-      const userId = socket.userId;
-      
-      const message = await Message.findOne({
-        _id: messageId,
-        senderId: userId
-      });
-      
+      const message = await Message.findOne({ _id: messageId, senderId: userId });
       if (!message) {
-        socket.emit('message:error', { error: 'Message not found or cannot edit' });
+        socket.emit('message:error', { error: 'Message not found' });
         return;
       }
       
-      // Save edit history
       message.editHistory.push({
         text: message.text,
         media: message.media,
         editedAt: new Date()
       });
       
-      if (text !== undefined) message.text = text;
+      message.text = text;
       message.isEdited = true;
-      message.updatedAt = new Date();
-      
       await message.save();
       
-      // Broadcast edit to both users
-      io.to(`user:${message.senderId}`).emit('message:updated', {
+      const editData = {
         messageId: message._id,
         text: message.text,
-        media: message.media,
         isEdited: true,
         updatedAt: message.updatedAt
-      });
+      };
       
-      io.to(`user:${message.receiverId}`).emit('message:updated', {
-        messageId: message._id,
-        text: message.text,
-        media: message.media,
-        isEdited: true,
-        updatedAt: message.updatedAt
-      });
+      io.to(`user:${message.senderId}`).emit('message:updated', editData);
+      io.to(`user:${message.receiverId}`).emit('message:updated', editData);
       
     } catch (error) {
-      console.error('Socket edit error:', error);
-      socket.emit('message:error', { error: error.message });
+      console.error('Error editing message:', error);
     }
   });
   
   // Delete message
-  socket.on('message:delete', async (data) => {
+  socket.on('message:delete', async ({ messageId, deleteForEveryone }) => {
+    if (!messageId || !userId) return;
+    
     try {
-      const { messageId, deleteForEveryone } = data;
-      const userId = socket.userId;
-      
       const message = await Message.findById(messageId);
+      if (!message) return;
       
-      if (!message) {
-        socket.emit('message:error', { error: 'Message not found' });
-        return;
-      }
-      
-      if (deleteForEveryone && message.senderId.toString() === userId.toString()) {
-        // Delete for everyone
+      if (deleteForEveryone && message.senderId.toString() === userId) {
         await Message.findByIdAndDelete(messageId);
         
         io.to(`user:${message.senderId}`).emit('message:deleted', {
@@ -359,9 +375,7 @@ io.on('connection', (socket) => {
           deletedForEveryone: true
         });
       } else {
-        // Delete for me only
         message.deletedFor.push(userId);
-        
         if (message.deletedFor.length === 2) {
           await Message.findByIdAndDelete(messageId);
         } else {
@@ -374,48 +388,31 @@ io.on('connection', (socket) => {
           deletedForMe: true
         });
       }
-      
     } catch (error) {
-      console.error('Socket delete error:', error);
-      socket.emit('message:error', { error: error.message });
+      console.error('Error deleting message:', error);
     }
   });
   
   // React to message
-  socket.on('message:react', async (data) => {
+  socket.on('message:react', async ({ messageId, reaction }) => {
+    if (!messageId || !reaction || !userId) return;
+    
     try {
-      const { messageId, reaction } = data;
-      const userId = socket.userId;
-      
       const message = await Message.findById(messageId);
+      if (!message) return;
       
-      if (!message) {
-        socket.emit('message:error', { error: 'Message not found' });
-        return;
-      }
-      
-      // Check if user already reacted with this emoji
-      const existingReactionIndex = message.reactions.findIndex(
-        r => r.userId.toString() === userId.toString() && r.emoji === reaction
+      const existingIndex = message.reactions.findIndex(
+        r => r.userId.toString() === userId && r.emoji === reaction
       );
       
-      if (existingReactionIndex !== -1) {
-        message.reactions.splice(existingReactionIndex, 1);
+      if (existingIndex !== -1) {
+        message.reactions.splice(existingIndex, 1);
       } else {
-        // Remove any existing reaction from this user
-        message.reactions = message.reactions.filter(
-          r => r.userId.toString() !== userId.toString()
-        );
-        message.reactions.push({
-          userId,
-          emoji: reaction,
-          createdAt: new Date()
-        });
+        message.reactions = message.reactions.filter(r => r.userId.toString() !== userId);
+        message.reactions.push({ userId, emoji: reaction, createdAt: new Date() });
       }
       
       await message.save();
-      
-      // Populate user info
       await message.populate('reactions.userId', 'name username avatar');
       
       const reactionData = {
@@ -428,123 +425,80 @@ io.on('connection', (socket) => {
         }))
       };
       
-      // Broadcast to both users
       io.to(`user:${message.senderId}`).emit('message:reaction', reactionData);
       io.to(`user:${message.receiverId}`).emit('message:reaction', reactionData);
       
     } catch (error) {
-      console.error('Socket reaction error:', error);
-      socket.emit('message:error', { error: error.message });
+      console.error('Error reacting to message:', error);
     }
   });
   
   // Typing indicators
-  socket.on('typing:start', (data) => {
-    const { receiverId, conversationId } = data;
-    socket.to(`user:${receiverId}`).emit('typing:start', {
-      conversationId,
-      userId: socket.userId,
-      username: socket.user?.name || 'User'
+  socket.on('typing:start', ({ receiverId }) => {
+    if (!receiverId || !userId) return;
+    io.to(`user:${receiverId}`).emit('typing:start', {
+      userId,
+      username: userData?.name || 'User'
     });
   });
   
-  socket.on('typing:stop', (data) => {
-    const { receiverId, conversationId } = data;
-    socket.to(`user:${receiverId}`).emit('typing:stop', {
-      conversationId,
-      userId: socket.userId
-    });
+  socket.on('typing:stop', ({ receiverId }) => {
+    if (!receiverId || !userId) return;
+    io.to(`user:${receiverId}`).emit('typing:stop', { userId });
   });
   
   // Mark messages as read
-  socket.on('messages:read', async (data) => {
+  socket.on('messages:read', async ({ conversationId, senderId }) => {
+    if (!conversationId || !senderId || !userId) return;
+    
     try {
-      const { conversationId, senderId } = data;
-      const readerId = socket.userId;
-      
       const result = await Message.updateMany(
-        {
-          conversationId,
-          senderId: senderId,
-          receiverId: readerId,
-          status: { $in: ['sent', 'delivered'] }
-        },
-        {
-          $set: {
-            status: 'read',
-            readAt: new Date()
-          }
-        }
+        { senderId, receiverId: userId, status: { $ne: 'read' } },
+        { status: 'read', readAt: new Date() }
       );
       
       if (result.modifiedCount > 0) {
+        const conversation = await Conversation.findById(conversationId);
+        if (conversation) {
+          conversation.unreadCounts.set(userId.toString(), 0);
+          await conversation.save();
+        }
+        
         io.to(`user:${senderId}`).emit('messages:read', {
           conversationId,
-          readerId,
-          readAt: new Date()
+          readerId: userId,
+          count: result.modifiedCount
         });
       }
-      
-      // Update conversation unread count
-      const conversation = await Conversation.findById(conversationId);
-      if (conversation) {
-        conversation.unreadCounts.set(readerId.toString(), 0);
-        await conversation.save();
-      }
-      
     } catch (error) {
-      console.error('Socket read error:', error);
+      console.error('Error marking messages as read:', error);
     }
   });
   
-  // Join conversation room
-  socket.on('conversation:join', (data) => {
-    const { conversationId } = data;
-    socket.join(`conversation:${conversationId}`);
-    console.log(`User ${socket.userId} joined conversation:${conversationId}`);
-  });
-  
-  // Leave conversation room
-  socket.on('conversation:leave', (data) => {
-    const { conversationId } = data;
-    socket.leave(`conversation:${conversationId}`);
-    console.log(`User ${socket.userId} left conversation:${conversationId}`);
-  });
-  
-  // ============================================
-  // POST REACTIONS (for real-time post updates)
-  // ============================================
-  
-  socket.on('post:like', (data) => {
-    const { postId, userId, postOwnerId } = data;
-    io.to(`user:${postOwnerId}`).emit('post:liked', { postId, userId });
-  });
-  
-  socket.on('post:comment', (data) => {
-    const { postId, postOwnerId, comment } = data;
-    io.to(`user:${postOwnerId}`).emit('post:commented', { postId, comment });
-  });
-  
-  // ============================================
-  // DISCONNECT HANDLER
-  // ============================================
-  
-  socket.on('disconnect', async () => {
-    console.log(`🔌 User disconnected: ${socket.userId}`);
-    
-    onlineUsers.delete(socket.userId);
-    
-    // Update user's online status in database
-    await User.findByIdAndUpdate(socket.userId, {
-      isOnline: false,
-      lastSeen: new Date()
-    }).catch(err => console.error('Error updating offline status:', err));
-    
-    // Broadcast offline status
-    socket.broadcast.emit('user:offline', {
-      userId: socket.userId,
-      lastSeen: new Date()
+  // Get online users
+  socket.on('get-online-users', () => {
+    const onlineUsersList = {};
+    onlineUsers.forEach((data, id) => {
+      onlineUsersList[id] = { online: true, userData: data.userData };
     });
+    socket.emit('users:online', onlineUsersList);
+  });
+  
+  // Disconnect
+  socket.on('disconnect', async () => {
+    console.log(`🔌 Client disconnected: ${socket.id} - User: ${userId}`);
+    
+    if (userId) {
+      onlineUsers.delete(userId);
+      
+      await User.findByIdAndUpdate(userId, {
+        isOnline: false,
+        lastSeen: new Date()
+      }).catch(err => console.error('Error updating offline status:', err));
+      
+      io.emit('user:offline', { userId, timestamp: new Date() });
+      console.log(`👤 User offline: ${userId}`);
+    }
   });
 });
 
@@ -734,289 +688,6 @@ app.get("/api/debug/env", (req, res) => {
   });
 });
 
-// Debug endpoint for checking posts
-app.get('/api/debug/check-posts/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const Post = (await import('./models/Post.js')).default;
-    
-    const allPosts = await Post.find({ userId });
-    
-    res.json({
-      success: true,
-      userId,
-      allPostsCount: allPosts.length,
-      firstFewPosts: allPosts.slice(0, 3).map(p => ({
-        id: p._id,
-        userId: p.userId,
-        content: p.content?.substring(0, 50),
-        createdAt: p.createdAt
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Debug endpoint for posts
-app.get('/api/debug/posts/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const Post = (await import('./models/Post.js')).default;
-    
-    const posts = await Post.find({ userId })
-      .sort({ createdAt: -1 })
-      .populate('userId', 'name username avatar isVerified')
-      .populate('mentions', 'name username avatar')
-      .populate({
-        path: 'repostOf',
-        populate: { path: 'userId', select: 'name username avatar isVerified' }
-      })
-      .limit(50);
-    
-    res.json({
-      success: true,
-      userId,
-      postsCount: posts.length,
-      posts
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Debug endpoint for post by ID
-app.get('/api/debug/post/:postId', async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const Post = (await import('./models/Post.js')).default;
-    
-    const post = await Post.findById(postId)
-      .populate('userId', 'name username avatar isVerified')
-      .populate('mentions', 'name username avatar')
-      .populate({
-        path: 'repostOf',
-        populate: { path: 'userId', select: 'name username avatar isVerified' }
-      });
-    
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      post
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Debug endpoint for trending hashtags
-app.get('/api/debug/hashtags/trending', async (req, res) => {
-  try {
-    const Post = (await import('./models/Post.js')).default;
-    const trending = await Post.getTrendingHashtags(10);
-    
-    res.json({
-      success: true,
-      trending
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Debug endpoint for feed
-app.get('/api/debug/feed/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { limit = 20 } = req.query;
-    const Post = (await import('./models/Post.js')).default;
-    const UserProfile = (await import('./models/UserProfile.js')).default;
-    
-    const userProfile = await UserProfile.findOne({ userId });
-    const followingIds = userProfile?.following || [];
-    
-    const posts = await Post.find({
-      $or: [
-        { userId: { $in: [userId, ...followingIds] } },
-        { visibility: 'public' }
-      ]
-    })
-      .populate('userId', 'name username avatar isVerified')
-      .populate('mentions', 'name username avatar')
-      .populate({
-        path: 'repostOf',
-        populate: { path: 'userId', select: 'name username avatar isVerified' }
-      })
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit));
-    
-    res.json({
-      success: true,
-      userId,
-      following: followingIds.length,
-      postsCount: posts.length,
-      posts
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Debug endpoint for avatars
-app.get('/api/debug/avatars', async (req, res) => {
-  try {
-    const avatarsDir = path.join(__dirname, 'uploads', 'avatars');
-    
-    if (!fs.existsSync(avatarsDir)) {
-      return res.json({
-        success: false,
-        message: 'Avatars directory does not exist',
-        avatarsDir
-      });
-    }
-    
-    const files = fs.readdirSync(avatarsDir);
-    
-    const avatarInfo = files.map(filename => {
-      const filePath = path.join(avatarsDir, filename);
-      const stats = fs.statSync(filePath);
-      return {
-        filename,
-        path: `/uploads/avatars/${filename}`,
-        fullUrl: `http://localhost:${PORT}/uploads/avatars/${filename}`,
-        size: stats.size,
-        created: stats.birthtime
-      };
-    });
-    
-    res.json({
-      success: true,
-      avatarsDir,
-      files: avatarInfo,
-      totalFiles: files.length
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Debug endpoint for banners
-app.get('/api/debug/banners', async (req, res) => {
-  try {
-    const bannersDir = path.join(__dirname, 'uploads', 'banners');
-    
-    if (!fs.existsSync(bannersDir)) {
-      return res.json({
-        success: false,
-        message: 'Banners directory does not exist',
-        bannersDir
-      });
-    }
-    
-    const files = fs.readdirSync(bannersDir);
-    
-    const bannerInfo = files.map(filename => {
-      const filePath = path.join(bannersDir, filename);
-      const stats = fs.statSync(filePath);
-      return {
-        filename,
-        path: `/uploads/banners/${filename}`,
-        fullUrl: `http://localhost:${PORT}/uploads/banners/${filename}`,
-        size: stats.size,
-        created: stats.birthtime
-      };
-    });
-    
-    res.json({
-      success: true,
-      bannersDir,
-      files: bannerInfo,
-      totalFiles: files.length
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Test notification endpoint
-app.post('/api/test/notification', async (req, res) => {
-  try {
-    const { userId, type, content } = req.body;
-    
-    const notification = {
-      _id: Date.now().toString(),
-      type: type || 'test',
-      content: content || 'Test notification',
-      senderId: 'system',
-      createdAt: new Date(),
-      read: false
-    };
-    
-    io.to(`user:${userId}`).emit('notification', notification);
-    
-    res.json({
-      success: true,
-      message: 'Test notification sent',
-      notification
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Test typing indicator
-app.post('/api/test/typing', async (req, res) => {
-  try {
-    const { postId, userId, username, commentId } = req.body;
-    
-    io.to(`post:${postId}`).emit('user-typing', {
-      userId,
-      username: username || 'Test User',
-      commentId: commentId || 'new'
-    });
-    
-    res.json({
-      success: true,
-      message: 'Typing indicator sent'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
 // Debug user data endpoint
 app.get("/api/debug/user-data", async (req, res) => {
   try {
@@ -1149,10 +820,6 @@ app.get("/api/debug/routes", (req, res) => {
         "GET  /api/debug/user-data",
         "GET  /api/debug/avatars",
         "GET  /api/debug/banners",
-        "GET  /api/debug/posts/:userId",
-        "GET  /api/debug/post/:postId",
-        "GET  /api/debug/hashtags/trending",
-        "GET  /api/debug/feed/:userId",
         "POST /api/test/notification",
         "POST /api/test/typing"
       ]
@@ -1178,36 +845,6 @@ app.get("/api/debug/routes", (req, res) => {
       },
       email: process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured",
       jwt: process.env.JWT_SECRET ? "✅ Configured" : "❌ Using fallback"
-    }
-  });
-});
-
-// Google OAuth test endpoint
-app.get("/api/debug/google-test", (req, res) => {
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    return res.json({ 
-      success: false,
-      error: "GOOGLE_CLIENT_ID not set in environment variables" 
-    });
-  }
-  
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-    `client_id=${process.env.GOOGLE_CLIENT_ID}` +
-    `&redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback')}` +
-    `&response_type=code` +
-    `&scope=profile%20email` +
-    `&access_type=offline` +
-    `&prompt=consent`;
-
-  res.json({
-    success: true,
-    message: "Google OAuth Configuration Test",
-    authUrl: authUrl,
-    directLink: `/api/auth/google`,
-    configuration: {
-      clientId: process.env.GOOGLE_CLIENT_ID ? "✅ Configured" : "❌ Missing",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ? "✅ Configured" : "❌ Missing",
-      redirectUri: process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/auth/google/callback"
     }
   });
 });
@@ -1282,7 +919,6 @@ httpServer.listen(PORT, () => {
   console.log(`📍 Local URL: http://localhost:${PORT}`);
   console.log(`🌐 Environment: ${NODE_ENV}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
-  console.log(`🔗 Cleaned Frontend URL: ${cleanEnvUrl(FRONTEND_URL)}`);
   console.log(`🔌 Socket.io: Enabled`);
   console.log(`\n📡 API ENDPOINTS:`);
   console.log(`   🔐 Auth:      http://localhost:${PORT}/api/auth`);
@@ -1305,7 +941,7 @@ httpServer.listen(PORT, () => {
   console.log(`   🔗 Google:    ${process.env.GOOGLE_CLIENT_ID ? '✅ Configured' : '❌ Not configured'}`);
   console.log(`   ☁️ Cloudinary: ${process.env.CLOUDINARY_CLOUD_NAME ? '✅ Configured' : '❌ Not configured'}`);
   console.log(`   🗄️  Database:  ✅ Connected`);
-  console.log(`   🔌 Socket:    ✅ Enabled (${onlineUsers.size} online users)`);
+  console.log(`   🔌 Socket:    ✅ Enabled`);
   console.log(`\n✨ REAL-TIME FEATURES:`);
   console.log(`   📝 Posts:     ✅ Live updates`);
   console.log(`   💬 Comments:  ✅ Real-time`);
