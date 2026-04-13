@@ -1,4 +1,4 @@
-// services/chatService.js - COMPLETE FIXED VERSION
+// services/chatService.js - COMPLETE FIXED VERSION (No duplicates)
 import { io } from 'socket.io-client';
 
 class ChatService {
@@ -32,13 +32,16 @@ class ChatService {
   connect(callbacks) {
     const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}`;
     
+    console.log('🔌 Connecting to socket:', SOCKET_URL);
+    
     this.socket = io(SOCKET_URL, {
       auth: { token: localStorage.getItem('token') },
-      query: { userId: this.currentUser?.id },
+      query: { userId: this.currentUser?.id || this.currentUser?._id },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 10,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
+      timeout: 10000
     });
 
     this.socket.on('connect', () => {
@@ -49,8 +52,14 @@ class ChatService {
       callbacks.onConnect?.();
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+    this.socket.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error);
+      this.emitConnectionChange(false);
+      callbacks.onConnectError?.(error);
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('❌ Socket disconnected:', reason);
       this.emitConnectionChange(false);
       callbacks.onDisconnect?.();
     });
@@ -58,6 +67,11 @@ class ChatService {
     this.socket.on('reconnect', (attemptNumber) => {
       console.log(`🔄 Socket reconnected after ${attemptNumber} attempts`);
       this.retryPendingMessages();
+      callbacks.onReconnect?.();
+    });
+
+    this.socket.on('reconnect_error', (error) => {
+      console.error('❌ Socket reconnection error:', error);
     });
 
     this.socket.on('message:receive', (message) => {
@@ -96,10 +110,17 @@ class ChatService {
 
     this.socket.on('message:updated', (data) => {
       this.listeners.messageUpdated.forEach(cb => cb(data));
+      callbacks.onMessageUpdated?.(data);
     });
 
     this.socket.on('message:deleted', (data) => {
       this.listeners.messageDeleted.forEach(cb => cb(data));
+      callbacks.onMessageDeleted?.(data);
+    });
+
+    this.socket.on('message:reaction', (data) => {
+      this.listeners.messageReaction?.forEach(cb => cb(data));
+      callbacks.onMessageReaction?.(data);
     });
 
     this.socket.on('messages:read', (data) => {
@@ -130,15 +151,23 @@ class ChatService {
     });
 
     this.socket.on('users:online', (users) => {
+      const onlineMap = {};
       Object.entries(users).forEach(([id, status]) => {
-        this.onlineUsers.set(id, status.online);
+        const isOnline = typeof status === 'boolean' ? status : status?.online || false;
+        this.onlineUsers.set(id, isOnline);
+        onlineMap[id] = isOnline;
       });
-      callbacks.onOnlineUsers?.(users);
+      callbacks.onOnlineUsers?.(onlineMap);
     });
 
     this.socket.on('conversation:update', (data) => {
       this.listeners.conversationUpdate.forEach(cb => cb(data));
       callbacks.onConversationUpdate?.(data);
+    });
+
+    this.socket.on('message:error', (data) => {
+      console.error('❌ Message error:', data);
+      callbacks.onMessageError?.(data);
     });
 
     if (this.socket.connected) {
@@ -179,6 +208,17 @@ class ChatService {
 
   offMessageDeleted(callback) {
     this.listeners.messageDeleted = this.listeners.messageDeleted.filter(cb => cb !== callback);
+  }
+
+  onMessageReaction(callback) {
+    if (!this.listeners.messageReaction) this.listeners.messageReaction = [];
+    this.listeners.messageReaction.push(callback);
+  }
+
+  offMessageReaction(callback) {
+    if (this.listeners.messageReaction) {
+      this.listeners.messageReaction = this.listeners.messageReaction.filter(cb => cb !== callback);
+    }
   }
 
   onMessagesRead(callback) {
@@ -319,45 +359,173 @@ class ChatService {
     return this.onlineUsers.get(userId) || false;
   }
 
-  // API calls
+  // ============================================
+  // REST API CALLS
+  // ============================================
 
-  async sendMessageWithMedia(receiverId, text, files, chartData = null) {
-    const formData = new FormData();
-    formData.append('receiverId', receiverId);
-    if (text && text.trim()) {
-      formData.append('text', text);
-    }
-    if (chartData) {
-      formData.append('chart', JSON.stringify(chartData));
-    }
-    
-    // Append all files
-    if (files && files.length > 0) {
-      files.forEach(file => {
-        formData.append('media', file);
+  async getConversations() {
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const url = `${API_BASE}/api/chat/conversations`;
+      
+      console.log('📡 Fetching conversations from:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
       });
+      
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', response.status, errorText);
+        throw new Error(`Failed to fetch conversations: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('📡 API Response:', data);
+      
+      // Handle different response structures
+      if (data.success && Array.isArray(data.conversations)) {
+        return data.conversations;
+      }
+      
+      if (Array.isArray(data)) {
+        return data;
+      }
+      
+      if (data.conversations && Array.isArray(data.conversations)) {
+        return data.conversations;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('❌ Error in getConversations:', error);
+      throw error;
     }
-    
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to send message');
-    }
-    
-    return await response.json();
   }
 
-  // Also add markMessagesAsRead method if missing
-  async markMessagesAsRead(conversationId, senderId) {
+  async getOrCreateConversation(userId) {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/conversations/${conversationId}/read`, {
+      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const url = `${API_BASE}/api/chat/conversation/${userId}`;
+      
+      console.log('📡 Creating/getting conversation:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create conversation');
+      }
+      
+      const data = await response.json();
+      console.log('📡 Conversation response:', data);
+      
+      return {
+        id: data.conversation.id || data.conversation._id,
+        _id: data.conversation._id || data.conversation.id,
+        userId: data.conversation.userId,
+        userName: data.conversation.userName || 'User',
+        userAvatar: data.conversation.userAvatar || null,
+        userUsername: data.conversation.userUsername || '',
+        lastMessage: data.conversation.lastMessage || '',
+        lastMessageTime: data.conversation.lastMessageTime || new Date().toISOString(),
+        unreadCount: data.conversation.unreadCount || 0
+      };
+    } catch (error) {
+      console.error('❌ Error in getOrCreateConversation:', error);
+      throw error;
+    }
+  }
+
+  async getMessages(conversationId, page = 1, limit = 50) {
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const url = `${API_BASE}/api/chat/messages/${conversationId}?page=${page}&limit=${limit}`;
+      
+      console.log('📡 Fetching messages:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch messages: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('📡 Messages response:', data.messages?.length || 0, 'messages');
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Error in getMessages:', error);
+      throw error;
+    }
+  }
+
+  async sendMessageWithMedia(receiverId, text, files, chartData = null) {
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const formData = new FormData();
+      formData.append('receiverId', receiverId);
+      
+      if (text && text.trim()) {
+        formData.append('text', text);
+      }
+      
+      if (chartData) {
+        formData.append('chart', JSON.stringify(chartData));
+      }
+      
+      // Append all files
+      if (files && files.length > 0) {
+        files.forEach(file => {
+          formData.append('media', file);
+        });
+      }
+      
+      console.log('📡 Sending message with media, files:', files?.length || 0);
+      
+      const response = await fetch(`${API_BASE}/api/chat/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to send message');
+      }
+      
+      const data = await response.json();
+      console.log('✅ Message sent successfully:', data.message?._id);
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Error in sendMessageWithMedia:', error);
+      throw error;
+    }
+  }
+
+  async markMessagesAsReadRest(conversationId, senderId) {
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE}/api/chat/conversations/${conversationId}/read`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -376,71 +544,13 @@ class ChatService {
       throw error;
     }
   }
-  async getConversations() {
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/conversations`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    
-    if (!response.ok) throw new Error('Failed to fetch conversations');
-    const data = await response.json();
-    return data.conversations || [];
-  }
-
-  async getOrCreateConversation(userId) {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/conversation/${userId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create conversation');
-      }
-      
-      const data = await response.json();
-      
-      return {
-        id: data.conversation.id || data.conversation._id,
-        _id: data.conversation._id || data.conversation.id,
-        userId: data.conversation.userId,
-        userName: data.conversation.userName || 'User',
-        userAvatar: data.conversation.userAvatar || null,
-        userUsername: data.conversation.userUsername || '',
-        lastMessage: data.conversation.lastMessage || '',
-        lastMessageTime: data.conversation.lastMessageTime || new Date().toISOString(),
-        unreadCount: 0
-      };
-    } catch (error) {
-      console.error('Error in getOrCreateConversation:', error);
-      throw error;
-    }
-  }
-
-  async getMessages(conversationId, page = 1, limit = 50) {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/messages/${conversationId}?page=${page}&limit=${limit}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      }
-    );
-    
-    if (!response.ok) throw new Error('Failed to fetch messages');
-    return await response.json();
-  }
 
   async searchUsers(query) {
     try {
+      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
       const url = query 
-        ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/search/users?q=${encodeURIComponent(query)}`
-        : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/search/users?q=`;
+        ? `${API_BASE}/api/chat/search/users?q=${encodeURIComponent(query)}`
+        : `${API_BASE}/api/chat/search/users`;
         
       const response = await fetch(url, {
         headers: {
@@ -467,40 +577,6 @@ class ChatService {
       console.error('Error in searchUsers:', error);
       return [];
     }
-  }
-
-  // REST API send message with media
-  async sendMessageWithMedia(receiverId, text, files, chartData = null) {
-    const formData = new FormData();
-    formData.append('receiverId', receiverId);
-    if (text && text.trim()) {
-      formData.append('text', text);
-    }
-    if (chartData) {
-      formData.append('chart', JSON.stringify(chartData));
-    }
-    
-    // Append all files
-    if (files && files.length > 0) {
-      files.forEach(file => {
-        formData.append('media', file);
-      });
-    }
-    
-    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to send message');
-    }
-    
-    return await response.json();
   }
 
   disconnect() {
