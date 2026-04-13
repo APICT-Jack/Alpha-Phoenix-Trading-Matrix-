@@ -1,4 +1,4 @@
-// components/Chat/ChatConversation.jsx
+// components/Chat/ChatConversation.jsx - COMPLETE FIXED VERSION
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
@@ -38,20 +38,54 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const processedMessageIds = useRef(new Set());
+  const isMountedRef = useRef(true);
 
   const formattedUserAvatar = formatAvatarUrl(conversation.userAvatar);
   const formattedCurrentUserAvatar = formatAvatarUrl(currentUser?.avatar);
 
+  // Mark messages as read using REST API (not socket)
+  const markMessagesAsRead = useCallback(async () => {
+    if (!conversation?.id || !conversation?.userId) return;
+    
+    try {
+      console.log('📖 Marking messages as read for conversation:', conversation.id);
+      
+      // Use REST API to mark messages as read
+      const response = await fetch(`${BASE_URL}/api/chat/conversations/${conversation.id}/read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ senderId: conversation.userId })
+      });
+      
+      if (response.ok) {
+        console.log('✅ Messages marked as read successfully');
+        // Update local message statuses
+        setMessages(prev => prev.map(msg => 
+          msg.senderId === conversation.userId && msg.status !== 'read'
+            ? { ...msg, status: 'read' }
+            : msg
+        ));
+      }
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  }, [conversation?.id, conversation?.userId]);
+
   // Load messages
   useEffect(() => {
     if (!conversation?.id) return;
+
+    isMountedRef.current = true;
 
     const loadMessages = async () => {
       try {
         setLoading(true);
         processedMessageIds.current.clear();
         
-        const data = await chatService.getMessages(conversation.id, 1);
+        const data = await chatService.getMessages(conversation.id, 1, 50);
         console.log('📥 Loaded messages:', data);
         
         const messagesList = data.messages || [];
@@ -59,18 +93,22 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           if (msg._id) processedMessageIds.current.add(msg._id);
         });
         
-        setMessages(messagesList);
-        setHasMore(data.hasMore || false);
-        setPage(1);
+        if (isMountedRef.current) {
+          setMessages(messagesList);
+          setHasMore(data.hasMore || false);
+          setPage(1);
+        }
         
-        // Mark as read
-        chatService.markMessagesAsRead(conversation.id, conversation.userId);
+        // Mark messages as read after loading
+        await markMessagesAsRead();
         
-        scrollToBottom();
+        setTimeout(() => {
+          if (isMountedRef.current) scrollToBottom();
+        }, 200);
       } catch (error) {
         console.error('Error loading messages:', error);
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) setLoading(false);
       }
     };
 
@@ -78,10 +116,11 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     chatService.joinConversation(conversation.id);
 
     return () => {
+      isMountedRef.current = false;
       chatService.leaveConversation(conversation.id);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-  }, [conversation?.id]);
+  }, [conversation?.id, markMessagesAsRead]);
 
   // Handle real-time messages
   useEffect(() => {
@@ -120,10 +159,12 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       
       // Mark as read if from other user
       if (formattedMessage.senderId !== currentUser?.id) {
-        chatService.markMessagesAsRead(conversation.id, conversation.userId);
+        markMessagesAsRead();
       }
       
-      setTimeout(scrollToBottom, 100);
+      setTimeout(() => {
+        if (isMountedRef.current) scrollToBottom();
+      }, 100);
     };
 
     const handleMessageSent = (message) => {
@@ -157,7 +198,9 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         return updatedMessages;
       });
       
-      setTimeout(scrollToBottom, 100);
+      setTimeout(() => {
+        if (isMountedRef.current) scrollToBottom();
+      }, 100);
     };
 
     const handleMessageUpdated = (data) => {
@@ -169,6 +212,12 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     const handleMessageDeleted = (data) => {
       setMessages(prev => prev.filter(m => m._id !== data.messageId));
       processedMessageIds.current.delete(data.messageId);
+    };
+
+    const handleMessageReaction = (data) => {
+      setMessages(prev => 
+        prev.map(m => m._id === data.messageId ? { ...m, reactions: data.reactions } : m)
+      );
     };
 
     const handleMessagesRead = (data) => {
@@ -197,6 +246,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     chatService.onMessageSent(handleMessageSent);
     chatService.onMessageUpdated(handleMessageUpdated);
     chatService.onMessageDeleted(handleMessageDeleted);
+    chatService.onMessageReaction?.(handleMessageReaction);
     chatService.onMessagesRead(handleMessagesRead);
     chatService.onTypingStart(handleTypingStart);
     chatService.onTypingStop(handleTypingStop);
@@ -210,14 +260,14 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       chatService.offTypingStart(handleTypingStart);
       chatService.offTypingStop(handleTypingStop);
     };
-  }, [conversation.id, currentUser?.id]);
+  }, [conversation.id, conversation.userId, currentUser?.id, markMessagesAsRead]);
 
   const loadMoreMessages = async () => {
     if (!hasMore || loadingMore) return;
     
     try {
       setLoadingMore(true);
-      const data = await chatService.getMessages(conversation.id, page + 1);
+      const data = await chatService.getMessages(conversation.id, page + 1, 50);
       
       const messagesList = data.messages || [];
       messagesList.forEach(msg => {
@@ -235,10 +285,10 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   };
 
   const handleScroll = useCallback((e) => {
-    if (e.target.scrollTop === 0 && hasMore && !loadingMore) {
+    if (e.target.scrollTop === 0 && hasMore && !loadingMore && !loading) {
       loadMoreMessages();
     }
-  }, [hasMore, loadingMore]);
+  }, [hasMore, loadingMore, loading]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -247,7 +297,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   };
 
   const handleSendMessage = async (text, attachments = [], chart = null) => {
-    if ((!text?.trim() && attachments.length === 0 && !chart) || loading) return;
+    if ((!text?.trim() && attachments.length === 0 && !chart)) return;
 
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
@@ -302,110 +352,157 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     const replyToId = replyTo?._id;
     setReplyTo(null);
 
-    // Send via socket
-    const messageData = {
-      conversationId: conversation.id,
-      receiverId: conversation.userId,
-      text: text?.trim() || '',
-      media: media,
-      chart: chart,
-      replyTo: replyToId,
-      tempId
-    };
-    
-    const sent = chatService.sendMessage(messageData);
-    
-    if (!sent) {
-      // Fallback to REST API
-      try {
-        const formData = new FormData();
-        formData.append('receiverId', conversation.userId);
-        formData.append('text', text?.trim() || '');
-        
-        attachments.forEach(file => {
-          if (file.file) {
-            formData.append('media', file.file);
-          }
-        });
-        
-        if (chart) {
-          formData.append('chart', JSON.stringify(chart));
+    // Send via REST API (more reliable than socket for media)
+    try {
+      const formData = new FormData();
+      formData.append('receiverId', conversation.userId);
+      formData.append('text', text?.trim() || '');
+      
+      attachments.forEach(att => {
+        if (att.file) {
+          formData.append('media', att.file);
         }
-        if (replyToId) {
-          formData.append('replyToId', replyToId);
-        }
-        
-        const response = await fetch(`${API_URL}/chat/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: formData
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const newMsg = data.message;
-          
-          setMessages(prev => prev.map(m => {
-            if (m._id === tempId) {
-              processedMessageIds.current.add(newMsg._id);
-              return {
-                ...newMsg,
-                _id: newMsg._id,
-                sender: {
-                  _id: currentUser?.id,
-                  name: currentUser?.name,
-                  avatar: formattedCurrentUserAvatar
-                },
-                status: 'sent'
-              };
-            }
-            return m;
-          }));
-        } else {
-          throw new Error('Failed to send message');
-        }
-      } catch (error) {
-        console.error('Error sending message via REST:', error);
-        setMessages(prev => prev.filter(m => m._id !== tempId));
-        processedMessageIds.current.delete(tempId);
-        alert('Failed to send message. Please try again.');
+      });
+      
+      if (chart) {
+        formData.append('chart', JSON.stringify(chart));
       }
+      if (replyToId) {
+        formData.append('replyToId', replyToId);
+      }
+      
+      console.log('📤 Sending message via REST API');
+      
+      const response = await fetch(`${BASE_URL}/api/chat/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newMsg = data.message;
+        
+        setMessages(prev => prev.map(m => {
+          if (m._id === tempId) {
+            processedMessageIds.current.add(newMsg._id);
+            return {
+              ...newMsg,
+              _id: newMsg._id,
+              sender: {
+                _id: currentUser?.id,
+                name: currentUser?.name,
+                avatar: formattedCurrentUserAvatar
+              },
+              status: 'sent'
+            };
+          }
+          return m;
+        }));
+        
+        // Also try to send via socket for real-time to other user
+        chatService.sendMessage({
+          conversationId: conversation.id,
+          receiverId: conversation.userId,
+          text: text?.trim() || '',
+          media: media,
+          chart: chart,
+          replyTo: replyToId,
+          tempId
+        });
+      } else {
+        throw new Error('Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setMessages(prev => prev.filter(m => m._id !== tempId));
+      processedMessageIds.current.delete(tempId);
+      alert('Failed to send message. Please try again.');
     }
   };
 
   const handleEditMessage = async (message) => {
     const newText = prompt('Edit message:', message.text);
     if (newText && newText !== message.text) {
-      chatService.editMessage(message._id, newText);
-      // Optimistically update
-      setMessages(prev => 
-        prev.map(m => m._id === message._id ? { ...m, text: newText, isEdited: true } : m)
-      );
+      try {
+        const response = await fetch(`${BASE_URL}/api/chat/messages/${message._id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ text: newText })
+        });
+        
+        if (response.ok) {
+          setMessages(prev => 
+            prev.map(m => m._id === message._id ? { ...m, text: newText, isEdited: true } : m)
+          );
+        }
+      } catch (error) {
+        console.error('Error editing message:', error);
+      }
     }
     setEditingMessage(null);
   };
 
   const handleDeleteMessage = async (messageId) => {
-    chatService.deleteMessage(messageId, conversation.id, conversation.userId);
+    if (window.confirm('Delete this message?')) {
+      try {
+        const response = await fetch(`${BASE_URL}/api/chat/messages/${messageId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          setMessages(prev => prev.filter(m => m._id !== messageId));
+          processedMessageIds.current.delete(messageId);
+        }
+      } catch (error) {
+        console.error('Error deleting message:', error);
+      }
+    }
   };
 
   const handleReactToMessage = async (messageId, emoji) => {
-    chatService.reactToMessage(messageId, emoji);
+    try {
+      const response = await fetch(`${BASE_URL}/api/chat/messages/${messageId}/react`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ emoji })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(prev => 
+          prev.map(m => m._id === messageId ? { ...m, reactions: data.reactions } : m)
+        );
+      }
+    } catch (error) {
+      console.error('Error reacting to message:', error);
+    }
   };
 
   const handleForwardMessage = (message) => {
-    // Implement forward functionality
     const targetUserId = prompt('Enter user ID to forward to:');
     if (targetUserId) {
-      // You'll need to implement forward in chatService
+      // Implement forward functionality
       console.log('Forward message to:', targetUserId, message);
     }
   };
 
   const handleAttachmentClick = (attachment) => {
-    window.open(attachment.url, '_blank');
+    if (attachment.url) {
+      window.open(attachment.url, '_blank');
+    }
   };
 
   const handleTyping = (isTypingNow) => {
@@ -461,6 +558,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           <div 
             className={styles.userInfo}
             onClick={() => navigate(`/profile/${conversation.userId}`)}
+            style={{ cursor: 'pointer' }}
           >
             <div className={styles.avatar}>
               {formattedUserAvatar && !avatarError ? (
@@ -482,7 +580,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
             <div className={styles.userDetails}>
               <h3>{conversation.userName}</h3>
               <span className={styles.userStatus}>
-                {isTyping ? 'typing...' : online ? 'online' : 'offline'}
+                {isTyping ? 'typing...' : (online ? 'online' : 'offline')}
               </span>
             </div>
           </div>
@@ -510,6 +608,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         {loadingMore && (
           <div className={styles.loadingMore}>
             <div className={styles.spinner}></div>
+            <span>Loading older messages...</span>
           </div>
         )}
 
@@ -517,6 +616,11 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           <div className={styles.loadingMessages}>
             <div className={styles.spinner}></div>
             <p>Loading messages...</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className={styles.noMessages}>
+            <p>No messages yet</p>
+            <p className={styles.noMessagesSubtext}>Send a message to start the conversation</p>
           </div>
         ) : (
           <>

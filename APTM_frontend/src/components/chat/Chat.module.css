@@ -755,3 +755,222 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+/* Connection Status Bar */
+.connectionStatusBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.connectionStatusBar.connected {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+}
+
+.connectionStatusBar.connecting {
+  background: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+}
+
+.connectionStatusBar.timeout {
+  background: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+}
+
+.connectionStatusBar.disconnected {
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+}
+
+.socketErrorHint {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
+/* Unread Summary */
+.unreadSummary {
+  padding: 8px 16px;
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Loading Container */
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+  color: var(--text-secondary);
+}
+
+.loadingContainer small {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* Error Container */
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 20px;
+}
+
+.errorIcon {
+  font-size: 48px;
+  color: #f44336;
+}
+
+.retryButton {
+  padding: 8px 24px;
+  background: #007aff;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.retryButton:hover {
+  background: #0056b3;
+}
+
+/* Spinning animation */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Status Dot */
+.statusDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.statusDot.online {
+  background: #4caf50;
+  box-shadow: 0 0 4px #4caf50;
+}
+
+.statusDot.offline {
+  background: #ff9800;
+}
+
+/* Conversation List Container */
+.conversationsList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Empty State with Search */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.emptyIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.startChatButton {
+  margin-top: 16px;
+  padding: 8px 20px;
+  background: #007aff;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.startChatButton:hover {
+  background: #0056b3;
+}
+
+/* Welcome Screen */
+.welcomeScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--bg-primary);
+}
+
+.welcomeContent {
+  text-align: center;
+  padding: 40px;
+}
+
+.welcomeIcon {
+  font-size: 64px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.welcomeContent h2 {
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.welcomeContent p {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .sidebar.show {
+    transform: translateX(0);
+  }
+  
+  .sidebar.hide {
+    transform: translateX(-100%);
+  }
+  
+  .mainArea {
+    width: 100%;
+  }
+}
