@@ -1,4 +1,4 @@
-// Chat.jsx - FIXED VERSION with proper loading
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -58,7 +58,7 @@ const Chat = () => {
   useEffect(() => {
     if (!currentUser) return;
 
-    console.log('🔌 Initializing chat service', currentUser);
+    console.log('🔌 Initializing chat service');
     
     chatService.init(currentUser, {
       onConnect: () => {
@@ -98,11 +98,7 @@ const Chat = () => {
       },
       onOnlineUsers: (users) => {
         console.log('📊 Online users:', users);
-        const onlineMap = {};
-        Object.entries(users).forEach(([id, data]) => {
-          onlineMap[id] = data.online || data;
-        });
-        setOnlineUsers(onlineMap);
+        setOnlineUsers(users);
       }
     });
 
@@ -118,6 +114,7 @@ const Chat = () => {
       if (chat) {
         selectChat(chat);
       } else {
+        // If conversation doesn't exist yet, create it
         createChatFromUserId(chatId);
       }
     }
@@ -145,6 +142,7 @@ const Chat = () => {
     const seen = new Map();
     return convs.filter(conv => {
       if (seen.has(conv.userId)) {
+        // Keep the one with the most recent message
         const existing = seen.get(conv.userId);
         if (new Date(conv.lastMessageTime) > new Date(existing.lastMessageTime)) {
           seen.set(conv.userId, conv);
@@ -161,11 +159,10 @@ const Chat = () => {
   const loadConversations = async () => {
     try {
       setLoading(true);
-      console.log('📋 Loading conversations...');
       const data = await chatService.getConversations();
       console.log('📋 Loaded conversations:', data);
       
-      const conversationsWithStatus = (data || []).map(conv => ({
+      const conversationsWithStatus = data.map(conv => ({
         ...conv,
         online: onlineUsers[conv.userId] || false,
         unreadCount: conv.unreadCount || 0
@@ -212,43 +209,47 @@ const Chat = () => {
   };
 
   // Handle new message
-  const handleNewMessage = (message) => {
-    console.log('📨 New message in Chat:', message);
-    
-    // Update conversations list
-    setConversations(prev => {
-      let updated = false;
-      const newConvs = prev.map(conv => {
-        if (conv.id === message.conversationId) {
-          updated = true;
-          return {
-            ...conv,
-            lastMessage: message.text,
-            lastMessageTime: message.createdAt,
-            unreadCount: message.senderId !== currentUser?.id 
-              ? (conv.unreadCount || 0) + 1 
-              : conv.unreadCount
-          };
-        }
-        return conv;
-      });
-      
-      // If conversation doesn't exist yet, reload conversations
-      if (!updated && message.senderId !== currentUser?.id) {
-        setTimeout(() => loadConversations(), 500);
-      }
-      
-      return newConvs;
-    });
+  // In Chat.jsx, update the handleNewMessage function:
 
-    // Update unread counts
-    if (message.senderId !== currentUser?.id) {
-      setUnreadCounts(prev => ({
-        ...prev,
-        [message.conversationId]: (prev[message.conversationId] || 0) + 1
-      }));
+// Handle new message
+const handleNewMessage = (message) => {
+  console.log('📨 New message in Chat:', message);
+  
+  // Update conversations list
+  setConversations(prev => {
+    let updated = false;
+    const newConvs = prev.map(conv => {
+      if (conv.id === message.conversationId) {
+        updated = true;
+        return {
+          ...conv,
+          lastMessage: message.text,
+          lastMessageTime: message.createdAt,
+          unreadCount: message.senderId !== currentUser?.id 
+            ? (conv.unreadCount || 0) + 1 
+            : conv.unreadCount
+        };
+      }
+      return conv;
+    });
+    
+    // If conversation doesn't exist yet, we might need to fetch it
+    if (!updated && message.senderId !== currentUser?.id) {
+      // Trigger a reload of conversations
+      setTimeout(() => loadConversations(), 500);
     }
-  };
+    
+    return newConvs;
+  });
+
+  // Update unread counts
+  if (message.senderId !== currentUser?.id) {
+    setUnreadCounts(prev => ({
+      ...prev,
+      [message.conversationId]: (prev[message.conversationId] || 0) + 1
+    }));
+  }
+};
 
   // Handle messages read
   const handleMessagesRead = (conversationId, readerId) => {
@@ -296,11 +297,7 @@ const Chat = () => {
     
     // Clear unread count
     if (unreadCounts[chat.id] > 0) {
-      try {
-        await chatService.markMessagesAsRead(chat.id, chat.userId);
-      } catch (error) {
-        console.error('Error marking messages as read:', error);
-      }
+      chatService.markMessagesAsRead(chat.id, chat.userId);
     }
     
     setActiveChat(chat);
@@ -350,18 +347,6 @@ const Chat = () => {
 
   // Calculate total unread
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
-
-  // Show loading state
-  if (loading && conversations.length === 0) {
-    return (
-      <div className={`${styles.chatApp} ${darkMode ? styles.dark : styles.light}`}>
-        <div className={styles.loadingContainer}>
-          <div className={styles.spinner}></div>
-          <p>Loading conversations...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`${styles.chatApp} ${darkMode ? styles.dark : styles.light}`}>
@@ -432,14 +417,22 @@ const Chat = () => {
 
         {/* Conversations List */}
         <div className={styles.conversationsList}>
-          {filteredConversations.length > 0 ? (
-            <ChatList
-              conversations={filteredConversations}
-              activeChat={activeChat}
-              onSelectChat={selectChat}
-              onlineUsers={onlineUsers}
-              unreadCounts={unreadCounts}
-            />
+          {loading ? (
+            <div className={styles.loadingState}>
+              <div className={styles.spinner}></div>
+              <p>Loading conversations...</p>
+            </div>
+          ) : filteredConversations.length > 0 ? (
+            filteredConversations.map(conv => (
+              <ChatListItem
+                key={conv.id}
+                conversation={conv}
+                isActive={activeChat?.id === conv.id}
+                onClick={() => selectChat(conv)}
+                online={onlineUsers[conv.userId] || false}
+                unreadCount={unreadCounts[conv.id] || 0}
+              />
+            ))
           ) : (
             <div className={styles.emptyState}>
               <FaComments className={styles.emptyIcon} />
@@ -491,6 +484,84 @@ const Chat = () => {
         onSelectUser={createNewChat}
         currentUser={currentUser}
       />
+    </div>
+  );
+};
+
+// Chat List Item Component
+const ChatListItem = ({ conversation, isActive, onClick, online, unreadCount }) => {
+  const { darkMode } = useTheme();
+  const [imgError, setImgError] = useState(false);
+  
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getAvatarContent = () => {
+    if (conversation.userAvatar && !imgError) {
+      return (
+        <img 
+          src={conversation.userAvatar} 
+          alt={conversation.userName}
+          onError={() => setImgError(true)}
+        />
+      );
+    }
+    
+    // Generate consistent color based on user ID
+    const color = getAvatarColor(conversation.userId || conversation.id);
+    const initial = getAvatarInitial({ name: conversation.userName });
+    
+    return (
+      <div 
+        className={styles.avatarPlaceholder}
+        style={{ backgroundColor: color }}
+      >
+        {initial}
+      </div>
+    );
+  };
+
+  return (
+    <div 
+      className={`${styles.chatListItem} ${isActive ? styles.active : ''}`}
+      onClick={onClick}
+    >
+      <div className={styles.chatAvatar}>
+        {getAvatarContent()}
+        {online && <span className={styles.onlineBadge}></span>}
+      </div>
+      
+      <div className={styles.chatInfo}>
+        <div className={styles.chatHeader}>
+          <h4>{conversation.userName}</h4>
+          <span className={styles.chatTime}>{formatTime(conversation.lastMessageTime)}</span>
+        </div>
+        
+        <div className={styles.chatPreview}>
+          {conversation.isTyping ? (
+            <span className={styles.typingIndicator}>
+              {conversation.typingUser} is typing...
+            </span>
+          ) : (
+            <>
+              <p className={styles.lastMessage}>
+                {conversation.lastMessage || 'No messages yet'}
+              </p>
+              {unreadCount > 0 && (
+                <span className={styles.unreadBadge}>{unreadCount}</span>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
