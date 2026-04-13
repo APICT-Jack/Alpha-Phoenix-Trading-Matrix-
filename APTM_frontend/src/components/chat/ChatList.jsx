@@ -1,12 +1,11 @@
-import React, { useMemo } from 'react';
+// components/Chat/ChatList.jsx - FIXED
+import React, { useMemo, useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
 import styles from './ChatList.module.css';
 
 // Import icons
 import {
-  FaCircle,
-  FaRegCircle,
   FaCheckDouble,
   FaCheck,
   FaClock
@@ -68,60 +67,78 @@ const ChatList = ({ conversations, activeChat, onSelectChat, onlineUsers, unread
       {uniqueConversations.map(conv => {
         const isOnline = onlineUsers[conv.userId] || false;
         const unreadCount = unreadCounts[conv.id] || 0;
-        const [imgError, setImgError] = useState(false);
         
+        // Use useState inside component - moved to ChatListItem
         return (
-          <div
+          <ChatListItem
             key={conv.id}
-            className={`${styles.chatItem} ${activeChat?.id === conv.id ? styles.active : ''} ${darkMode ? styles.dark : styles.light}`}
-            onClick={() => onSelectChat(conv)}
-          >
-            <div className={styles.avatar}>
-              {conv.userAvatar && !imgError ? (
-                <img 
-                  src={conv.userAvatar} 
-                  alt={conv.userName}
-                  onError={() => setImgError(true)}
-                />
-              ) : (
-                <div 
-                  className={styles.avatarPlaceholder}
-                  style={{ backgroundColor: getAvatarColor(conv.userId) }}
-                >
-                  {getAvatarInitial({ name: conv.userName })}
-                </div>
-              )}
-              <span className={`${styles.onlineDot} ${isOnline ? styles.online : ''}`} />
-            </div>
-
-            <div className={styles.chatInfo}>
-              <div className={styles.chatHeader}>
-                <h4>{conv.userName}</h4>
-                <span className={styles.time}>{formatTime(conv.lastMessageTime)}</span>
-              </div>
-
-              <div className={styles.chatPreview}>
-                {conv.isTyping ? (
-                  <span className={styles.typingIndicator}>
-                    {conv.typingUser} is typing...
-                  </span>
-                ) : (
-                  <>
-                    <p className={styles.lastMessage}>
-                      {conv.lastMessage || 'No messages yet'}
-                    </p>
-                    {conv.lastMessageStatus && getStatusIcon(conv.lastMessageStatus)}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {unreadCount > 0 && (
-              <span className={styles.unreadBadge}>{unreadCount}</span>
-            )}
-          </div>
+            conv={conv}
+            isOnline={isOnline}
+            unreadCount={unreadCount}
+            isActive={activeChat?.id === conv.id}
+            onSelectChat={onSelectChat}
+            darkMode={darkMode}
+            formatTime={formatTime}
+            getStatusIcon={getStatusIcon}
+          />
         );
       })}
+    </div>
+  );
+};
+
+// Separate component for each list item to handle useState properly
+const ChatListItem = ({ conv, isOnline, unreadCount, isActive, onSelectChat, darkMode, formatTime, getStatusIcon }) => {
+  const [imgError, setImgError] = useState(false);
+  
+  return (
+    <div
+      className={`${styles.chatItem} ${isActive ? styles.active : ''} ${darkMode ? styles.dark : styles.light}`}
+      onClick={() => onSelectChat(conv)}
+    >
+      <div className={styles.avatar}>
+        {conv.userAvatar && !imgError ? (
+          <img 
+            src={conv.userAvatar} 
+            alt={conv.userName}
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div 
+            className={styles.avatarPlaceholder}
+            style={{ backgroundColor: getAvatarColor(conv.userId) }}
+          >
+            {getAvatarInitial({ name: conv.userName })}
+          </div>
+        )}
+        <span className={`${styles.onlineDot} ${isOnline ? styles.online : ''}`} />
+      </div>
+
+      <div className={styles.chatInfo}>
+        <div className={styles.chatHeader}>
+          <h4>{conv.userName}</h4>
+          <span className={styles.time}>{formatTime(conv.lastMessageTime)}</span>
+        </div>
+
+        <div className={styles.chatPreview}>
+          {conv.isTyping ? (
+            <span className={styles.typingIndicator}>
+              {conv.typingUser} is typing...
+            </span>
+          ) : (
+            <>
+              <p className={styles.lastMessage}>
+                {conv.lastMessage || 'No messages yet'}
+              </p>
+              {conv.lastMessageStatus && getStatusIcon(conv.lastMessageStatus)}
+            </>
+          )}
+        </div>
+      </div>
+
+      {unreadCount > 0 && (
+        <span className={styles.unreadBadge}>{unreadCount}</span>
+      )}
     </div>
   );
 };

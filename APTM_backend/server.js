@@ -37,7 +37,10 @@ const __dirname = path.dirname(__filename);
 
 // Create HTTP server
 const httpServer = createServer(app);
+const io = initializeSockets(httpServer);
 
+// Make io available to routes
+app.set('io', io);
 // ============================================
 // SOCKET.IO CONFIGURATION
 // ============================================

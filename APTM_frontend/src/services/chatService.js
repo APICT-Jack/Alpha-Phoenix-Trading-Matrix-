@@ -320,6 +320,62 @@ class ChatService {
   }
 
   // API calls
+
+  async sendMessageWithMedia(receiverId, text, files, chartData = null) {
+    const formData = new FormData();
+    formData.append('receiverId', receiverId);
+    if (text && text.trim()) {
+      formData.append('text', text);
+    }
+    if (chartData) {
+      formData.append('chart', JSON.stringify(chartData));
+    }
+    
+    // Append all files
+    if (files && files.length > 0) {
+      files.forEach(file => {
+        formData.append('media', file);
+      });
+    }
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to send message');
+    }
+    
+    return await response.json();
+  }
+
+  // Also add markMessagesAsRead method if missing
+  async markMessagesAsRead(conversationId, senderId) {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/conversations/${conversationId}/read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ senderId })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to mark messages as read');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      throw error;
+    }
+  }
   async getConversations() {
     const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/conversations`, {
       headers: {
