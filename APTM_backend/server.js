@@ -1,5 +1,4 @@
-// server.js - Complete unified server file
-
+// server.js - COMPLETE UNIFIED SERVER WITH CHAT SOCKET HANDLERS
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
@@ -8,6 +7,7 @@ import cors from "cors";
 import fs from "fs";
 import { createServer } from 'http';
 import mongoose from 'mongoose';
+import { Server } from 'socket.io';
 
 // Database connection
 import { connectDB } from "./config/database.js";
@@ -21,8 +21,9 @@ import userRoutes from "./routes/user.Routes.js";
 import followRoutes from './routes/follow.routes.js';
 import chatRoutes from './routes/chatRoutes.js';
 
-// Socket imports
-import { initializeSockets, getOnlineUsersCount } from './socket/index.js';
+// Model imports for socket handlers
+import User from './models/User.js';
+import { Conversation, Message } from './models/Chat.js';
 
 // Service imports
 import { notificationService } from './services/notificationService.js';
@@ -37,15 +38,517 @@ const __dirname = path.dirname(__filename);
 // Create HTTP server
 const httpServer = createServer(app);
 
-// Initialize unified socket manager
-const io = initializeSockets(httpServer);
+// ============================================
+// SOCKET.IO CONFIGURATION
+// ============================================
+const io = new Server(httpServer, {
+  cors: {
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'https://alpha-phoenix-trading-matrix-s78v.onrender.com',
+        process.env.FRONTEND_URL?.replace(/\/+$/, '')
+      ].filter(Boolean);
+      
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST']
+  },
+  transports: ['websocket', 'polling']
+});
 
-// Initialize notification service with io
-notificationService.setIO(io);
+// Store online users
+const onlineUsers = new Map();
+
+// Socket middleware for authentication
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token || socket.handshake.query.token;
+    if (!token) {
+      return next(new Error('Authentication required'));
+    }
+    
+    const jwt = await import('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+    
+    const user = await User.findById(decoded.userId || decoded.id).select('_id name username avatar email isOnline');
+    if (!user) {
+      return next(new Error('User not found'));
+    }
+    
+    socket.userId = user._id.toString();
+    socket.user = user;
+    next();
+  } catch (error) {
+    console.error('Socket auth error:', error.message);
+    next(new Error('Authentication failed'));
+  }
+});
+
+// Socket connection handler
+io.on('connection', (socket) => {
+  console.log(`🔌 User connected: ${socket.userId} (${socket.user?.name || 'Unknown'})`);
+  
+  // Add to online users
+  onlineUsers.set(socket.userId, {
+    socketId: socket.id,
+    userId: socket.userId,
+    name: socket.user?.name,
+    username: socket.user?.username,
+    avatar: socket.user?.avatar,
+    online: true,
+    lastSeen: new Date()
+  });
+  
+  // Update user's online status in database
+  User.findByIdAndUpdate(socket.userId, { 
+    isOnline: true, 
+    lastSeen: new Date() 
+  }).catch(err => console.error('Error updating online status:', err));
+  
+  // Join user's personal room
+  socket.join(`user:${socket.userId}`);
+  
+  // Broadcast online status to all users
+  socket.broadcast.emit('user:online', {
+    userId: socket.userId,
+    name: socket.user?.name,
+    username: socket.user?.username,
+    avatar: socket.user?.avatar
+  });
+  
+  // Send current online users to new user
+  const onlineUsersList = Array.from(onlineUsers.values()).map(u => ({
+    userId: u.userId,
+    name: u.name,
+    username: u.username,
+    avatar: u.avatar,
+    online: u.online
+  }));
+  socket.emit('users:online', onlineUsersList);
+  
+  // ============================================
+  // CHAT SOCKET HANDLERS
+  // ============================================
+  
+  // Send message via socket
+  socket.on('message:send', async (data) => {
+    try {
+      const { receiverId, text, tempId, replyToId, chart, media } = data;
+      const senderId = socket.userId;
+      
+      console.log('📨 Socket message:send from', senderId, 'to', receiverId);
+      
+      // Get sender info
+      const sender = await User.findById(senderId).select('name username avatar');
+      if (!sender) {
+        socket.emit('message:error', { tempId, error: 'Sender not found' });
+        return;
+      }
+      
+      // Check if receiver exists
+      const receiver = await User.findById(receiverId);
+      if (!receiver) {
+        socket.emit('message:error', { tempId, error: 'Receiver not found' });
+        return;
+      }
+      
+      // Get or create conversation
+      let conversation = await Conversation.findOne({
+        participants: { $all: [senderId, receiverId] },
+        isActive: true
+      });
+      
+      if (!conversation) {
+        conversation = new Conversation({
+          participants: [senderId, receiverId],
+          unreadCounts: new Map([
+            [senderId.toString(), 0],
+            [receiverId.toString(), 0]
+          ])
+        });
+        await conversation.save();
+      }
+      
+      // Handle reply to message
+      let replyToMessage = null;
+      if (replyToId) {
+        const originalMessage = await Message.findById(replyToId);
+        if (originalMessage) {
+          const originalSender = await User.findById(originalMessage.senderId);
+          replyToMessage = {
+            text: originalMessage.text,
+            senderId: originalMessage.senderId,
+            senderName: originalSender?.name || 'User',
+            media: originalMessage.media || []
+          };
+        }
+      }
+      
+      // Create message
+      const message = new Message({
+        senderId,
+        receiverId,
+        conversationId: conversation._id,
+        text: text || '',
+        media: media || [],
+        type: chart ? 'chart' : (media?.length > 0 ? (media.length === 1 ? media[0].type : 'mixed') : 'text'),
+        status: 'sent',
+        replyTo: replyToId || null,
+        replyToMessage: replyToMessage
+      });
+      
+      await message.save();
+      
+      // Format message for sending
+      const formattedMessage = {
+        _id: message._id,
+        tempId: tempId || message._id,
+        text: message.text,
+        media: message.media,
+        type: message.type,
+        status: message.status,
+        senderId: senderId,
+        receiverId: receiverId,
+        conversationId: conversation._id,
+        sender: {
+          _id: senderId,
+          name: sender.name,
+          username: sender.username,
+          avatar: sender.avatar
+        },
+        replyTo: message.replyTo,
+        replyToMessage: message.replyToMessage,
+        createdAt: message.createdAt,
+        reactions: []
+      };
+      
+      // Update conversation
+      conversation.lastMessage = message._id;
+      conversation.lastMessageText = text || (media?.length > 0 ? `📎 ${media.length} attachment(s)` : '');
+      conversation.lastMessageMedia = media || [];
+      conversation.lastMessageTime = new Date();
+      conversation.lastMessageSenderId = senderId;
+      
+      const receiverUnread = conversation.unreadCounts.get(receiverId.toString()) || 0;
+      conversation.unreadCounts.set(receiverId.toString(), receiverUnread + 1);
+      await conversation.save();
+      
+      // Send to receiver
+      io.to(`user:${receiverId}`).emit('message:receive', formattedMessage);
+      
+      // Send confirmation back to sender
+      socket.emit('message:sent', formattedMessage);
+      
+      // Send conversation updates
+      const senderConversationData = {
+        id: conversation._id,
+        lastMessage: conversation.lastMessageText,
+        lastMessageTime: conversation.lastMessageTime,
+        unreadCount: 0
+      };
+      
+      const receiverConversationData = {
+        id: conversation._id,
+        lastMessage: conversation.lastMessageText,
+        lastMessageTime: conversation.lastMessageTime,
+        unreadCount: receiverUnread + 1,
+        userId: senderId,
+        userName: sender.name,
+        userAvatar: sender.avatar,
+        userUsername: sender.username
+      };
+      
+      io.to(`user:${senderId}`).emit('conversation:update', senderConversationData);
+      io.to(`user:${receiverId}`).emit('conversation:update', receiverConversationData);
+      
+      console.log(`✅ Message sent from ${senderId} to ${receiverId}`);
+      
+    } catch (error) {
+      console.error('Socket message error:', error);
+      socket.emit('message:error', { error: error.message });
+    }
+  });
+  
+  // Edit message
+  socket.on('message:edit', async (data) => {
+    try {
+      const { messageId, text, chart } = data;
+      const userId = socket.userId;
+      
+      const message = await Message.findOne({
+        _id: messageId,
+        senderId: userId
+      });
+      
+      if (!message) {
+        socket.emit('message:error', { error: 'Message not found or cannot edit' });
+        return;
+      }
+      
+      // Save edit history
+      message.editHistory.push({
+        text: message.text,
+        media: message.media,
+        editedAt: new Date()
+      });
+      
+      if (text !== undefined) message.text = text;
+      message.isEdited = true;
+      message.updatedAt = new Date();
+      
+      await message.save();
+      
+      // Broadcast edit to both users
+      io.to(`user:${message.senderId}`).emit('message:updated', {
+        messageId: message._id,
+        text: message.text,
+        media: message.media,
+        isEdited: true,
+        updatedAt: message.updatedAt
+      });
+      
+      io.to(`user:${message.receiverId}`).emit('message:updated', {
+        messageId: message._id,
+        text: message.text,
+        media: message.media,
+        isEdited: true,
+        updatedAt: message.updatedAt
+      });
+      
+    } catch (error) {
+      console.error('Socket edit error:', error);
+      socket.emit('message:error', { error: error.message });
+    }
+  });
+  
+  // Delete message
+  socket.on('message:delete', async (data) => {
+    try {
+      const { messageId, deleteForEveryone } = data;
+      const userId = socket.userId;
+      
+      const message = await Message.findById(messageId);
+      
+      if (!message) {
+        socket.emit('message:error', { error: 'Message not found' });
+        return;
+      }
+      
+      if (deleteForEveryone && message.senderId.toString() === userId.toString()) {
+        // Delete for everyone
+        await Message.findByIdAndDelete(messageId);
+        
+        io.to(`user:${message.senderId}`).emit('message:deleted', {
+          messageId: message._id,
+          conversationId: message.conversationId,
+          deletedForEveryone: true
+        });
+        
+        io.to(`user:${message.receiverId}`).emit('message:deleted', {
+          messageId: message._id,
+          conversationId: message.conversationId,
+          deletedForEveryone: true
+        });
+      } else {
+        // Delete for me only
+        message.deletedFor.push(userId);
+        
+        if (message.deletedFor.length === 2) {
+          await Message.findByIdAndDelete(messageId);
+        } else {
+          await message.save();
+        }
+        
+        socket.emit('message:deleted', {
+          messageId: message._id,
+          conversationId: message.conversationId,
+          deletedForMe: true
+        });
+      }
+      
+    } catch (error) {
+      console.error('Socket delete error:', error);
+      socket.emit('message:error', { error: error.message });
+    }
+  });
+  
+  // React to message
+  socket.on('message:react', async (data) => {
+    try {
+      const { messageId, reaction } = data;
+      const userId = socket.userId;
+      
+      const message = await Message.findById(messageId);
+      
+      if (!message) {
+        socket.emit('message:error', { error: 'Message not found' });
+        return;
+      }
+      
+      // Check if user already reacted with this emoji
+      const existingReactionIndex = message.reactions.findIndex(
+        r => r.userId.toString() === userId.toString() && r.emoji === reaction
+      );
+      
+      if (existingReactionIndex !== -1) {
+        message.reactions.splice(existingReactionIndex, 1);
+      } else {
+        // Remove any existing reaction from this user
+        message.reactions = message.reactions.filter(
+          r => r.userId.toString() !== userId.toString()
+        );
+        message.reactions.push({
+          userId,
+          emoji: reaction,
+          createdAt: new Date()
+        });
+      }
+      
+      await message.save();
+      
+      // Populate user info
+      await message.populate('reactions.userId', 'name username avatar');
+      
+      const reactionData = {
+        messageId: message._id,
+        reactions: message.reactions.map(r => ({
+          emoji: r.emoji,
+          userId: r.userId._id,
+          userName: r.userId.name,
+          userAvatar: r.userId.avatar
+        }))
+      };
+      
+      // Broadcast to both users
+      io.to(`user:${message.senderId}`).emit('message:reaction', reactionData);
+      io.to(`user:${message.receiverId}`).emit('message:reaction', reactionData);
+      
+    } catch (error) {
+      console.error('Socket reaction error:', error);
+      socket.emit('message:error', { error: error.message });
+    }
+  });
+  
+  // Typing indicators
+  socket.on('typing:start', (data) => {
+    const { receiverId, conversationId } = data;
+    socket.to(`user:${receiverId}`).emit('typing:start', {
+      conversationId,
+      userId: socket.userId,
+      username: socket.user?.name || 'User'
+    });
+  });
+  
+  socket.on('typing:stop', (data) => {
+    const { receiverId, conversationId } = data;
+    socket.to(`user:${receiverId}`).emit('typing:stop', {
+      conversationId,
+      userId: socket.userId
+    });
+  });
+  
+  // Mark messages as read
+  socket.on('messages:read', async (data) => {
+    try {
+      const { conversationId, senderId } = data;
+      const readerId = socket.userId;
+      
+      const result = await Message.updateMany(
+        {
+          conversationId,
+          senderId: senderId,
+          receiverId: readerId,
+          status: { $in: ['sent', 'delivered'] }
+        },
+        {
+          $set: {
+            status: 'read',
+            readAt: new Date()
+          }
+        }
+      );
+      
+      if (result.modifiedCount > 0) {
+        io.to(`user:${senderId}`).emit('messages:read', {
+          conversationId,
+          readerId,
+          readAt: new Date()
+        });
+      }
+      
+      // Update conversation unread count
+      const conversation = await Conversation.findById(conversationId);
+      if (conversation) {
+        conversation.unreadCounts.set(readerId.toString(), 0);
+        await conversation.save();
+      }
+      
+    } catch (error) {
+      console.error('Socket read error:', error);
+    }
+  });
+  
+  // Join conversation room
+  socket.on('conversation:join', (data) => {
+    const { conversationId } = data;
+    socket.join(`conversation:${conversationId}`);
+    console.log(`User ${socket.userId} joined conversation:${conversationId}`);
+  });
+  
+  // Leave conversation room
+  socket.on('conversation:leave', (data) => {
+    const { conversationId } = data;
+    socket.leave(`conversation:${conversationId}`);
+    console.log(`User ${socket.userId} left conversation:${conversationId}`);
+  });
+  
+  // ============================================
+  // POST REACTIONS (for real-time post updates)
+  // ============================================
+  
+  socket.on('post:like', (data) => {
+    const { postId, userId, postOwnerId } = data;
+    io.to(`user:${postOwnerId}`).emit('post:liked', { postId, userId });
+  });
+  
+  socket.on('post:comment', (data) => {
+    const { postId, postOwnerId, comment } = data;
+    io.to(`user:${postOwnerId}`).emit('post:commented', { postId, comment });
+  });
+  
+  // ============================================
+  // DISCONNECT HANDLER
+  // ============================================
+  
+  socket.on('disconnect', async () => {
+    console.log(`🔌 User disconnected: ${socket.userId}`);
+    
+    onlineUsers.delete(socket.userId);
+    
+    // Update user's online status in database
+    await User.findByIdAndUpdate(socket.userId, {
+      isOnline: false,
+      lastSeen: new Date()
+    }).catch(err => console.error('Error updating offline status:', err));
+    
+    // Broadcast offline status
+    socket.broadcast.emit('user:offline', {
+      userId: socket.userId,
+      lastSeen: new Date()
+    });
+  });
+});
 
 // Make io and notification service available to routes
 app.set('io', io);
 app.set('notificationService', notificationService);
+notificationService.setIO(io);
 
 // Constants
 const PORT = process.env.PORT || 5000;
@@ -62,18 +565,14 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Helper function to clean environment variables
 const cleanEnvUrl = (url) => {
   if (!url) return null;
-  // Remove any 'FRONTEND_URL=' prefix if present
   let cleaned = url.replace(/^(FRONTEND_URL=)/i, '');
-  // Remove any quotes
   cleaned = cleaned.replace(/["']/g, '');
-  // Trim whitespace
   cleaned = cleaned.trim();
-  // Remove trailing slashes
   cleaned = cleaned.replace(/\/+$/, '');
   return cleaned;
 };
 
-// CORS configuration - SINGLE CLEAN VERSION
+// CORS configuration
 app.use(cors({
   origin: function(origin, callback) {
     const rawFrontendUrl = process.env.FRONTEND_URL;
@@ -85,19 +584,10 @@ app.use(cors({
       cleanedFrontendUrl
     ].filter(Boolean);
     
-    // Also add the URL without https:// for flexibility
     if (cleanedFrontendUrl && cleanedFrontendUrl.startsWith('https://')) {
       allowedOrigins.push(cleanedFrontendUrl.replace('https://', 'http://'));
     }
     
-    console.log('🔧 CORS Check:', { 
-      origin, 
-      rawFrontendUrl, 
-      cleanedFrontendUrl,
-      allowedOrigins 
-    });
-    
-    // Allow requests with no origin (like mobile apps, Postman)
     if (!origin) {
       return callback(null, true);
     }
@@ -113,7 +603,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Handle preflight
 app.options('*', cors());
 
 // ==================== STATIC FILE SERVING ====================
@@ -133,7 +622,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/users", userRoutes);
 app.use('/api/friends', followRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api/gallery', galleryRoutes);
+
 // ==================== CREATE UPLOAD DIRECTORIES ====================
 const createUploadDirectories = () => {
   const uploadDirs = [
@@ -175,7 +664,7 @@ app.get("/api/health", (req, res) => {
     socket: {
       enabled: true,
       connections: io?.engine?.clientsCount || 0,
-      onlineUsers: getOnlineUsersCount()
+      onlineUsers: onlineUsers.size
     },
     features: {
       realtimePosts: true,
@@ -190,14 +679,12 @@ app.get("/api/health", (req, res) => {
 // Socket.io status endpoint
 app.get("/api/socket-status", (req, res) => {
   try {
-    const onlineUsers = getOnlineUsersCount();
-    
     res.json({
       success: true,
       message: "Socket.io is running",
       socketEnabled: !!io,
       activeConnections: io?.engine?.clientsCount || 0,
-      onlineUsers: onlineUsers,
+      onlineUsers: onlineUsers.size,
       rooms: Array.from(io?.sockets?.adapter?.rooms?.keys() || []).length,
       timestamp: new Date().toISOString()
     });
@@ -231,7 +718,8 @@ app.get("/api/debug/env", (req, res) => {
       googleClientId: process.env.GOOGLE_CLIENT_ID ? "✅ Configured" : "❌ Missing",
       emailConfigured: process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured",
       jwtConfigured: process.env.JWT_SECRET ? "✅ Configured" : "❌ Using fallback",
-      mongoConnected: mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Disconnected"
+      mongoConnected: mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Disconnected",
+      cloudinaryConfigured: process.env.CLOUDINARY_CLOUD_NAME ? "✅ Configured" : "❌ Missing"
     },
     cors: {
       allowedOrigins: [
@@ -243,15 +731,12 @@ app.get("/api/debug/env", (req, res) => {
   });
 });
 
-// ==================== DEBUG ENDPOINTS ====================
-
-// Debug route for checking posts
+// Debug endpoint for checking posts
 app.get('/api/debug/check-posts/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const Post = (await import('./models/Post.js')).default;
     
-    // Get all posts for user
     const allPosts = await Post.find({ userId });
     
     res.json({
@@ -362,11 +847,9 @@ app.get('/api/debug/feed/:userId', async (req, res) => {
     const Post = (await import('./models/Post.js')).default;
     const UserProfile = (await import('./models/UserProfile.js')).default;
     
-    // Get user's following
     const userProfile = await UserProfile.findOne({ userId });
     const followingIds = userProfile?.following || [];
     
-    // Get feed
     const posts = await Post.find({
       $or: [
         { userId: { $in: [userId, ...followingIds] } },
@@ -479,38 +962,6 @@ app.get('/api/debug/banners', async (req, res) => {
   }
 });
 
-// Test avatar access
-app.get('/api/debug/avatar-test/:filename', (req, res) => {
-  const { filename } = req.params;
-  const avatarPath = path.join(__dirname, 'uploads', 'avatars', filename);
-  
-  if (fs.existsSync(avatarPath)) {
-    res.sendFile(avatarPath);
-  } else {
-    res.status(404).json({
-      success: false,
-      message: 'Avatar file not found',
-      filename
-    });
-  }
-});
-
-// Test banner access
-app.get('/api/debug/banner-test/:filename', (req, res) => {
-  const { filename } = req.params;
-  const bannerPath = path.join(__dirname, 'uploads', 'banners', filename);
-  
-  if (fs.existsSync(bannerPath)) {
-    res.sendFile(bannerPath);
-  } else {
-    res.status(404).json({
-      success: false,
-      message: 'Banner file not found',
-      filename
-    });
-  }
-});
-
 // Test notification endpoint
 app.post('/api/test/notification', async (req, res) => {
   try {
@@ -525,7 +976,6 @@ app.post('/api/test/notification', async (req, res) => {
       read: false
     };
     
-    // Send via socket
     io.to(`user:${userId}`).emit('notification', notification);
     
     res.json({
@@ -657,8 +1107,11 @@ app.get("/api/debug/routes", (req, res) => {
         "POST   /api/chat/conversation/:userId",
         "GET    /api/chat/messages/:conversationId",
         "POST   /api/chat/messages",
-        "PUT    /api/chat/messages/read/:senderId",
-        "DELETE /api/chat/conversation/:userId",
+        "PUT    /api/chat/messages/:messageId",
+        "DELETE /api/chat/messages/:messageId",
+        "POST   /api/chat/messages/:messageId/react",
+        "POST   /api/chat/messages/:messageId/forward",
+        "POST   /api/chat/conversations/:conversationId/read",
         "GET    /api/chat/search/users",
         "GET    /api/chat/unread/counts"
       ],
@@ -698,9 +1151,7 @@ app.get("/api/debug/routes", (req, res) => {
         "GET  /api/debug/hashtags/trending",
         "GET  /api/debug/feed/:userId",
         "POST /api/test/notification",
-        "POST /api/test/typing",
-        "GET  /api/debug/avatar-test/:filename",
-        "GET  /api/debug/banner-test/:filename"
+        "POST /api/test/typing"
       ]
     },
     environment: {
@@ -760,7 +1211,6 @@ app.get("/api/debug/google-test", (req, res) => {
 
 // ==================== PRODUCTION SETUP ====================
 if (NODE_ENV === "production") {
-  // Try multiple possible paths for the frontend build
   const possiblePaths = [
     path.join(__dirname, "../APTM_frontend/dist"),
     path.join(__dirname, "../frontend/dist"),
@@ -784,7 +1234,6 @@ if (NODE_ENV === "production") {
     app.use(express.static(staticPath));
     
     app.get("*", (req, res, next) => {
-      // Don't serve index.html for API routes
       if (req.url.startsWith('/api/')) {
         return next();
       }
@@ -851,8 +1300,9 @@ httpServer.listen(PORT, () => {
   console.log(`   📧 Email:     ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}`);
   console.log(`   🔑 JWT:       ${process.env.JWT_SECRET ? '✅ Configured' : '❌ Using fallback'}`);
   console.log(`   🔗 Google:    ${process.env.GOOGLE_CLIENT_ID ? '✅ Configured' : '❌ Not configured'}`);
+  console.log(`   ☁️ Cloudinary: ${process.env.CLOUDINARY_CLOUD_NAME ? '✅ Configured' : '❌ Not configured'}`);
   console.log(`   🗄️  Database:  ✅ Connected`);
-  console.log(`   🔌 Socket:    ✅ Enabled (${getOnlineUsersCount()} online users)`);
+  console.log(`   🔌 Socket:    ✅ Enabled (${onlineUsers.size} online users)`);
   console.log(`\n✨ REAL-TIME FEATURES:`);
   console.log(`   📝 Posts:     ✅ Live updates`);
   console.log(`   💬 Comments:  ✅ Real-time`);
@@ -861,6 +1311,11 @@ httpServer.listen(PORT, () => {
   console.log(`   🔔 Notify:    ✅ Push notifications`);
   console.log(`   👥 Online:    ✅ Status tracking`);
   console.log(`   💬 Chat:      ✅ P2P messaging`);
+  console.log(`   📎 Media:     ✅ Image/Video/Document sharing`);
+  console.log(`   📊 Charts:    ✅ Trading chart sharing`);
   console.log(`\n✅ Server started successfully at ${new Date().toLocaleString()}`);
   console.log(`=========================================\n`);
 });
+
+// Export for testing
+export { io, onlineUsers };

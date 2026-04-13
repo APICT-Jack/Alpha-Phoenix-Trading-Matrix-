@@ -1,4 +1,4 @@
-// routes/chatRoutes.js - UPDATED with media and chart support
+// routes/chatRoutes.js - COMPLETE FIXED VERSION
 import express from 'express';
 import multer from 'multer';
 import {
@@ -26,14 +26,14 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
       'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
-      'video/mp4', 'video/webm', 'video/ogg',
+      'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
       'application/pdf', 'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type'), false);
+      cb(new Error('Invalid file type: ' + file.mimetype), false);
     }
   }
 });
@@ -45,13 +45,13 @@ router.use(authenticateToken);
 // CONVERSATION ROUTES
 // ============================================
 router.get('/conversations', getConversations);
-router.get('/conversation/:userId', getOrCreateConversation);
+router.post('/conversation/:userId', getOrCreateConversation);
 router.get('/unread/counts', getUnreadCounts);
 
 // ============================================
 // MESSAGE ROUTES
 // ============================================
-// Send message with media support
+// Send message with media support - IMPORTANT: 'media' field name must match frontend
 router.post('/messages', upload.array('media', 10), sendMessage);
 
 // Get messages for conversation

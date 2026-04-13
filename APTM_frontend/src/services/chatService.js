@@ -1,3 +1,4 @@
+// services/chatService.js - COMPLETE FIXED VERSION
 import { io } from 'socket.io-client';
 
 class ChatService {
@@ -60,7 +61,7 @@ class ChatService {
     });
 
     this.socket.on('message:receive', (message) => {
-      // Format message for consistency
+      console.log('📨 Message received via socket:', message);
       const formattedMessage = {
         ...message,
         _id: message._id || message.id,
@@ -76,6 +77,7 @@ class ChatService {
     });
 
     this.socket.on('message:sent', (message) => {
+      console.log('✅ Message sent confirmation:', message);
       const formattedMessage = {
         ...message,
         _id: message._id || message.id,
@@ -139,7 +141,6 @@ class ChatService {
       callbacks.onConversationUpdate?.(data);
     });
 
-    // Check if already connected
     if (this.socket.connected) {
       console.log('✅ Socket already connected');
       this.emitConnectionChange(true);
@@ -249,8 +250,6 @@ class ChatService {
         attempts: 1,
         timestamp: Date.now()
       });
-      
-      // Try to reconnect
       this.reconnect();
       return false;
     }
@@ -273,7 +272,6 @@ class ChatService {
       } else {
         console.log(`❌ Max retry attempts reached for message ${tempId}`);
         this.pendingMessages.delete(tempId);
-        this.emit('message:failed', { tempId, error: 'Max retry attempts reached' });
       }
     });
   }
@@ -351,7 +349,6 @@ class ChatService {
       
       const data = await response.json();
       
-      // Format the conversation data consistently
       return {
         id: data.conversation.id || data.conversation._id,
         _id: data.conversation._id || data.conversation.id,
@@ -398,7 +395,6 @@ class ChatService {
       if (!response.ok) throw new Error('Failed to search users');
       const data = await response.json();
       
-      // Format users to ensure consistent structure
       const users = (data.users || []).map(user => ({
         id: user.id || user._id,
         _id: user._id || user.id,
@@ -415,6 +411,40 @@ class ChatService {
       console.error('Error in searchUsers:', error);
       return [];
     }
+  }
+
+  // REST API send message with media
+  async sendMessageWithMedia(receiverId, text, files, chartData = null) {
+    const formData = new FormData();
+    formData.append('receiverId', receiverId);
+    if (text && text.trim()) {
+      formData.append('text', text);
+    }
+    if (chartData) {
+      formData.append('chart', JSON.stringify(chartData));
+    }
+    
+    // Append all files
+    if (files && files.length > 0) {
+      files.forEach(file => {
+        formData.append('media', file);
+      });
+    }
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/chat/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to send message');
+    }
+    
+    return await response.json();
   }
 
   disconnect() {

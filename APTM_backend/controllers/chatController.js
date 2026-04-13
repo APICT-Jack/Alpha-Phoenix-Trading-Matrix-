@@ -1,4 +1,4 @@
-// controllers/chatController.js
+// controllers/chatController.js - COMPLETE FIXED VERSION WITH ALL EXPORTS
 import mongoose from 'mongoose';
 import { Readable } from 'stream';
 import { Conversation, Message } from '../models/Chat.js';
@@ -64,7 +64,9 @@ const uploadChatMedia = async (files) => {
         publicId: result.public_id,
         width: result.width,
         height: result.height,
-        format: result.format
+        format: result.format,
+        name: file.originalname,
+        originalName: file.originalname
       };
       
       if (mediaType === 'video') {
@@ -101,14 +103,14 @@ const deleteChatMedia = async (mediaArray) => {
 };
 
 // ============================================
-// SEND MESSAGE (with media and chart support)
+// SEND MESSAGE
 // ============================================
 export const sendMessage = async (req, res) => {
   try {
     const senderId = req.user._id;
     const { receiverId, text, replyToId, chart } = req.body;
     
-    console.log('📨 Sending message:', { senderId, receiverId, text, replyToId });
+    console.log('📨 Sending message:', { senderId, receiverId, text: text?.substring(0, 50), replyToId, hasChart: !!chart });
     
     if (!receiverId) {
       return res.status(400).json({
@@ -125,6 +127,9 @@ export const sendMessage = async (req, res) => {
         message: 'Receiver not found'
       });
     }
+    
+    // Get sender info for population
+    const sender = await User.findById(senderId).select('name username avatar email');
     
     // Handle media files
     let media = [];
@@ -238,8 +243,29 @@ export const sendMessage = async (req, res) => {
     
     await message.save();
     
-    // Populate sender info
-    await message.populate('senderId', 'name username avatar email');
+    // Format the message for response
+    const formattedMessage = {
+      _id: message._id,
+      text: message.text,
+      media: message.media,
+      type: message.type,
+      status: message.status,
+      senderId: senderId,
+      receiverId: receiverId,
+      conversationId: conversation._id,
+      sender: {
+        _id: senderId,
+        name: sender.name,
+        username: sender.username,
+        avatar: sender.avatar
+      },
+      replyTo: message.replyTo,
+      replyToMessage: message.replyToMessage,
+      createdAt: message.createdAt,
+      reactions: [],
+      isForwarded: false,
+      isEdited: false
+    };
     
     // Update conversation
     conversation.lastMessage = message._id;
@@ -254,28 +280,6 @@ export const sendMessage = async (req, res) => {
     
     await conversation.save();
     
-    // Format response
-    const formattedMessage = {
-      _id: message._id,
-      text: message.text,
-      media: message.media,
-      type: message.type,
-      status: message.status,
-      senderId: message.senderId._id,
-      sender: {
-        _id: message.senderId._id,
-        name: message.senderId.name,
-        username: message.senderId.username,
-        avatar: message.senderId.avatar
-      },
-      receiverId: message.receiverId,
-      conversationId: message.conversationId,
-      replyTo: message.replyTo,
-      replyToMessage: message.replyToMessage,
-      createdAt: message.createdAt,
-      reactions: []
-    };
-    
     const conversationData = {
       id: conversation._id,
       _id: conversation._id,
@@ -287,6 +291,22 @@ export const sendMessage = async (req, res) => {
       lastMessageTime: conversation.lastMessageTime,
       unreadCount: receiverUnread + 1
     };
+    
+    // Get io instance from app
+    const io = req.app.get('io');
+    
+    // Broadcast to receiver via socket if available
+    if (io) {
+      io.to(`user:${receiverId}`).emit('message:receive', formattedMessage);
+      console.log(`📡 Broadcasted message to user:${receiverId}`);
+      
+      io.to(`user:${senderId}`).emit('message:sent', formattedMessage);
+      io.to(`user:${receiverId}`).emit('conversation:update', conversationData);
+      io.to(`user:${senderId}`).emit('conversation:update', {
+        ...conversationData,
+        userId: receiverId
+      });
+    }
     
     res.status(201).json({
       success: true,
@@ -452,6 +472,17 @@ export const editMessage = async (req, res) => {
       });
     }
     
+    // Broadcast edit via socket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${message.receiverId}`).emit('message:updated', {
+        messageId: message._id,
+        text: message.text,
+        media: message.media,
+        isEdited: true
+      });
+    }
+    
     res.json({
       success: true,
       message: {
@@ -491,10 +522,21 @@ export const deleteMessage = async (req, res) => {
       });
     }
     
+    const io = req.app.get('io');
+    
     if (deleteForEveryone && message.senderId.toString() === userId.toString()) {
       // Delete for everyone (sender only)
       await deleteChatMedia(message.media);
       await Message.findByIdAndDelete(messageId);
+      
+      // Broadcast deletion
+      if (io) {
+        io.to(`user:${message.receiverId}`).emit('message:deleted', {
+          messageId: message._id,
+          conversationId: message.conversationId,
+          deletedForEveryone: true
+        });
+      }
       
       // Update conversation
       const lastMessage = await Message.findOne({
@@ -521,6 +563,15 @@ export const deleteMessage = async (req, res) => {
         await Message.findByIdAndDelete(messageId);
       } else {
         await message.save();
+      }
+      
+      // Broadcast deletion for me
+      if (io) {
+        io.to(`user:${userId}`).emit('message:deleted', {
+          messageId: message._id,
+          conversationId: message.conversationId,
+          deletedForMe: true
+        });
       }
     }
     
@@ -589,6 +640,23 @@ export const reactToMessage = async (req, res) => {
     // Populate user info
     await message.populate('reactions.userId', 'name username avatar');
     
+    // Broadcast reaction via socket
+    const io = req.app.get('io');
+    if (io) {
+      const reactionData = {
+        messageId: message._id,
+        reactions: message.reactions.map(r => ({
+          emoji: r.emoji,
+          userId: r.userId._id,
+          userName: r.userId.name,
+          userAvatar: r.userId.avatar
+        }))
+      };
+      
+      io.to(`user:${message.senderId}`).emit('message:reaction', reactionData);
+      io.to(`user:${message.receiverId}`).emit('message:reaction', reactionData);
+    }
+    
     res.json({
       success: true,
       reactions: message.reactions.map(r => ({
@@ -635,8 +703,17 @@ export const forwardMessage = async (req, res) => {
       });
     }
     
+    // Get sender info
+    const sender = await User.findById(senderId).select('name username avatar');
+    
     // Get or create conversation
     const conversation = await Conversation.findOrCreate(senderId, targetUserId);
+    
+    // Create forwarded message (clone media but don't clone publicId to avoid deletion issues)
+    const clonedMedia = originalMessage.media.map(m => {
+      const { publicId, ...rest } = m;
+      return { ...rest };
+    });
     
     // Create forwarded message
     const forwardedMessage = new Message({
@@ -644,7 +721,7 @@ export const forwardMessage = async (req, res) => {
       receiverId: targetUserId,
       conversationId: conversation._id,
       text: originalMessage.text,
-      media: originalMessage.media.map(m => ({ ...m })), // Clone media
+      media: clonedMedia,
       type: originalMessage.type,
       status: 'sent',
       isForwarded: true,
@@ -652,7 +729,27 @@ export const forwardMessage = async (req, res) => {
     });
     
     await forwardedMessage.save();
-    await forwardedMessage.populate('senderId', 'name username avatar');
+    
+    // Format message
+    const formattedMessage = {
+      _id: forwardedMessage._id,
+      text: forwardedMessage.text,
+      media: forwardedMessage.media,
+      type: forwardedMessage.type,
+      status: forwardedMessage.status,
+      senderId: senderId,
+      receiverId: targetUserId,
+      conversationId: conversation._id,
+      sender: {
+        _id: senderId,
+        name: sender.name,
+        username: sender.username,
+        avatar: sender.avatar
+      },
+      isForwarded: true,
+      createdAt: forwardedMessage.createdAt,
+      reactions: []
+    };
     
     // Update conversation
     conversation.lastMessage = forwardedMessage._id;
@@ -665,17 +762,16 @@ export const forwardMessage = async (req, res) => {
     conversation.unreadCounts.set(targetUserId.toString(), receiverUnread + 1);
     await conversation.save();
     
+    // Broadcast via socket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${targetUserId}`).emit('message:receive', formattedMessage);
+      io.to(`user:${senderId}`).emit('message:sent', formattedMessage);
+    }
+    
     res.json({
       success: true,
-      message: {
-        _id: forwardedMessage._id,
-        text: forwardedMessage.text,
-        media: forwardedMessage.media,
-        type: forwardedMessage.type,
-        isForwarded: true,
-        sender: forwardedMessage.senderId,
-        createdAt: forwardedMessage.createdAt
-      },
+      message: formattedMessage,
       conversation: {
         id: conversation._id,
         userId: targetUserId,
@@ -713,7 +809,12 @@ export const markMessagesAsRead = async (req, res) => {
       });
     }
     
-    await Message.updateMany(
+    // Get the other participant
+    const otherParticipant = conversation.participants.find(
+      p => p.toString() !== userId.toString()
+    );
+    
+    const result = await Message.updateMany(
       {
         conversationId,
         receiverId: userId,
@@ -730,9 +831,20 @@ export const markMessagesAsRead = async (req, res) => {
     conversation.unreadCounts.set(userId.toString(), 0);
     await conversation.save();
     
+    // Broadcast read receipt via socket
+    const io = req.app.get('io');
+    if (io && otherParticipant && result.modifiedCount > 0) {
+      io.to(`user:${otherParticipant}`).emit('messages:read', {
+        conversationId,
+        readerId: userId,
+        readAt: new Date()
+      });
+    }
+    
     res.json({
       success: true,
-      message: 'Messages marked as read'
+      message: 'Messages marked as read',
+      count: result.modifiedCount
     });
     
   } catch (error) {
@@ -844,6 +956,9 @@ export const getOrCreateConversation = async (req, res) => {
     
     const conversation = await Conversation.findOrCreate(currentUserId, otherUserId);
     
+    // Get unread count
+    const unreadCount = conversation.unreadCounts?.get(currentUserId.toString()) || 0;
+    
     res.json({
       success: true,
       conversation: {
@@ -857,7 +972,7 @@ export const getOrCreateConversation = async (req, res) => {
         isFollowing: !!isFollowing,
         lastMessage: conversation.lastMessageText || '',
         lastMessageTime: conversation.lastMessageTime,
-        unreadCount: 0
+        unreadCount
       }
     });
     
