@@ -1,4 +1,4 @@
-// socketService.js - COMPLETE UPDATED VERSION
+// socketService.js - COMPLETE FIXED VERSION FOR RENDER DEPLOYMENT
 import { io } from 'socket.io-client';
 
 class SocketService {
@@ -12,76 +12,104 @@ class SocketService {
     this.userId = null;
     this.connectionCallbacks = new Set();
     this.disconnectionCallbacks = new Set();
-    this.reconnectStrategy = 'exponential'; // 'exponential' or 'linear'
+    this.reconnectStrategy = 'exponential';
     this.baseDelay = 1000;
     this.maxDelay = 10000;
+    this.isConnecting = false;
   }
 
-  // Initialize socket connection
-  // socketService.js - Updated connect method
-connect(userId, token) {
-  // If already connected with same userId, return existing socket
-  if (this.socket && this.socket.connected && this.userId === userId) {
-    console.log('🔄 Socket already connected with same user');
-    this.triggerConnectionCallbacks(true);
+  // Initialize socket connection - FIXED URL CONSTRUCTION
+  connect(userId, token) {
+    // If already connected with same userId, return existing socket
+    if (this.socket && this.socket.connected && this.userId === userId) {
+      console.log('🔄 Socket already connected with same user');
+      this.triggerConnectionCallbacks(true);
+      return this.socket;
+    }
+    
+    // If already connecting, return
+    if (this.isConnecting) {
+      console.log('⏳ Socket already connecting, waiting...');
+      return this.socket;
+    }
+    
+    // If socket exists but different user, disconnect first
+    if (this.socket) {
+      console.log('🔄 Disconnecting existing socket for different user');
+      this.disconnect();
+    }
+
+    this.userId = userId;
+    this.isConnecting = true;
+    
+    // FIXED: Use the exact Render URL for production
+    let SOCKET_URL;
+    
+    // Check if we're in production (Render deployment)
+    const isRenderProduction = window.location.hostname.includes('onrender.com');
+    
+    if (isRenderProduction) {
+      // Use the exact Render URL without any path
+      SOCKET_URL = 'https://alpha-phoenix-trading-matrix-s78v.onrender.com';
+      console.log('🌐 Render production mode, using:', SOCKET_URL);
+    } else if (import.meta.env.PROD) {
+      // Other production environments
+      SOCKET_URL = window.location.origin;
+      console.log('🌐 Production mode, using origin:', SOCKET_URL);
+    } else {
+      // Development mode
+      SOCKET_URL = 'http://localhost:5000';
+      console.log('💻 Development mode, using:', SOCKET_URL);
+    }
+    
+    // Fallback to environment variable if available and not in Render production
+    if (!isRenderProduction && import.meta.env.VITE_API_URL && !import.meta.env.PROD) {
+      SOCKET_URL = import.meta.env.VITE_API_URL.replace('/api', '').replace(/\/$/, '');
+    }
+    
+    console.log('🔌 Connecting to socket server at:', SOCKET_URL);
+    console.log('🔑 Token present:', !!token);
+    console.log('🔑 Token length:', token?.length || 0);
+    
+    // Ensure token is clean
+    const cleanToken = token ? token.replace(/^"|"$/g, '') : null;
+    
+    // IMPORTANT: Socket.io configuration for Render
+    this.socket = io(SOCKET_URL, {
+      auth: { token: cleanToken },
+      query: { 
+        userId: userId,
+        token: cleanToken
+      },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      timeout: 30000,
+      autoConnect: true,
+      forceNew: true,
+      path: '/socket.io/', // Must match server path
+      withCredentials: true,
+      // Add extra headers for authentication
+      extraHeaders: {
+        Authorization: `Bearer ${cleanToken}`
+      }
+    });
+
+    this.setupEventListeners();
+    
+    // Set connection timeout
+    setTimeout(() => {
+      if (this.isConnecting && !this.socket?.connected) {
+        console.log('⚠️ Socket connection timeout, falling back to REST API only');
+        this.isConnecting = false;
+        this.triggerConnectionCallbacks(false);
+      }
+    }, 10000);
+    
     return this.socket;
   }
-  
-  // If socket exists but different user, disconnect first
-  if (this.socket) {
-    console.log('🔄 Disconnecting existing socket for different user');
-    this.disconnect();
-  }
-
-  this.userId = userId;
-  
-  // FIXED: Better URL construction for production
-  let SOCKET_URL;
-  
-  if (import.meta.env.PROD) {
-    // In production, use the current origin (Render URL)
-    SOCKET_URL = window.location.origin;
-    console.log('🌐 Production mode, using origin:', SOCKET_URL);
-  } else {
-    // In development, use localhost with port 5000
-    SOCKET_URL = 'http://localhost:5000';
-    console.log('💻 Development mode, using:', SOCKET_URL);
-  }
-  
-  // Fallback to environment variable if available
-  if (import.meta.env.VITE_API_URL && !import.meta.env.PROD) {
-    SOCKET_URL = import.meta.env.VITE_API_URL.replace('/api', '');
-  }
-  
-  console.log('🔌 Connecting to socket server at:', SOCKET_URL);
-  console.log('🔑 Token present:', !!token);
-  
-  // IMPORTANT: Send token in BOTH auth and query for maximum compatibility
-  this.socket = io(SOCKET_URL, {
-    auth: { token: token },
-    query: { 
-      userId: userId,
-      token: token  // Also include in query as fallback
-    },
-    transports: ['websocket', 'polling'],
-    reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    timeout: 20000,
-    autoConnect: true,
-    forceNew: true,
-    path: '/socket.io/',
-    // Add extra headers for authentication
-    extraHeaders: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-
-  this.setupEventListeners();
-  
-  return this.socket;
-}
 
   // Setup default event listeners
   setupEventListeners() {
@@ -89,7 +117,9 @@ connect(userId, token) {
 
     this.socket.on('connect', () => {
       console.log('✅ Socket connected successfully');
+      console.log('📡 Socket ID:', this.socket.id);
       this.connectionAttempts = 0;
+      this.isConnecting = false;
       this.retryPendingMessages();
       if (this.userId) {
         this.joinUser(this.userId);
@@ -103,20 +133,27 @@ connect(userId, token) {
       
       if (reason === 'io server disconnect') {
         // Reconnect manually if server disconnected
-        setTimeout(() => this.socket?.connect(), 1000);
+        setTimeout(() => this.socket?.connect(), 2000);
       }
     });
 
     this.socket.on('connect_error', (error) => {
       this.connectionAttempts++;
       console.error('❌ Socket connection error:', error.message);
+      console.error('❌ Error details:', error);
+      
+      if (error.message.includes('404')) {
+        console.error('❌ Socket.io endpoint not found! Check server configuration.');
+        console.error('   Make sure server is running and socket.io is properly mounted.');
+      }
+      
       this.triggerConnectionCallbacks(false);
       
       // Implement exponential backoff
       if (this.connectionAttempts >= this.maxAttempts) {
-        console.log('⚠️ Max connection attempts reached, falling back to polling');
+        console.log('⚠️ Max connection attempts reached, falling back to polling only');
         if (this.socket) {
-          this.socket.io.opts.transports = ['polling', 'websocket'];
+          this.socket.io.opts.transports = ['polling'];
         }
       }
     });
@@ -124,6 +161,7 @@ connect(userId, token) {
     this.socket.on('reconnect', (attemptNumber) => {
       console.log(`🔄 Socket reconnected after ${attemptNumber} attempts`);
       this.connectionAttempts = 0;
+      this.isConnecting = false;
       this.retryPendingMessages();
       this.triggerConnectionCallbacks(true);
     });
@@ -138,10 +176,17 @@ connect(userId, token) {
 
     this.socket.on('reconnect_failed', () => {
       console.error('❌ Socket reconnection failed');
+      this.isConnecting = false;
     });
 
     this.socket.on('error', (error) => {
       console.error('❌ Socket error:', error);
+    });
+    
+    // Handle authentication errors
+    this.socket.on('unauthorized', (data) => {
+      console.error('❌ Socket unauthorized:', data);
+      this.triggerConnectionCallbacks(false);
     });
   }
 
@@ -478,15 +523,20 @@ connect(userId, token) {
       this.socket = null;
       this.userId = null;
       this.connectionCallbacks.clear();
+      this.isConnecting = false;
       console.log('🔌 Socket disconnected');
     }
   }
 
   reconnect() {
-    if (this.socket) {
+    if (this.socket && !this.isConnecting) {
+      console.log('🔄 Attempting to reconnect...');
+      this.isConnecting = true;
       this.socket.connect();
-    } else {
+    } else if (!this.socket) {
       console.log('⚠️ No socket instance to reconnect');
+    } else {
+      console.log('⏳ Already attempting to connect');
     }
   }
 
@@ -507,7 +557,8 @@ connect(userId, token) {
       pendingMessages: this.pendingMessages.size,
       listeners: Array.from(this.listeners.keys()),
       transport: this.socket?.io?.engine?.transport?.name || 'none',
-      socketId: this.socket?.id || null
+      socketId: this.socket?.id || null,
+      isConnecting: this.isConnecting
     };
   }
 }

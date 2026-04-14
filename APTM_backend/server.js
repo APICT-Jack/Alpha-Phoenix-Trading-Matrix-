@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION (NO DUPLICATES)
+// server.js - COMPLETE FIXED VERSION WITH PROPER SOCKET.IO
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
@@ -39,40 +39,57 @@ const __dirname = path.dirname(__filename);
 const httpServer = createServer(app);
 
 // ============================================
-// SOCKET.IO CONFIGURATION - SINGLE INSTANCE
+// SOCKET.IO CONFIGURATION - FIXED VERSION
 // ============================================
 const io = new Server(httpServer, {
   cors: {
     origin: (origin, callback) => {
       const allowedOrigins = [
         'http://localhost:3000',
+        'http://localhost:5173',
+        'http://localhost:5000',
         'https://alpha-phoenix-trading-matrix-s78v.onrender.com',
+        'https://alpha-phoenix-trading-matrix.onrender.com',
         process.env.FRONTEND_URL?.replace(/\/+$/, '')
       ].filter(Boolean);
       
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps, Postman)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.log('❌ CORS blocked:', origin);
-        callback(new Error('Not allowed by CORS'));
+        console.log('❌ CORS blocked socket origin:', origin);
+        callback(null, true); // Allow anyway for now to debug
       }
     },
     credentials: true,
     methods: ['GET', 'POST']
   },
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  allowEIO3: true,
+  path: '/socket.io/', // Explicit path
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // Store online users
 const onlineUsers = new Map();
+const userSockets = new Map();
+const typingUsers = new Map();
 
 // ============================================
 // FIXED AUTHENTICATION MIDDLEWARE
 // ============================================
-// In server.js, update the socket authentication middleware
 io.use(async (socket, next) => {
   try {
-    // Try multiple sources for token with better logging
+    console.log('🔐 Socket authentication attempt...');
+    console.log('🔐 Handshake query:', socket.handshake.query);
+    console.log('🔐 Handshake auth:', socket.handshake.auth);
+    
+    // Try multiple sources for token
     let token = socket.handshake.auth?.token;
     
     if (!token && socket.handshake.query?.token) {
@@ -85,16 +102,22 @@ io.use(async (socket, next) => {
       console.log('🔐 Token found in headers');
     }
     
+    // Also try to get from query string directly
+    if (!token && socket.handshake.query?.auth) {
+      try {
+        const auth = JSON.parse(socket.handshake.query.auth);
+        token = auth.token;
+        console.log('🔐 Token found in auth query param');
+      } catch (e) {}
+    }
+    
     console.log('🔐 Socket auth - Token present:', !!token);
-    console.log('🔐 Socket handshake details:', {
-      auth: !!socket.handshake.auth,
-      query: !!socket.handshake.query,
-      headers: !!socket.handshake.headers
-    });
     
     if (!token) {
       console.log('❌ No token provided in any source');
-      return next(new Error('Authentication required: No token'));
+      // Don't reject - allow connection but mark as unauthenticated
+      socket.isAuthenticated = false;
+      return next();
     }
     
     // Verify JWT
@@ -106,20 +129,22 @@ io.use(async (socket, next) => {
       console.log('✅ Token verified for user:', decoded.userId || decoded.id);
     } catch (jwtError) {
       console.error('❌ JWT verification failed:', jwtError.message);
-      console.error('Token (first 50 chars):', token.substring(0, 50));
-      return next(new Error('Authentication failed: Invalid token - ' + jwtError.message));
+      socket.isAuthenticated = false;
+      return next();
     }
     
     const userId = decoded.userId || decoded.id;
     if (!userId) {
-      return next(new Error('Authentication failed: No user ID in token'));
+      socket.isAuthenticated = false;
+      return next();
     }
     
     // Get user from database
     const user = await User.findById(userId).select('_id name username avatar email');
     if (!user) {
       console.log('❌ User not found:', userId);
-      return next(new Error('Authentication failed: User not found'));
+      socket.isAuthenticated = false;
+      return next();
     }
     
     // Attach to socket
@@ -130,13 +155,15 @@ io.use(async (socket, next) => {
       username: user.username,
       avatar: user.avatar
     };
+    socket.isAuthenticated = true;
     
     console.log('✅ Socket authenticated:', socket.userId, user.name);
     next();
     
   } catch (error) {
     console.error('❌ Socket auth error:', error);
-    next(new Error('Authentication failed: ' + error.message));
+    socket.isAuthenticated = false;
+    next();
   }
 });
 
@@ -144,37 +171,51 @@ io.use(async (socket, next) => {
 // SOCKET CONNECTION HANDLER
 // ============================================
 io.on('connection', (socket) => {
-  const userId = socket.userId;
-  const userData = socket.user;
+  console.log(`🔌 New socket connection: ${socket.id}`);
+  console.log(`🔌 Authenticated: ${socket.isAuthenticated}`);
   
-  console.log(`🔌 Client connected: ${socket.id} - User: ${userId}`);
-  
-  if (!userId || !userData) {
-    console.log('❌ No user data, disconnecting');
+  if (!socket.isAuthenticated || !socket.userId) {
+    console.log(`⚠️ Unauthenticated socket ${socket.id}, disconnecting`);
+    socket.emit('error', { message: 'Authentication required' });
     socket.disconnect();
     return;
   }
+  
+  const userId = socket.userId;
+  const userData = socket.user;
+  
+  console.log(`✅ User connected: ${userId} (${userData.name})`);
 
-  // Update user online status
+  // Update user online status in database
   User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() })
     .catch(err => console.error('Error updating online status:', err));
 
-  // Store online user
-  onlineUsers.set(userId, {
-    socketId: socket.id,
-    userData: {
-      _id: userId,
-      name: userData.name,
-      username: userData.username,
-      avatar: userData.avatar
-    },
-    connectedAt: new Date()
-  });
+  // Store online user with multiple socket support
+  if (!onlineUsers.has(userId)) {
+    onlineUsers.set(userId, {
+      userData: {
+        _id: userId,
+        name: userData.name,
+        username: userData.username,
+        avatar: userData.avatar
+      },
+      sockets: new Set(),
+      connectedAt: new Date()
+    });
+  }
+  onlineUsers.get(userId).sockets.add(socket.id);
+  
+  // Track user sockets
+  if (!userSockets.has(userId)) {
+    userSockets.set(userId, new Set());
+  }
+  userSockets.get(userId).add(socket.id);
 
   // Join user's personal room
   socket.join(`user:${userId}`);
+  console.log(`👤 User ${userId} joined room user:${userId}`);
 
-  // Broadcast online status
+  // Broadcast online status to all other users
   socket.broadcast.emit('user:online', {
     userId,
     userData: userData,
@@ -190,6 +231,7 @@ io.on('connection', (socket) => {
     };
   });
   socket.emit('users:online', onlineUsersList);
+  console.log(`📊 Sent online users list (${Object.keys(onlineUsersList).length} users) to ${userId}`);
 
   console.log(`👤 User online: ${userId} (${userData.name}) - Total online: ${onlineUsers.size}`);
 
@@ -202,6 +244,7 @@ io.on('connection', (socket) => {
     if (!conversationId || !userId) return;
     socket.join(`conversation:${conversationId}`);
     console.log(`User ${userId} joined conversation: ${conversationId}`);
+    socket.emit('conversation:joined', { conversationId });
   });
   
   // Leave conversation room
@@ -214,7 +257,7 @@ io.on('connection', (socket) => {
   // Send message via socket
   socket.on('message:send', async (data) => {
     try {
-      const { receiverId, text, tempId, replyToId, chart, media } = data;
+      const { receiverId, text, tempId, replyToId, chart, media, conversationId: providedConvId } = data;
       const senderId = userId;
       
       if (!receiverId) {
@@ -222,7 +265,7 @@ io.on('connection', (socket) => {
         return;
       }
       
-      console.log(`📨 Message from ${senderId} to ${receiverId}`);
+      console.log(`📨 Message from ${senderId} to ${receiverId}: ${text?.substring(0, 50)}`);
       
       const sender = await User.findById(senderId).select('name username avatar');
       if (!sender) {
@@ -231,10 +274,17 @@ io.on('connection', (socket) => {
       }
       
       // Get or create conversation
-      let conversation = await Conversation.findOne({
-        participants: { $all: [senderId, receiverId] },
-        isActive: true
-      });
+      let conversation = null;
+      if (providedConvId) {
+        conversation = await Conversation.findById(providedConvId);
+      }
+      
+      if (!conversation) {
+        conversation = await Conversation.findOne({
+          participants: { $all: [senderId, receiverId] },
+          isActive: true
+        });
+      }
       
       if (!conversation) {
         conversation = new Conversation({
@@ -309,15 +359,19 @@ io.on('connection', (socket) => {
       
       const receiverUnread = conversation.unreadCounts.get(receiverId.toString()) || 0;
       conversation.unreadCounts.set(receiverId.toString(), receiverUnread + 1);
+      conversation.unreadCounts.set(senderId.toString(), 0);
       await conversation.save();
       
-      // Send to receiver
+      // Send to receiver's personal room
       io.to(`user:${receiverId}`).emit('message:receive', formattedMessage);
+      
+      // Also emit to conversation room
+      io.to(`conversation:${conversation._id}`).emit('message:receive', formattedMessage);
       
       // Send confirmation to sender
       socket.emit('message:sent', formattedMessage);
       
-      console.log(`✅ Message sent: ${message._id}`);
+      console.log(`✅ Message sent: ${message._id} to conversation ${conversation._id}`);
       
     } catch (error) {
       console.error('Socket message error:', error);
@@ -355,6 +409,7 @@ io.on('connection', (socket) => {
       
       io.to(`user:${message.senderId}`).emit('message:updated', editData);
       io.to(`user:${message.receiverId}`).emit('message:updated', editData);
+      io.to(`conversation:${message.conversationId}`).emit('message:updated', editData);
       
     } catch (error) {
       console.error('Error editing message:', error);
@@ -372,17 +427,15 @@ io.on('connection', (socket) => {
       if (deleteForEveryone && message.senderId.toString() === userId) {
         await Message.findByIdAndDelete(messageId);
         
-        io.to(`user:${message.senderId}`).emit('message:deleted', {
+        const deleteData = {
           messageId: message._id,
           conversationId: message.conversationId,
           deletedForEveryone: true
-        });
+        };
         
-        io.to(`user:${message.receiverId}`).emit('message:deleted', {
-          messageId: message._id,
-          conversationId: message.conversationId,
-          deletedForEveryone: true
-        });
+        io.to(`user:${message.senderId}`).emit('message:deleted', deleteData);
+        io.to(`user:${message.receiverId}`).emit('message:deleted', deleteData);
+        io.to(`conversation:${message.conversationId}`).emit('message:deleted', deleteData);
       } else {
         message.deletedFor.push(userId);
         if (message.deletedFor.length === 2) {
@@ -436,6 +489,7 @@ io.on('connection', (socket) => {
       
       io.to(`user:${message.senderId}`).emit('message:reaction', reactionData);
       io.to(`user:${message.receiverId}`).emit('message:reaction', reactionData);
+      io.to(`conversation:${message.conversationId}`).emit('message:reaction', reactionData);
       
     } catch (error) {
       console.error('Error reacting to message:', error);
@@ -443,41 +497,71 @@ io.on('connection', (socket) => {
   });
   
   // Typing indicators
-  socket.on('typing:start', ({ receiverId }) => {
-    if (!receiverId || !userId) return;
-    io.to(`user:${receiverId}`).emit('typing:start', {
-      userId,
-      username: userData?.name || 'User'
-    });
+  socket.on('typing:start', ({ conversationId, receiverId }) => {
+    if ((!conversationId && !receiverId) || !userId) return;
+    
+    const targetId = receiverId || (conversationId ? null : null);
+    if (targetId) {
+      io.to(`user:${targetId}`).emit('typing:start', {
+        userId,
+        conversationId,
+        username: userData?.name || 'User'
+      });
+    } else if (conversationId) {
+      socket.to(`conversation:${conversationId}`).emit('typing:start', {
+        userId,
+        conversationId,
+        username: userData?.name || 'User'
+      });
+    }
   });
   
-  socket.on('typing:stop', ({ receiverId }) => {
-    if (!receiverId || !userId) return;
-    io.to(`user:${receiverId}`).emit('typing:stop', { userId });
+  socket.on('typing:stop', ({ conversationId, receiverId }) => {
+    if ((!conversationId && !receiverId) || !userId) return;
+    
+    const targetId = receiverId || (conversationId ? null : null);
+    if (targetId) {
+      io.to(`user:${targetId}`).emit('typing:stop', { userId, conversationId });
+    } else if (conversationId) {
+      socket.to(`conversation:${conversationId}`).emit('typing:stop', { userId, conversationId });
+    }
   });
   
   // Mark messages as read
-  socket.on('messages:read', async ({ conversationId, senderId }) => {
-    if (!conversationId || !senderId || !userId) return;
+  socket.on('messages:read', async ({ conversationId, senderId, readerId }) => {
+    const actualReaderId = readerId || userId;
+    
+    if (!conversationId || !senderId || !actualReaderId) {
+      console.log('❌ Missing required fields for messages:read', { conversationId, senderId, actualReaderId });
+      return;
+    }
     
     try {
+      console.log(`📖 Processing messages:read for conversation ${conversationId}, sender ${senderId}, reader ${actualReaderId}`);
+      
       const result = await Message.updateMany(
-        { senderId, receiverId: userId, status: { $ne: 'read' } },
+        { senderId, receiverId: actualReaderId, status: { $ne: 'read' } },
         { status: 'read', readAt: new Date() }
       );
+      
+      console.log(`📖 Marked ${result.modifiedCount} messages as read`);
       
       if (result.modifiedCount > 0) {
         const conversation = await Conversation.findById(conversationId);
         if (conversation) {
-          conversation.unreadCounts.set(userId.toString(), 0);
+          conversation.unreadCounts.set(actualReaderId.toString(), 0);
           await conversation.save();
         }
         
-        io.to(`user:${senderId}`).emit('messages:read', {
+        const readEventData = {
           conversationId,
-          readerId: userId,
-          count: result.modifiedCount
-        });
+          readerId: actualReaderId,
+          count: result.modifiedCount,
+          timestamp: new Date().toISOString()
+        };
+        
+        io.to(`user:${senderId}`).emit('messages:read', readEventData);
+        io.to(`conversation:${conversationId}`).emit('messages:read', readEventData);
       }
     } catch (error) {
       console.error('Error marking messages as read:', error);
@@ -491,22 +575,50 @@ io.on('connection', (socket) => {
       onlineUsersList[id] = { online: true, userData: data.userData };
     });
     socket.emit('users:online', onlineUsersList);
+    console.log(`📊 Sent online users to ${userId}: ${Object.keys(onlineUsersList).length} users`);
+  });
+  
+  // User status check
+  socket.on('user:status', ({ targetUserId }) => {
+    if (!targetUserId) return;
+    const isOnline = onlineUsers.has(targetUserId);
+    socket.emit('user:status:response', {
+      userId: targetUserId,
+      isOnline,
+      userData: isOnline ? onlineUsers.get(targetUserId)?.userData : null
+    });
   });
   
   // Disconnect
   socket.on('disconnect', async () => {
-    console.log(`🔌 Client disconnected: ${socket.id} - User: ${userId}`);
+    console.log(`🔌 Socket disconnected: ${socket.id} - User: ${userId}`);
     
     if (userId) {
-      onlineUsers.delete(userId);
+      // Remove socket from user's sockets
+      if (onlineUsers.has(userId)) {
+        onlineUsers.get(userId).sockets.delete(socket.id);
+        
+        // If no more sockets for this user, mark as offline
+        if (onlineUsers.get(userId).sockets.size === 0) {
+          onlineUsers.delete(userId);
+          
+          await User.findByIdAndUpdate(userId, {
+            isOnline: false,
+            lastSeen: new Date()
+          }).catch(err => console.error('Error updating offline status:', err));
+          
+          // Broadcast offline status
+          io.emit('user:offline', { userId, timestamp: new Date() });
+          console.log(`👤 User offline: ${userId}`);
+        }
+      }
       
-      await User.findByIdAndUpdate(userId, {
-        isOnline: false,
-        lastSeen: new Date()
-      }).catch(err => console.error('Error updating offline status:', err));
-      
-      io.emit('user:offline', { userId, timestamp: new Date() });
-      console.log(`👤 User offline: ${userId}`);
+      if (userSockets.has(userId)) {
+        userSockets.get(userId).delete(socket.id);
+        if (userSockets.get(userId).size === 0) {
+          userSockets.delete(userId);
+        }
+      }
     }
   });
 });
@@ -514,7 +626,9 @@ io.on('connection', (socket) => {
 // Make io and notification service available to routes
 app.set('io', io);
 app.set('notificationService', notificationService);
-notificationService.setIO(io);
+if (notificationService) {
+  notificationService.setIO(io);
+}
 
 // Constants
 const PORT = process.env.PORT || 5000;
@@ -546,13 +660,12 @@ app.use(cors({
     
     const allowedOrigins = [
       'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5000',
       'https://alpha-phoenix-trading-matrix-s78v.onrender.com',
+      'https://alpha-phoenix-trading-matrix.onrender.com',
       cleanedFrontendUrl
     ].filter(Boolean);
-    
-    if (cleanedFrontendUrl && cleanedFrontendUrl.startsWith('https://')) {
-      allowedOrigins.push(cleanedFrontendUrl.replace('https://', 'http://'));
-    }
     
     if (!origin) {
       return callback(null, true);
@@ -561,7 +674,8 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log('❌ CORS blocked origin:', origin);
+      callback(null, true); // Allow anyway for debugging
     }
   },
   credentials: true,
@@ -670,33 +784,7 @@ app.get("/api/test", (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
-// In server.js, add this endpoint for debugging
-app.get("/api/debug/verify-token", async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ success: false, error: "No token provided" });
-    }
 
-    const jwt = await import('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    const user = await User.findById(decoded.userId).select('_id name email');
-    
-    res.json({
-      success: true,
-      tokenValid: true,
-      decoded: decoded,
-      user: user
-    });
-  } catch (error) {
-    res.status(401).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
 // Debug endpoint for environment variables
 app.get("/api/debug/env", (req, res) => {
   res.json({
@@ -716,170 +804,10 @@ app.get("/api/debug/env", (req, res) => {
     cors: {
       allowedOrigins: [
         'http://localhost:3000',
+        'http://localhost:5173',
         'https://alpha-phoenix-trading-matrix-s78v.onrender.com',
         cleanEnvUrl(process.env.FRONTEND_URL)
       ].filter(Boolean)
-    }
-  });
-});
-
-// Debug user data endpoint
-app.get("/api/debug/user-data", async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ 
-        success: false,
-        error: "No token provided" 
-      });
-    }
-
-    const jwt = await import('jsonwebtoken');
-    const User = (await import('./models/User.js')).default;
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-    const user = await User.findById(decoded.userId).select('-password -otpCode');
-    
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        error: "User not found" 
-      });
-    }
-
-    res.json({
-      success: true,
-      userFromDB: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        username: user.username,
-        avatar: user.avatar,
-        isActive: user.isActive
-      },
-      tokenData: decoded
-    });
-  } catch (error) {
-    console.error("Debug user data error:", error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
-  }
-});
-
-// Route documentation
-app.get("/api/debug/routes", (req, res) => {
-  res.json({
-    success: true,
-    message: "All available API endpoints",
-    endpoints: {
-      auth: [
-        "POST /api/auth/signup",
-        "POST /api/auth/verify-otp", 
-        "POST /api/auth/resend-otp",
-        "POST /api/auth/login",
-        "GET  /api/auth/google",
-        "GET  /api/auth/google/callback",
-        "GET  /api/auth/check",
-        "POST /api/auth/logout",
-        "PUT  /api/auth/password"
-      ],
-      profile: [
-        "GET  /api/profile/me",
-        "GET  /api/profile/complete",
-        "PUT  /api/profile/update", 
-        "PUT  /api/profile/complete",
-        "POST /api/profile/avatar",
-        "DELETE /api/profile/avatar",
-        "POST /api/profile/banner",
-        "DELETE /api/profile/banner",
-        "GET  /api/profile/settings",
-        "PUT  /api/profile/settings",
-        "GET  /api/profile/public/:username"
-      ],
-      users: [
-        "GET  /api/users/all",
-        "GET  /api/users/search",
-        "GET  /api/users/:userId",
-        "GET  /api/users/me"
-      ],
-      friends: [
-        "POST /api/friends/follow/:userId",
-        "POST /api/friends/unfollow/:userId",
-        "GET  /api/friends/status/:userId",
-        "GET  /api/friends/followers/:userId",
-        "GET  /api/friends/following/:userId"
-      ],
-      chat: [
-        "GET    /api/chat/conversations",
-        "POST   /api/chat/conversation/:userId",
-        "GET    /api/chat/messages/:conversationId",
-        "POST   /api/chat/messages",
-        "PUT    /api/chat/messages/:messageId",
-        "DELETE /api/chat/messages/:messageId",
-        "POST   /api/chat/messages/:messageId/react",
-        "POST   /api/chat/messages/:messageId/forward",
-        "POST   /api/chat/conversations/:conversationId/read",
-        "GET    /api/chat/search/users",
-        "GET    /api/chat/unread/counts"
-      ],
-      gallery: [
-        "GET    /api/gallery/user/:userId",
-        "POST   /api/gallery/upload",
-        "POST   /api/gallery/folders",
-        "DELETE /api/gallery/folders/:folderId",
-        "DELETE /api/gallery/items/:itemId"
-      ],
-      posts: [
-        "GET    /api/posts/feed",
-        "GET    /api/posts/hashtags/trending",
-        "GET    /api/posts/hashtags/:hashtag",
-        "POST   /api/posts",
-        "GET    /api/posts/:postId",
-        "PUT    /api/posts/:postId",
-        "DELETE /api/posts/:postId",
-        "POST   /api/posts/:postId/like",
-        "POST   /api/posts/:postId/repost",
-        "POST   /api/posts/:postId/comments",
-        "POST   /api/posts/:postId/comments/:commentId/like",
-        "POST   /api/posts/:postId/comments/:commentId/replies",
-        "POST   /api/posts/:postId/report",
-        "GET    /api/posts/user/:userId"
-      ],
-      utility: [
-        "GET  /api/health",
-        "GET  /api/socket-status",
-        "GET  /api/test",
-        "GET  /api/debug/routes",
-        "GET  /api/debug/user-data",
-        "GET  /api/debug/avatars",
-        "GET  /api/debug/banners",
-        "POST /api/test/notification",
-        "POST /api/test/typing"
-      ]
-    },
-    environment: {
-      nodeEnv: NODE_ENV,
-      port: PORT,
-      frontendUrl: FRONTEND_URL,
-      cleanedFrontendUrl: cleanEnvUrl(FRONTEND_URL),
-      socketEnabled: true,
-      realtimeFeatures: {
-        posts: true,
-        comments: true,
-        likes: true,
-        typing: true,
-        notifications: true,
-        onlineStatus: true,
-        chat: true
-      },
-      googleOAuth: {
-        clientId: process.env.GOOGLE_CLIENT_ID ? "✅ Configured" : "❌ Missing",
-        redirectUri: process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/auth/google/callback"
-      },
-      email: process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured",
-      jwt: process.env.JWT_SECRET ? "✅ Configured" : "❌ Using fallback"
     }
   });
 });
@@ -910,6 +838,9 @@ if (NODE_ENV === "production") {
     
     app.get("*", (req, res, next) => {
       if (req.url.startsWith('/api/')) {
+        return next();
+      }
+      if (req.url.startsWith('/socket.io/')) {
         return next();
       }
       res.sendFile(path.join(staticPath, "index.html"));
@@ -954,7 +885,8 @@ httpServer.listen(PORT, () => {
   console.log(`📍 Local URL: http://localhost:${PORT}`);
   console.log(`🌐 Environment: ${NODE_ENV}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
-  console.log(`🔌 Socket.io: Enabled`);
+  console.log(`🔌 Socket.io: Enabled on path /socket.io/`);
+  console.log(`🔌 Socket.io CORS: Allowing all origins for debugging`);
   console.log(`\n📡 API ENDPOINTS:`);
   console.log(`   🔐 Auth:      http://localhost:${PORT}/api/auth`);
   console.log(`   👤 Profile:   http://localhost:${PORT}/api/profile`);
@@ -969,7 +901,6 @@ httpServer.listen(PORT, () => {
   console.log(`   📊 Socket:    http://localhost:${PORT}/api/socket-status`);
   console.log(`   🔌 Test:      http://localhost:${PORT}/api/test`);
   console.log(`   🔍 Env Debug: http://localhost:${PORT}/api/debug/env`);
-  console.log(`   🐛 Debug:     http://localhost:${PORT}/api/debug/routes`);
   console.log(`\n⚙️  CONFIGURATION STATUS:`);
   console.log(`   📧 Email:     ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}`);
   console.log(`   🔑 JWT:       ${process.env.JWT_SECRET ? '✅ Configured' : '❌ Using fallback'}`);
