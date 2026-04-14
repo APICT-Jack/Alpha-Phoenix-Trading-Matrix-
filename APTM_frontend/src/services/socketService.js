@@ -18,60 +18,70 @@ class SocketService {
   }
 
   // Initialize socket connection
-  connect(userId, token) {
-    // If already connected with same userId, return existing socket
-    if (this.socket && this.socket.connected && this.userId === userId) {
-      console.log('🔄 Socket already connected with same user');
-      this.triggerConnectionCallbacks(true);
-      return this.socket;
-    }
-    
-    // If socket exists but different user, disconnect first
-    if (this.socket) {
-      console.log('🔄 Disconnecting existing socket for different user');
-      this.disconnect();
-    }
-
-    this.userId = userId;
-    
-    // FIXED: Better URL construction for production
-    let SOCKET_URL;
-    
-    if (import.meta.env.PROD) {
-      // In production, use the current origin (Render URL)
-      SOCKET_URL = window.location.origin;
-      console.log('🌐 Production mode, using origin:', SOCKET_URL);
-    } else {
-      // In development, use localhost with port 5000
-      SOCKET_URL = 'http://localhost:5000';
-      console.log('💻 Development mode, using:', SOCKET_URL);
-    }
-    
-    // Fallback to environment variable if available
-    if (import.meta.env.VITE_API_URL && !import.meta.env.PROD) {
-      SOCKET_URL = import.meta.env.VITE_API_URL.replace('/api', '');
-    }
-    
-    console.log('🔌 Connecting to socket server at:', SOCKET_URL);
-    
-    this.socket = io(SOCKET_URL, {
-      auth: { token },
-      query: { userId },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-      autoConnect: true,
-      forceNew: true,
-      path: '/socket.io/' // Explicitly set the path
-    });
-
-    this.setupEventListeners();
-    
+  // socketService.js - Updated connect method
+connect(userId, token) {
+  // If already connected with same userId, return existing socket
+  if (this.socket && this.socket.connected && this.userId === userId) {
+    console.log('🔄 Socket already connected with same user');
+    this.triggerConnectionCallbacks(true);
     return this.socket;
   }
+  
+  // If socket exists but different user, disconnect first
+  if (this.socket) {
+    console.log('🔄 Disconnecting existing socket for different user');
+    this.disconnect();
+  }
+
+  this.userId = userId;
+  
+  // FIXED: Better URL construction for production
+  let SOCKET_URL;
+  
+  if (import.meta.env.PROD) {
+    // In production, use the current origin (Render URL)
+    SOCKET_URL = window.location.origin;
+    console.log('🌐 Production mode, using origin:', SOCKET_URL);
+  } else {
+    // In development, use localhost with port 5000
+    SOCKET_URL = 'http://localhost:5000';
+    console.log('💻 Development mode, using:', SOCKET_URL);
+  }
+  
+  // Fallback to environment variable if available
+  if (import.meta.env.VITE_API_URL && !import.meta.env.PROD) {
+    SOCKET_URL = import.meta.env.VITE_API_URL.replace('/api', '');
+  }
+  
+  console.log('🔌 Connecting to socket server at:', SOCKET_URL);
+  console.log('🔑 Token present:', !!token);
+  
+  // IMPORTANT: Send token in BOTH auth and query for maximum compatibility
+  this.socket = io(SOCKET_URL, {
+    auth: { token: token },
+    query: { 
+      userId: userId,
+      token: token  // Also include in query as fallback
+    },
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 20000,
+    autoConnect: true,
+    forceNew: true,
+    path: '/socket.io/',
+    // Add extra headers for authentication
+    extraHeaders: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  this.setupEventListeners();
+  
+  return this.socket;
+}
 
   // Setup default event listeners
   setupEventListeners() {

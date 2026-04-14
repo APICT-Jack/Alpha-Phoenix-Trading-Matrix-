@@ -69,23 +69,31 @@ const onlineUsers = new Map();
 // ============================================
 // FIXED AUTHENTICATION MIDDLEWARE
 // ============================================
+// In server.js, update the socket authentication middleware
 io.use(async (socket, next) => {
   try {
-    // Try multiple sources for token
+    // Try multiple sources for token with better logging
     let token = socket.handshake.auth?.token;
     
     if (!token && socket.handshake.query?.token) {
       token = socket.handshake.query.token;
+      console.log('🔐 Token found in query');
     }
     
     if (!token && socket.handshake.headers?.authorization) {
       token = socket.handshake.headers.authorization.replace('Bearer ', '');
+      console.log('🔐 Token found in headers');
     }
     
     console.log('🔐 Socket auth - Token present:', !!token);
+    console.log('🔐 Socket handshake details:', {
+      auth: !!socket.handshake.auth,
+      query: !!socket.handshake.query,
+      headers: !!socket.handshake.headers
+    });
     
     if (!token) {
-      console.log('❌ No token provided');
+      console.log('❌ No token provided in any source');
       return next(new Error('Authentication required: No token'));
     }
     
@@ -98,7 +106,8 @@ io.use(async (socket, next) => {
       console.log('✅ Token verified for user:', decoded.userId || decoded.id);
     } catch (jwtError) {
       console.error('❌ JWT verification failed:', jwtError.message);
-      return next(new Error('Authentication failed: Invalid token'));
+      console.error('Token (first 50 chars):', token.substring(0, 50));
+      return next(new Error('Authentication failed: Invalid token - ' + jwtError.message));
     }
     
     const userId = decoded.userId || decoded.id;
@@ -661,7 +670,33 @@ app.get("/api/test", (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+// In server.js, add this endpoint for debugging
+app.get("/api/debug/verify-token", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ success: false, error: "No token provided" });
+    }
 
+    const jwt = await import('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    const user = await User.findById(decoded.userId).select('_id name email');
+    
+    res.json({
+      success: true,
+      tokenValid: true,
+      decoded: decoded,
+      user: user
+    });
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 // Debug endpoint for environment variables
 app.get("/api/debug/env", (req, res) => {
   res.json({
