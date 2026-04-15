@@ -1,4 +1,4 @@
-// components/Chat/ChatConversation.jsx - COMPLETE FIXED VERSION
+// ChatConversation.jsx - Premium Glass Edition with Wallpaper Blend
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
@@ -43,14 +43,13 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   const formattedUserAvatar = formatAvatarUrl(conversation.userAvatar);
   const formattedCurrentUserAvatar = formatAvatarUrl(currentUser?.avatar);
 
-  // Mark messages as read using REST API (not socket)
+  // Mark messages as read using REST API
   const markMessagesAsRead = useCallback(async () => {
     if (!conversation?.id || !conversation?.userId) return;
     
     try {
       console.log('📖 Marking messages as read for conversation:', conversation.id);
       
-      // Use REST API to mark messages as read
       const response = await fetch(`${BASE_URL}/api/chat/conversations/${conversation.id}/read`, {
         method: 'POST',
         headers: {
@@ -62,7 +61,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       
       if (response.ok) {
         console.log('✅ Messages marked as read successfully');
-        // Update local message statuses
         setMessages(prev => prev.map(msg => 
           msg.senderId === conversation.userId && msg.status !== 'read'
             ? { ...msg, status: 'read' }
@@ -99,7 +97,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           setPage(1);
         }
         
-        // Mark messages as read after loading
         await markMessagesAsRead();
         
         setTimeout(() => {
@@ -157,7 +154,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       
       setMessages(prev => [...prev, formattedMessage]);
       
-      // Mark as read if from other user
       if (formattedMessage.senderId !== currentUser?.id) {
         markMessagesAsRead();
       }
@@ -241,7 +237,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       if (userId === conversation.userId) setIsTyping(false);
     };
 
-    // Register listeners
     chatService.onMessageReceived(handleNewMessage);
     chatService.onMessageSent(handleMessageSent);
     chatService.onMessageUpdated(handleMessageUpdated);
@@ -301,10 +296,8 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
 
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Create media array
     const media = [];
     
-    // Add chart if present
     if (chart) {
       media.push({
         type: 'chart',
@@ -313,7 +306,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       });
     }
     
-    // Add attachments
     attachments.forEach(att => {
       media.push({
         type: att.type?.startsWith('image/') ? 'image' : 'file',
@@ -352,7 +344,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     const replyToId = replyTo?._id;
     setReplyTo(null);
 
-    // Send via REST API (more reliable than socket for media)
     try {
       const formData = new FormData();
       formData.append('receiverId', conversation.userId);
@@ -402,7 +393,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           return m;
         }));
         
-        // Also try to send via socket for real-time to other user
         chatService.sendMessage({
           conversationId: conversation.id,
           receiverId: conversation.userId,
@@ -494,7 +484,6 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   const handleForwardMessage = (message) => {
     const targetUserId = prompt('Enter user ID to forward to:');
     if (targetUserId) {
-      // Implement forward functionality
       console.log('Forward message to:', targetUserId, message);
     }
   };
@@ -599,7 +588,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         </div>
       </div>
 
-      {/* Messages Area */}
+      {/* Messages Area - Transparent background shows wallpaper */}
       <div 
         className={styles.messagesArea}
         ref={messagesContainerRef}
@@ -619,7 +608,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           </div>
         ) : messages.length === 0 ? (
           <div className={styles.noMessages}>
-            <p>No messages yet</p>
+            <p>✨ No messages yet</p>
             <p className={styles.noMessagesSubtext}>Send a message to start the conversation</p>
           </div>
         ) : (
