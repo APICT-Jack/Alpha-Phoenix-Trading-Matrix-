@@ -1,10 +1,19 @@
-// components/Chat/WallpaperPanel.jsx
+// WallpaperPanel.jsx - Fixed version with valid icons
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import styles from './WallpaperPanel.module.css';
 
-// Minimal icons
-import { FaTimes, FaSun, FaMoon, FaImage, FaTint, FaBlur, FaAdjust } from 'react-icons/fa';
+// Valid icons from react-icons/fa
+import { 
+  FaTimes, 
+  FaSun, 
+  FaMoon, 
+  FaImage, 
+  FaTint, 
+  FaAdjust,
+  FaEyeDropper,
+  FaMagic
+} from 'react-icons/fa';
 
 const wallpapers = [
   { id: 1, name: 'macOS Default', url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)' },
@@ -69,7 +78,7 @@ const WallpaperPanel = ({ isOpen, onClose, onSelectWallpaper, currentWallpaper, 
 
           <div className={styles.setting}>
             <div className={styles.settingLabel}>
-              <FaBlur size={14} />
+              <FaEyeDropper size={14} />
               <span>Blur Effect</span>
             </div>
             <input
@@ -107,7 +116,7 @@ const WallpaperPanel = ({ isOpen, onClose, onSelectWallpaper, currentWallpaper, 
           onUpdateSetting('blur', 0);
           onUpdateSetting('opacity', 0.8);
         }}>
-          Reset to Default
+          <FaMagic size={14} /> Reset to Default
         </button>
       </div>
     </div>
