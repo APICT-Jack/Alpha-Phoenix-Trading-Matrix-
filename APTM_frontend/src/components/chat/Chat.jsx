@@ -1,4 +1,4 @@
-// Chat.jsx - COMPLETE FIXED VERSION
+// Chat.jsx - Premium Edition with Wallpaper Support
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -8,10 +8,11 @@ import { socketService } from '../../services/socketService';
 import ChatList from './ChatList';
 import ChatConversation from './ChatConversation';
 import NewChatModal from './NewChatModal';
+import WallpaperPanel from './WallpaperPanel';
 import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
 import styles from './Chat.module.css';
 
-// Import icons
+// Import icons (minimal, premium set)
 import {
   FaComments,
   FaSearch,
@@ -24,7 +25,8 @@ import {
   FaWifi,
   FaRegCircle,
   FaSignOutAlt,
-  FaUserPlus
+  FaUserPlus,
+  FaImage
 } from 'react-icons/fa';
 
 const Chat = () => {
@@ -40,6 +42,7 @@ const Chat = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [showWallpaperPanel, setShowWallpaperPanel] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState({});
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -48,10 +51,76 @@ const Chat = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [socketError, setSocketError] = useState(null);
   const [typingUsers, setTypingUsers] = useState({});
+  const [wallpaperSettings, setWallpaperSettings] = useState({
+    url: '',
+    brightness: 0.6,
+    blur: 0,
+    opacity: 0.8,
+    overlay: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)'
+  });
   
   const loadingTimeoutRef = useRef(null);
   const isMountedRef = useRef(true);
   const conversationCache = useRef(new Map());
+
+  // Load wallpaper settings
+  useEffect(() => {
+    const savedWallpaper = localStorage.getItem('chat_wallpaper_settings');
+    if (savedWallpaper) {
+      try {
+        const parsed = JSON.parse(savedWallpaper);
+        setWallpaperSettings(parsed);
+        applyWallpaperSettings(parsed);
+      } catch (e) {
+        console.error('Error loading wallpaper:', e);
+      }
+    } else {
+      // Set default wallpaper
+      const defaultWallpaper = {
+        url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop',
+        brightness: 0.6,
+        blur: 0,
+        opacity: 0.8,
+        overlay: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)'
+      };
+      setWallpaperSettings(defaultWallpaper);
+      applyWallpaperSettings(defaultWallpaper);
+    }
+  }, []);
+
+  const applyWallpaperSettings = (settings) => {
+    document.documentElement.style.setProperty('--wallpaper-url', `url(${settings.url})`);
+    document.documentElement.style.setProperty('--wallpaper-brightness', settings.brightness);
+    document.documentElement.style.setProperty('--wallpaper-blur', `${settings.blur}px`);
+    document.documentElement.style.setProperty('--wallpaper-opacity', settings.opacity);
+    document.documentElement.style.setProperty('--wallpaper-overlay', settings.overlay);
+    
+    // Light mode overlay
+    if (!darkMode) {
+      document.documentElement.style.setProperty('--wallpaper-overlay-light', 
+        'linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%)'
+      );
+    }
+  };
+
+  const updateWallpaperSetting = (key, value) => {
+    const newSettings = { ...wallpaperSettings, [key]: value };
+    setWallpaperSettings(newSettings);
+    applyWallpaperSettings(newSettings);
+    localStorage.setItem('chat_wallpaper_settings', JSON.stringify(newSettings));
+  };
+
+  const handleWallpaperChange = (wallpaper) => {
+    const newSettings = {
+      ...wallpaperSettings,
+      url: wallpaper.url,
+      overlay: wallpaper.gradient || wallpaperSettings.overlay
+    };
+    setWallpaperSettings(newSettings);
+    applyWallpaperSettings(newSettings);
+    localStorage.setItem('chat_wallpaper_settings', JSON.stringify(newSettings));
+    setShowWallpaperPanel(false);
+  };
 
   // Handle window resize
   useEffect(() => {
@@ -80,7 +149,6 @@ const Chat = () => {
         seen.set(userId, conv);
         unique.push(conv);
       } else {
-        // Keep the one with most recent message
         const existing = seen.get(userId);
         const existingTime = new Date(existing.lastMessageTime).getTime();
         const newTime = new Date(conv.lastMessageTime).getTime();
@@ -92,7 +160,6 @@ const Chat = () => {
       }
     }
     
-    // Cache for faster access
     unique.forEach(conv => {
       conversationCache.current.set(conv.userId, conv);
     });
@@ -122,7 +189,6 @@ const Chat = () => {
       const data = await chatService.getConversations();
       console.log('📋 Loaded conversations data:', data?.length || 0, 'conversations');
       
-      // Ensure data is an array
       let conversationsArray = [];
       if (Array.isArray(data)) {
         conversationsArray = data;
@@ -132,7 +198,6 @@ const Chat = () => {
         conversationsArray = data.data;
       }
       
-      // Format conversations for display
       const formattedConversations = conversationsArray.map(conv => ({
         id: conv.id || conv._id,
         _id: conv._id || conv.id,
@@ -150,10 +215,8 @@ const Chat = () => {
         typingUser: null
       }));
       
-      // Deduplicate by userId
       const uniqueConvs = deduplicateConversations(formattedConversations);
       
-      // Sort by lastMessageTime (newest first)
       uniqueConvs.sort((a, b) => {
         const timeA = new Date(a.lastMessageTime).getTime();
         const timeB = new Date(b.lastMessageTime).getTime();
@@ -164,7 +227,6 @@ const Chat = () => {
         setConversations(uniqueConvs);
         setError(null);
         
-        // Update unread counts
         const counts = {};
         uniqueConvs.forEach(conv => {
           if (conv.unreadCount > 0) {
@@ -173,17 +235,13 @@ const Chat = () => {
         });
         setUnreadCounts(counts);
         
-        // Check if we need to select a chat from URL
         if (chatId && uniqueConvs.length > 0 && !activeChat) {
           const chat = uniqueConvs.find(c => c.userId === chatId);
           if (chat) {
             setActiveChat(chat);
             if (isMobile) setShowSidebar(false);
-            
-            // Join conversation room
             socketService.joinConversation(chat.id);
           } else {
-            // Try to create conversation with this user
             await createChatFromUserId(chatId);
           }
         }
@@ -194,7 +252,6 @@ const Chat = () => {
       if (isMountedRef.current) {
         setError(err.message || 'Failed to load conversations');
         
-        // Retry logic with exponential backoff
         if (retryCount < 3) {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
           setTimeout(() => {
@@ -212,7 +269,6 @@ const Chat = () => {
     }
   }, [currentUser, chatId, activeChat, isMobile, onlineUsers, typingUsers, retryCount, deduplicateConversations]);
 
-  // Function to create chat from user ID
   const createChatFromUserId = useCallback(async (userId) => {
     try {
       console.log('📝 Creating chat with user:', userId);
@@ -243,8 +299,6 @@ const Chat = () => {
         });
         setActiveChat(formattedConv);
         if (isMobile) setShowSidebar(false);
-        
-        // Join conversation room
         socketService.joinConversation(formattedConv.id);
       }
       
@@ -258,7 +312,6 @@ const Chat = () => {
     }
   }, [isMobile, onlineUsers]);
 
-  // Update conversation in list
   const updateConversationInList = useCallback((updatedConv) => {
     if (!isMountedRef.current) return;
     
@@ -271,7 +324,6 @@ const Chat = () => {
       } else {
         newConvs = [updatedConv, ...prev];
       }
-      // Sort by lastMessageTime
       newConvs.sort((a, b) => {
         const timeA = new Date(a.lastMessageTime).getTime();
         const timeB = new Date(b.lastMessageTime).getTime();
@@ -281,7 +333,6 @@ const Chat = () => {
     });
   }, []);
 
-  // Handle new message
   const handleNewMessage = useCallback((message) => {
     if (!isMountedRef.current) return;
     
@@ -290,7 +341,6 @@ const Chat = () => {
     const currentUserId = currentUser?._id || currentUser?.id;
     const isFromCurrentUser = message.senderId === currentUserId;
     
-    // Update conversations list
     setConversations(prev => {
       let updated = false;
       const newConvs = prev.map(conv => {
@@ -309,14 +359,12 @@ const Chat = () => {
         return conv;
       });
       
-      // Sort by lastMessageTime
       newConvs.sort((a, b) => {
         const timeA = new Date(a.lastMessageTime).getTime();
         const timeB = new Date(b.lastMessageTime).getTime();
         return timeB - timeA;
       });
       
-      // If conversation doesn't exist yet, reload conversations
       if (!updated && !isFromCurrentUser) {
         setTimeout(() => loadConversations(false), 500);
       }
@@ -324,27 +372,24 @@ const Chat = () => {
       return newConvs;
     });
 
-    // Update unread counts
     if (!isFromCurrentUser) {
       setUnreadCounts(prev => ({
         ...prev,
         [message.conversationId]: (prev[message.conversationId] || 0) + 1
       }));
       
-      // Play notification sound if not active chat
       if (activeChat?.id !== message.conversationId) {
-        // Optional: play sound or show browser notification
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('New Message', {
             body: `${message.sender?.name || 'Someone'} sent you a message`,
-            icon: message.sender?.avatar
+            icon: message.sender?.avatar,
+            silent: true
           });
         }
       }
     }
   }, [currentUser, activeChat, loadConversations]);
 
-  // Handle messages read
   const handleMessagesRead = useCallback(({ conversationId, readerId }) => {
     if (!isMountedRef.current) return;
     
@@ -367,7 +412,6 @@ const Chat = () => {
     }
   }, [currentUser]);
 
-  // Handle typing indicators
   const handleTypingStart = useCallback(({ conversationId, userId, username }) => {
     if (!isMountedRef.current) return;
     
@@ -384,7 +428,6 @@ const Chat = () => {
         )
       );
       
-      // Auto-clear typing after 3 seconds if no stop received
       setTimeout(() => {
         if (isMountedRef.current) {
           handleTypingStop({ conversationId, userId });
@@ -407,22 +450,16 @@ const Chat = () => {
     );
   }, []);
 
-  // Select chat
   const selectChat = useCallback(async (chat) => {
     console.log('💬 Selecting chat:', chat);
     
     const currentUserId = currentUser?._id || currentUser?.id;
     
-    // Clear unread count
     if (unreadCounts[chat.id] > 0) {
       try {
-        // Mark as read via REST API
         await chatService.markMessagesAsReadRest(chat.id, chat.userId);
-        
-        // Also via socket
         socketService.markMessagesAsRead(chat.id, chat.userId);
         
-        // Update local state
         setUnreadCounts(prev => {
           const newCounts = { ...prev };
           delete newCounts[chat.id];
@@ -440,20 +477,14 @@ const Chat = () => {
     }
     
     setActiveChat(chat);
-    
-    // Join conversation room
     socketService.joinConversation(chat.id);
-    
-    // Update URL
     navigate(`/chat/${chat.userId}`);
     
-    // On mobile, hide sidebar
     if (isMobile) {
       setShowSidebar(false);
     }
   }, [currentUser, unreadCounts, isMobile, navigate]);
 
-  // Create new chat
   const createNewChat = useCallback(async (user) => {
     try {
       console.log('📝 Creating new chat with user:', user);
@@ -490,27 +521,23 @@ const Chat = () => {
     }
   }, [onlineUsers, selectChat]);
 
-  // Go back to conversations list (mobile)
   const goBackToList = useCallback(() => {
     setActiveChat(null);
     setShowSidebar(true);
     navigate('/chat');
   }, [navigate]);
 
-  // Retry loading
   const handleRetry = useCallback(() => {
     setRetryCount(0);
     setError(null);
     loadConversations(true);
   }, [loadConversations]);
 
-  // Handle socket connection
   const setupSocketListeners = useCallback(() => {
     const currentUserId = currentUser?._id || currentUser?.id;
     
     if (!currentUserId) return;
     
-    // Get token from localStorage
     const token = localStorage.getItem('token');
     
     if (!token) {
@@ -520,16 +547,13 @@ const Chat = () => {
       return;
     }
     
-    // Connect socket service
     socketService.connect(currentUserId, token);
     
-    // Socket event handlers
     const handleConnect = () => {
       console.log('✅ Socket connected');
       if (isMountedRef.current) {
         setConnectionStatus('connected');
         setSocketError(null);
-        // Get online users
         socketService.getOnlineUsers();
       }
     };
@@ -539,7 +563,6 @@ const Chat = () => {
       if (isMountedRef.current) {
         setConnectionStatus('disconnected');
         if (reason === 'io server disconnect') {
-          // Reconnect manually
           setTimeout(() => socketService.reconnect(), 1000);
         }
       }
@@ -563,7 +586,6 @@ const Chat = () => {
         });
         setOnlineUsers(onlineMap);
         
-        // Update conversations online status
         setConversations(prev => prev.map(conv => ({
           ...conv,
           isOnline: onlineMap[conv.userId] || false
@@ -595,7 +617,6 @@ const Chat = () => {
     
     const handleMessageSent = (message) => {
       console.log('✅ Message sent confirmation:', message);
-      // Update conversation with sent message
       updateConversationInList({
         id: message.conversationId,
         lastMessage: message.text || (message.media?.length > 0 ? '📎 Media' : ''),
@@ -615,7 +636,6 @@ const Chat = () => {
       handleTypingStop(data);
     };
     
-    // Register all listeners
     socketService.on('connect', handleConnect);
     socketService.on('disconnect', handleDisconnect);
     socketService.on('connect_error', handleConnectError);
@@ -628,7 +648,6 @@ const Chat = () => {
     socketService.on('typing:start', handleTypingStartEvent);
     socketService.on('typing:stop', handleTypingStopEvent);
     
-    // Cleanup function
     return () => {
       socketService.off('connect', handleConnect);
       socketService.off('disconnect', handleDisconnect);
@@ -644,7 +663,6 @@ const Chat = () => {
     };
   }, [currentUser, handleNewMessage, handleMessagesRead, handleTypingStart, handleTypingStop, updateConversationInList]);
 
-  // Initialize chat service
   useEffect(() => {
     if (!currentUser) {
       console.log('⚠️ No current user, waiting...');
@@ -659,14 +677,12 @@ const Chat = () => {
     
     console.log('🔌 Initializing chat for user:', currentUser._id || currentUser.id);
     
-    // Ensure user has id property
     const userWithId = {
       ...currentUser,
       id: currentUser._id || currentUser.id,
       _id: currentUser._id || currentUser.id
     };
     
-    // Set connection timeout
     loadingTimeoutRef.current = setTimeout(() => {
       if (isMountedRef.current && connectionStatus === 'connecting') {
         console.log('⚠️ Socket connection timeout, loading conversations anyway...');
@@ -676,7 +692,6 @@ const Chat = () => {
       }
     }, 8000);
     
-    // Initialize chat service
     chatService.init(userWithId, {
       onConnect: () => {
         console.log('✅ Chat service connected');
@@ -691,7 +706,6 @@ const Chat = () => {
         if (isMountedRef.current) {
           setConnectionStatus('disconnected');
           setSocketError(error.message || 'Connection failed');
-          // Still load conversations even if socket fails
           loadConversations(true);
         }
       },
@@ -749,13 +763,9 @@ const Chat = () => {
       }
     });
 
-    // Setup socket service listeners
     const cleanupSocket = setupSocketListeners();
-    
-    // Load conversations immediately even if socket not connected yet
     loadConversations(true);
     
-    // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
@@ -769,17 +779,14 @@ const Chat = () => {
     };
   }, [currentUser, loadConversations, handleNewMessage, handleMessagesRead, handleTypingStart, handleTypingStop, updateConversationInList, setupSocketListeners]);
 
-  // Filter conversations
   const filteredConversations = conversations.filter(conv => 
     conv.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.userUsername?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Calculate total unread
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 
-  // Get connection status display
   const getConnectionStatusDisplay = () => {
     switch(connectionStatus) {
       case 'connected':
@@ -795,12 +802,11 @@ const Chat = () => {
 
   const connectionDisplay = getConnectionStatusDisplay();
 
-  // Show loading state
   if (loading && conversations.length === 0) {
     return (
       <div className={`${styles.chatApp} ${darkMode ? styles.dark : styles.light}`}>
         <div className={styles.loadingContainer}>
-          <FaSpinner className={styles.spinner} />
+          <div className={styles.spinner}></div>
           <p>Loading conversations...</p>
           <small>Connecting to chat server...</small>
         </div>
@@ -808,7 +814,6 @@ const Chat = () => {
     );
   }
 
-  // Show error state
   if (error && conversations.length === 0) {
     return (
       <div className={`${styles.chatApp} ${darkMode ? styles.dark : styles.light}`}>
@@ -825,6 +830,16 @@ const Chat = () => {
 
   return (
     <div className={`${styles.chatApp} ${darkMode ? styles.dark : styles.light}`}>
+      {/* Wallpaper Panel */}
+      <WallpaperPanel
+        isOpen={showWallpaperPanel}
+        onClose={() => setShowWallpaperPanel(false)}
+        onSelectWallpaper={handleWallpaperChange}
+        currentWallpaper={wallpaperSettings.url}
+        onUpdateSetting={updateWallpaperSetting}
+        settings={wallpaperSettings}
+      />
+
       {/* Sidebar */}
       <div className={`${styles.sidebar} ${showSidebar ? styles.show : styles.hide}`}>
         {/* Sidebar Header */}
@@ -851,6 +866,13 @@ const Chat = () => {
             </div>
           </div>
           <div className={styles.headerActions}>
+            <button 
+              className={styles.iconButton}
+              onClick={() => setShowWallpaperPanel(true)}
+              title="Change wallpaper"
+            >
+              <FaImage />
+            </button>
             <button 
               className={styles.iconButton}
               onClick={() => setDarkMode(!darkMode)}
