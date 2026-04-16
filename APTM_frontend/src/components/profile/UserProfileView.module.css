@@ -1,19 +1,4 @@
-/* UserProfileView.module.css - PREMIUM MACOS/IOS GLASS EDITION
-   Complete file with all original styles + glass enhancements
-   ============================================ */
-
-/* ===== IMPORTS ===== */
-@import './styles/base.css';
-@import './styles/header.css';
-@import './styles/tabs.css';
-@import './styles/Post.module.css';
-@import './styles/CreatePost.module.css';
-@import './styles/overview.css';
-@import './styles/gallery.css';
-@import './styles/modal.css';
-@import './styles/responsive.css';
-
-/* UserProfileView.module.css - FULL SCREEN PREMIUM GLASS EDITION
+/* UserProfileView.module.css - FULL SCREEN WITH DYNAMIC WIDTH
    ============================================ */
 
 /* ===== CSS VARIABLES ===== */
@@ -43,8 +28,9 @@
   --radius-2xl: 24px;
   --radius-full: 999px;
   
-  /* Layout - FULL SCREEN */
+  /* Layout - DYNAMIC FULL SCREEN */
   --nav-width: 380px;
+  --nav-width-collapsed: 70px;
   --nav-bar-height: 60px;
   --banner-height: 280px;
   --avatar-size: 120px;
@@ -122,9 +108,16 @@
   min-height: 100vh;
   position: relative;
   background: transparent;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Wallpaper Background - Full Screen */
+/* When panel is collapsed - FULL SCREEN */
+.profileContainer.panelCollapsed {
+  margin-left: var(--nav-width-collapsed);
+  width: calc(100% - var(--nav-width-collapsed));
+}
+
+/* Wallpaper Background */
 .profileContainer::before {
   content: '';
   position: fixed;
@@ -340,7 +333,7 @@
   font-weight: 700;
 }
 
-/* HEADER CONTENT - CENTERED BUT FULL WIDTH BACKGROUND */
+/* HEADER CONTENT */
 .headerContent {
   padding: calc(var(--avatar-size) - 35px) var(--space-xxl) var(--space-xl) var(--space-xxl);
   background: transparent;
@@ -694,18 +687,25 @@
 @media (max-width: 1024px) {
   :root {
     --nav-width: 320px;
+    --nav-width-collapsed: 70px;
   }
 }
 
 @media (max-width: 768px) {
   :root {
     --nav-width: 0;
+    --nav-width-collapsed: 0;
     --banner-height: 200px;
     --avatar-size: 96px;
     --avatar-overlap: 48px;
   }
   
   .profileContainer {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .profileContainer.panelCollapsed {
     margin-left: 0;
     width: 100%;
   }
