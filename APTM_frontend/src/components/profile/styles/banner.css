@@ -1,5 +1,15 @@
-/* banner.css - PROFESSIONAL REDESIGN WITH REDUCED HEIGHT */
+/* banner.css - PROFESSIONAL REDESIGN WITH FULL SCREEN LAYOUT */
 /* ===== BANNER STYLES ===== */
+
+/* FIX: Ensure parent containers fill full width */
+.profileContainer,
+.profilePage {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
 
 /* Banner Section - REDUCED HEIGHT */
 .bannerSection {
@@ -9,6 +19,7 @@
   overflow: hidden;
   background: var(--gradient-primary);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  flex-shrink: 0; /* Prevent banner from shrinking */
 }
 
 /* Subtle pattern overlay - more professional */
@@ -39,8 +50,8 @@
 .bannerImage {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Ensures image covers the area without distortion */
-  object-position: center 30%; /* Shows the top portion more professionally */
+  object-fit: cover;
+  object-position: center 30%;
   display: block;
   transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -87,7 +98,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 70px; /* Reduced height */
+  height: 70px;
   background: linear-gradient(
     to top,
     var(--color-card) 0%,
@@ -140,12 +151,16 @@
   transform: translateY(-1px);
 }
 
-/* Profile content positioned over banner - ADJUSTED for reduced height */
+/* Profile content positioned over banner - ADJUSTED */
 .headerContent {
   position: relative;
   z-index: 5;
   padding: 0 var(--space-xl) var(--space-lg);
-  margin-top: -60px; /* Adjusted for shorter banner */
+  margin-top: -60px;
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Avatar Section - SCALED PROPERLY */
@@ -223,12 +238,13 @@
   align-items: flex-end;
   gap: var(--space-xl);
   margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
 }
 
 .userInfoSection {
   flex: 1;
   padding-bottom: var(--space-xs);
-  min-width: 0;
+  min-width: 200px;
 }
 
 .userNameRow {
@@ -484,166 +500,13 @@
   transform: translateY(-2px);
 }
 
-/* Light Mode Adjustments */
-body.light-mode .bannerOverlay {
-  background: linear-gradient(
-    to top,
-    var(--color-card) 0%,
-    rgba(255, 255, 255, 0.9) 30%,
-    transparent 100%
-  );
-}
-
-body.light-mode .statItem {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-}
-
-body.light-mode .statItem:hover {
-  background: var(--color-card);
-}
-
-body.light-mode .socialLink {
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-}
-
-/* Responsive Design - ADJUSTED for reduced banner height */
-@media (max-width: 1024px) {
-  .bannerSection {
-    height: 160px;
-  }
-  
-  .headerContent {
-    margin-top: -50px;
-  }
-  
-  .avatarContainer {
-    width: 110px;
-    height: 110px;
-  }
-  
-  .userName {
-    font-size: 1.625rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .bannerSection {
-    height: 140px;
-  }
-  
-  .headerContent {
-    margin-top: -45px;
-    padding: 0 var(--space-md) var(--space-md);
-  }
-  
-  .avatarSection {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-md);
-  }
-  
-  .avatarContainer {
-    width: 100px;
-    height: 100px;
-  }
-  
-  .userName {
-    font-size: 1.5rem;
-  }
-  
-  .userStats {
-    gap: var(--space-sm);
-  }
-  
-  .statItem {
-    min-width: 70px;
-    padding: var(--space-xs);
-  }
-  
-  .socialPlatformName {
-    display: none;
-  }
-  
-  .socialLink {
-    padding: 0.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .bannerSection {
-    height: 120px;
-  }
-  
-  .headerContent {
-    margin-top: -40px;
-  }
-  
-  .avatarContainer {
-    width: 90px;
-    height: 90px;
-  }
-  
-  .userName {
-    font-size: 1.375rem;
-  }
-  
-  .userUsername {
-    font-size: 0.875rem;
-  }
-  
-  .userDetails {
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-  
-  .userStats {
-    gap: 0.5rem;
-  }
-  
-  .statItem {
-    min-width: 60px;
-    padding: 0.25rem;
-  }
-  
-  .statValue {
-    font-size: 1rem;
-  }
-  
-  .statLabel {
-    font-size: 0.625rem;
-  }
-}
-
-/* Animations */
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-/* Add CSS custom property for RGB values */
-:root {
-  --color-primary-rgb: 41, 121, 255;
-  --color-card-rgb: 26, 29, 36;
-}
-
-body.light-mode {
-  --color-primary-rgb: 37, 99, 235;
-  --color-card-rgb: 255, 255, 255;
-}
-/* ===== STICKY HEADER STYLES - ADD TO banner.css ===== */
+/* ===== STICKY HEADER STYLES - FIXED FOR FULL WIDTH ===== */
 .stickyHeader {
   position: fixed;
   top: 0;
-  left: 400px;
+  left: 0; /* FIXED: Changed from 400px to 0 */
   right: 0;
+  width: 100%; /* FIXED: Ensure full width */
   height: 64px;
   background: rgba(var(--color-card-rgb), 0.92);
   backdrop-filter: blur(12px);
@@ -665,6 +528,7 @@ body.light-mode {
 }
 
 .stickyHeaderContent {
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 var(--space-lg);
@@ -851,21 +715,175 @@ body.light-mode {
   transform: translateY(-1px);
 }
 
-/* Responsive */
+/* Profile Content Area - FIXED: Expands to fill remaining space */
+.profileContent {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-xl);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Tabs - FIXED: Proper positioning */
+.profileTabs {
+  width: 100%;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  flex-shrink: 0;
+  position: sticky;
+  top: 64px;
+  z-index: 100;
+}
+
+.tabsContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  gap: var(--space-lg);
+  overflow-x: auto;
+  padding: 0 var(--space-md);
+}
+
+.tab {
+  padding: var(--space-md) 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+}
+
+.tab:hover {
+  color: var(--color-primary);
+}
+
+.tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Posts Grid - FIXED: Proper sizing */
+.postsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-lg);
+  width: 100%;
+  padding: var(--space-lg) 0;
+}
+
+/* Light Mode Adjustments */
+body.light-mode .bannerOverlay {
+  background: linear-gradient(
+    to top,
+    var(--color-card) 0%,
+    rgba(255, 255, 255, 0.9) 30%,
+    transparent 100%
+  );
+}
+
+body.light-mode .statItem {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+body.light-mode .statItem:hover {
+  background: var(--color-card);
+}
+
+body.light-mode .socialLink {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+}
+
+/* Responsive Design - FIXED */
 @media (max-width: 1024px) {
-  .stickyHeader {
-    left: 320px;
+  .bannerSection {
+    height: 160px;
+  }
+  
+  .headerContent {
+    margin-top: -50px;
+  }
+  
+  .avatarContainer {
+    width: 110px;
+    height: 110px;
+  }
+  
+  .userName {
+    font-size: 1.625rem;
+  }
+  
+  .profileContent {
+    padding: var(--space-lg);
   }
 }
 
 @media (max-width: 768px) {
-  .stickyHeader {
-    left: 0;
+  .bannerSection {
+    height: 140px;
+  }
+  
+  .headerContent {
+    margin-top: -45px;
+    padding: 0 var(--space-md) var(--space-md);
+  }
+  
+  .avatarSection {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-md);
+  }
+  
+  .avatarContainer {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .userName {
+    font-size: 1.5rem;
+  }
+  
+  .userStats {
+    gap: var(--space-sm);
+  }
+  
+  .statItem {
+    min-width: 70px;
+    padding: var(--space-xs);
+  }
+  
+  .socialPlatformName {
+    display: none;
+  }
+  
+  .socialLink {
+    padding: 0.5rem;
+  }
+  
+  .profileContent {
+    padding: var(--space-md);
+  }
+  
+  .postsGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+  
+  .stickyHeaderContent {
+    padding: 0 var(--space-md);
   }
   
   .backText,
   .stickyStats,
-  .socialPlatformName,
   .stickyUserDetails span {
     display: none;
   }
@@ -894,6 +912,53 @@ body.light-mode {
 }
 
 @media (max-width: 480px) {
+  .bannerSection {
+    height: 120px;
+  }
+  
+  .headerContent {
+    margin-top: -40px;
+  }
+  
+  .avatarContainer {
+    width: 90px;
+    height: 90px;
+  }
+  
+  .userName {
+    font-size: 1.375rem;
+  }
+  
+  .userUsername {
+    font-size: 0.875rem;
+  }
+  
+  .userDetails {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+  
+  .userStats {
+    gap: 0.5rem;
+  }
+  
+  .statItem {
+    min-width: 60px;
+    padding: 0.25rem;
+  }
+  
+  .statValue {
+    font-size: 1rem;
+  }
+  
+  .statLabel {
+    font-size: 0.625rem;
+  }
+  
+  .profileContent {
+    padding: var(--space-sm);
+  }
+  
   .stickyHeaderContent {
     padding: 0 var(--space-sm);
   }
@@ -911,4 +976,29 @@ body.light-mode {
     font-size: 0.8125rem;
     max-width: 100px;
   }
+}
+
+/* Animations */
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* CSS custom properties */
+:root {
+  --color-primary-rgb: 41, 121, 255;
+  --color-card-rgb: 26, 29, 36;
+  --color-danger-rgb: 239, 83, 80;
+}
+
+body.light-mode {
+  --color-primary-rgb: 37, 99, 235;
+  --color-card-rgb: 255, 255, 255;
+  --color-danger-rgb: 239, 68, 68;
 }
