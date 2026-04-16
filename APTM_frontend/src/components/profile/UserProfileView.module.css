@@ -12,9 +12,7 @@
 @import './styles/gallery.css';
 @import './styles/modal.css';
 @import './styles/responsive.css';
-/* UserProfileView.module.css - PREMIUM INSTAGRAM + MACOS HYBRID
-   Complete rebuild with careful variable naming and glass aesthetic
-   ============================================ */
+
 
 /* ===== CUSTOM PROPERTIES (PREFIXED TO AVOID CONFLICTS) ===== */
 :root {
