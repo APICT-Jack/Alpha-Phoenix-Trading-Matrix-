@@ -1,3 +1,17 @@
+/* UserProfileView.module.css - PREMIUM MACOS/IOS GLASS EDITION
+   Complete file with all original styles + glass enhancements
+   ============================================ */
+
+/* ===== IMPORTS ===== */
+@import './styles/base.css';
+@import './styles/header.css';
+@import './styles/tabs.css';
+@import './styles/Post.module.css';
+@import './styles/CreatePost.module.css';
+@import './styles/overview.css';
+@import './styles/gallery.css';
+@import './styles/modal.css';
+@import './styles/responsive.css';
 /* UserProfileView.module.css - FULL SCREEN WITH DYNAMIC WIDTH
    ============================================ */
 
