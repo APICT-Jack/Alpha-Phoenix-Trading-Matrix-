@@ -1,4 +1,4 @@
-// ProfileHeader.jsx - UPDATED WITH CLOUDINARY SUPPORT
+// ProfileHeader.jsx - Premium macOS/iOS Glass Edition
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -18,7 +18,13 @@ import {
   FaTelegram,
   FaReddit,
   FaYoutube,
-  FaInstagram
+  FaInstagram,
+  FaUserPlus,
+  FaUserCheck,
+  FaComments,
+  FaChartLine,
+  FaTrophy,
+  FaHeart
 } from 'react-icons/fa';
 
 // ============================================
@@ -34,10 +40,9 @@ const isCloudinaryUrl = (url) => {
 const getOptimizedAvatarUrl = (url) => {
   if (!url || !isCloudinaryUrl(url)) return url;
   
-  // Avatar optimization: 96x96, face focus, auto quality
   const transformations = [
-    'w_96',
-    'h_96',
+    'w_120',
+    'h_120',
     'c_fill',
     'g_face',
     'q_auto',
@@ -51,10 +56,9 @@ const getOptimizedAvatarUrl = (url) => {
 const getOptimizedBannerUrl = (url) => {
   if (!url || !isCloudinaryUrl(url)) return url;
   
-  // Banner optimization: 1500x500, auto quality, auto format
   const transformations = [
-    'w_1500',
-    'h_500',
+    'w_1920',
+    'h_400',
     'c_fill',
     'q_auto',
     'f_auto'
@@ -69,8 +73,6 @@ const getAvatarInitial = (user) => {
   if (user.name) return user.name.charAt(0).toUpperCase();
   if (user.firstName) return user.firstName.charAt(0).toUpperCase();
   if (user.username) return user.username.charAt(0).toUpperCase();
-  if (user.displayName) return user.displayName.charAt(0).toUpperCase();
-  if (user.email) return user.email.charAt(0).toUpperCase();
   return 'U';
 };
 
@@ -98,7 +100,10 @@ const ProfileHeader = ({
   onAvatarClick,
   onStatClick,
   bannerUrl,
-  hasBanner
+  hasBanner,
+  isOnline,
+  lastSeen,
+  formatLastSeen
 }) => {
   const navigate = useNavigate();
   const [avatarError, setAvatarError] = useState(false);
@@ -142,7 +147,6 @@ const ProfileHeader = ({
     return profileUser?.postsCount || 
            profileUser?.profile?.postsCount || 
            profileUser?.stats?.posts || 
-           profileUser?.stats?.postsCount || 
            0;
   };
 
@@ -172,33 +176,24 @@ const ProfileHeader = ({
            '0';
   };
 
-  // ============================================
   // Process avatar and banner URLs with Cloudinary optimization
-  // ============================================
-  
-  // Get raw avatar URL from profile
   const rawAvatar = profileUser?.avatar;
   
-  // Apply Cloudinary optimization if applicable
   let optimizedAvatar = null;
   if (rawAvatar && !avatarError) {
     if (isCloudinaryUrl(rawAvatar)) {
       optimizedAvatar = getOptimizedAvatarUrl(rawAvatar);
-      console.log(`☁️ Using Cloudinary avatar: ${optimizedAvatar}`);
     } else {
       optimizedAvatar = rawAvatar;
     }
   }
   
-  // Get raw banner URL
   const rawBanner = bannerUrl || profileUser?.banner;
   
-  // Apply Cloudinary optimization if applicable
   let optimizedBanner = null;
   if ((hasBanner || rawBanner) && !bannerError) {
     if (rawBanner && isCloudinaryUrl(rawBanner)) {
       optimizedBanner = getOptimizedBannerUrl(rawBanner);
-      console.log(`☁️ Using Cloudinary banner: ${optimizedBanner}`);
     } else {
       optimizedBanner = rawBanner;
     }
@@ -206,29 +201,31 @@ const ProfileHeader = ({
 
   return (
     <div className={styles.profileHeader}>
-      {/* Banner Section */}
+      {/* Banner Section - Premium Glass */}
       <div className={styles.bannerSection}>
         <div className={styles.bannerWrapper}>
           {(hasBanner || optimizedBanner) && !bannerError ? (
-            <img 
-              src={optimizedBanner} 
-              alt={`${profileUser?.name || 'User'}'s banner`}
-              className={styles.bannerImage}
-              onError={() => {
-                console.log('❌ Banner failed to load:', optimizedBanner);
-                setBannerError(true);
-              }}
-              onLoad={() => console.log('✅ Banner loaded successfully')}
-              loading="lazy"
-            />
+            <>
+              <img 
+                src={optimizedBanner} 
+                alt={`${profileUser?.name || 'User'}'s banner`}
+                className={styles.bannerImage}
+                onError={() => setBannerError(true)}
+                onLoad={() => console.log('✅ Banner loaded')}
+                loading="lazy"
+              />
+              <div className={styles.bannerOverlay}></div>
+            </>
           ) : (
             <div className={styles.bannerPlaceholder}>
-              {profileUser?.name || 'User'}'s Banner
+              <div className={styles.bannerGradient}>
+                <FaChartLine className={styles.bannerIcon} />
+                <span>{profileUser?.name || 'User'}'s Profile</span>
+              </div>
             </div>
           )}
         </div>
         
-        {/* Edit Banner Button */}
         {isOwnProfile && (
           <div className={styles.bannerEditOverlay}>
             <button 
@@ -243,7 +240,7 @@ const ProfileHeader = ({
         )}
       </div>
 
-      {/* Avatar Section */}
+      {/* Avatar Section - Premium Glass */}
       <div className={styles.avatarContainer}>
         <div className={styles.avatarWrapper} onClick={onAvatarClick}>
           {optimizedAvatar && !avatarError ? (
@@ -251,11 +248,8 @@ const ProfileHeader = ({
               src={optimizedAvatar} 
               alt={profileUser?.name || 'User'}
               className={styles.avatarImage}
-              onError={() => {
-                console.log('❌ Avatar failed to load:', optimizedAvatar);
-                setAvatarError(true);
-              }}
-              onLoad={() => console.log('✅ Avatar loaded successfully')}
+              onError={() => setAvatarError(true)}
+              onLoad={() => console.log('✅ Avatar loaded')}
               loading="lazy"
             />
           ) : (
@@ -263,53 +257,63 @@ const ProfileHeader = ({
               {profileUser?.avatarInitial || getAvatarInitial(profileUser) || 'U'}
             </div>
           )}
+          {isOnline && <span className={styles.avatarOnlineBadge}></span>}
         </div>
       </div>
 
-      {/* Header Content */}
+      {/* Header Content - Premium Glass */}
       <div className={styles.headerContent}>
         <div className={styles.userInfoSection}>
           <div className={styles.userNameRow}>
             <h1 className={styles.userName}>{profileUser?.name || 'Unknown User'}</h1>
             <p className={styles.userUsername}>@{profileUser?.username || 'username'}</p>
+            {isOnline ? (
+              <span className={styles.onlineStatusBadge}>
+                <span className={styles.onlineDot}></span> Online
+              </span>
+            ) : (
+              lastSeen && (
+                <span className={styles.offlineStatusBadge}>
+                  Last seen {formatLastSeen?.(lastSeen) || 'recently'}
+                </span>
+              )
+            )}
           </div>
           
           {profileUser?.bio && (
             <p className={styles.userBio}>{profileUser.bio}</p>
           )}
 
-          {/* User Details */}
+          {/* User Details - Premium Glass Chips */}
           <div className={styles.userDetails}>
             {profileUser?.location && profileUser.location !== 'Not specified' && (
-              <div className={styles.detailItem}>
+              <div className={styles.detailChip}>
                 <FaMapMarkerAlt className={styles.detailIcon} />
                 <span>{profileUser.location}</span>
               </div>
             )}
             
             {profileUser?.joinDate && (
-              <div className={styles.detailItem}>
+              <div className={styles.detailChip}>
                 <FaCalendarAlt className={styles.detailIcon} />
                 <span>Joined {new Date(profileUser.joinDate).toLocaleDateString('en-US', { 
                   year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
+                  month: 'long'
                 })}</span>
               </div>
             )}
             
             {profileUser?.tradingExperience && (
-              <div className={styles.detailItem}>
+              <div className={`${styles.detailChip} ${styles.experienceChip}`}>
                 <FaBriefcase className={styles.detailIcon} />
-                <span>{profileUser.tradingExperience.charAt(0).toUpperCase() + profileUser.tradingExperience.slice(1)} Trader</span>
+                <span>{profileUser.tradingExperience.charAt(0).toUpperCase() + profileUser.tradingExperience.slice(1)}</span>
               </div>
             )}
           </div>
 
-          {/* SOCIAL LINKS */}
+          {/* SOCIAL LINKS - Premium Glass */}
           {activeSocialLinks.length > 0 && (
             <div className={styles.socialLinksContainer}>
-              <h4 className={styles.socialLinksTitle}>Connect with {profileUser?.name}</h4>
               <div className={styles.socialLinks}>
                 {activeSocialLinks.map(({ platform, url, icon: Icon }) => (
                   <button
@@ -318,7 +322,7 @@ const ProfileHeader = ({
                     onClick={() => handleSocialLinkClick(url)}
                     title={`${platform}: ${url}`}
                   >
-                    <Icon size={18} />
+                    <Icon size={16} />
                     <span className={styles.socialPlatformName}>{platform}</span>
                   </button>
                 ))}
@@ -326,78 +330,80 @@ const ProfileHeader = ({
             </div>
           )}
 
-          {/* Stats */}
+          {/* Stats - Premium Glass Cards */}
           <div className={styles.userStats}>
             <div 
-              className={styles.statItem} 
+              className={styles.statCard} 
               onClick={() => onStatClick?.('followers')}
             >
-              <span className={styles.statValue}>
-                {getFollowersCount().toLocaleString()}
-              </span>
+              <span className={styles.statValue}>{getFollowersCount().toLocaleString()}</span>
               <span className={styles.statLabel}>Followers</span>
+              <FaUserPlus className={styles.statIcon} />
             </div>
             
             <div 
-              className={styles.statItem} 
+              className={styles.statCard} 
               onClick={() => onStatClick?.('following')}
             >
-              <span className={styles.statValue}>
-                {getFollowingCount().toLocaleString()}
-              </span>
+              <span className={styles.statValue}>{getFollowingCount().toLocaleString()}</span>
               <span className={styles.statLabel}>Following</span>
+              <FaUserCheck className={styles.statIcon} />
             </div>
             
             <div 
-              className={styles.statItem} 
+              className={styles.statCard} 
               onClick={() => onStatClick?.('trades')}
             >
-              <span className={styles.statValue}>
-                {getTradesCount().toLocaleString()}
-              </span>
+              <span className={styles.statValue}>{getTradesCount().toLocaleString()}</span>
               <span className={styles.statLabel}>Trades</span>
+              <FaChartLine className={styles.statIcon} />
             </div>
             
-            <div className={styles.statItem}>
-              <span className={styles.statValue}>
-                {getWinRate()}%
-              </span>
+            <div className={styles.statCard}>
+              <span className={styles.statValue}>{getWinRate()}%</span>
               <span className={styles.statLabel}>Win Rate</span>
+              <FaTrophy className={styles.statIcon} />
             </div>
             
-            <div className={styles.statItem}>
-              <span className={styles.statValue}>
-                {getPostsCount().toLocaleString()}
-              </span>
+            <div className={styles.statCard}>
+              <span className={styles.statValue}>{getPostsCount().toLocaleString()}</span>
               <span className={styles.statLabel}>Posts</span>
+              <FaHeart className={styles.statIcon} />
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Premium Glass */}
           <div className={styles.actionButtons}>
             {!isOwnProfile ? (
               <>
                 <button 
-                  className={`${styles.actionBtn} ${styles.primary}`}
+                  className={`${styles.actionBtn} ${isFollowing ? styles.following : styles.primary}`}
                   onClick={onFollow}
                 >
-                  {isFollowing ? 'Following' : 'Follow'}
+                  {isFollowing ? (
+                    <>
+                      <FaUserCheck /> Following
+                    </>
+                  ) : (
+                    <>
+                      <FaUserPlus /> Follow
+                    </>
+                  )}
                 </button>
                 
                 <button 
-                  className={`${styles.actionBtn} ${styles.secondary}`}
+                  className={styles.actionBtnSecondary}
                   onClick={onMessage}
                 >
-                  Message
+                  <FaComments /> Message
                 </button>
               </>
             ) : (
               <button 
-                className={`${styles.actionBtn} ${styles.primary}`}
+                className={styles.actionBtnPrimary}
                 onClick={onEditProfile}
               >
-                <FaEdit />
-                Edit Profile
+                <FaEdit /> Edit Profile
               </button>
             )}
           </div>
