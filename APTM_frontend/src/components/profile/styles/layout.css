@@ -1,7 +1,6 @@
-/* layout.css - CLEANED VERSION */
-/* Remove any profileContainer or mainContentArea styles since they're in main file */
+/* layout.css - CLEANED VERSION - NO CONFLICTING STYLES */
 
-/* Only keep global layout utilities if needed */
+/* Global layout utilities only */
 .flex {
   display: flex;
 }
@@ -26,9 +25,13 @@
   gap: var(--space-md);
 }
 
-/* Remove these if they exist in layout.css:
-.profileContainer { ... }
-.mainContentArea { ... }
-.loadingContainer { ... }
-.errorContainer { ... }
-*/
+.w-full {
+  width: 100%;
+}
+
+.h-full {
+  height: 100%;
+}
+
+/* DO NOT add .profileContainer, .mainContentArea, .loadingContainer, or .errorContainer here */
+/* Those are defined in UserProfileView.module.css */
