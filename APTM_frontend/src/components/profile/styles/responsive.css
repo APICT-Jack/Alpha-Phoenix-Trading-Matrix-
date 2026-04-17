@@ -1,383 +1,956 @@
-/* ===== RESPONSIVE DESIGN ===== */
+/* responsive.css - PREMIUM MACOS/IOS + TWITTER STYLE
+   Fully scalable for all mobile devices
+   ============================================ */
 
-/* Large Desktop (1200px+) */
-@media (min-width: 1200px) {
-  .headerContent,
-  .profileHeader,
-  .mainContent {
-    max-width: 1200px;
-  }
+/* ===== CSS VARIABLES ===== */
+:root {
+  --responsive-breakpoint-desktop: 1200px;
+  --responsive-breakpoint-tablet: 1024px;
+  --responsive-breakpoint-mobile: 768px;
+  --responsive-breakpoint-small-mobile: 480px;
+  --responsive-breakpoint-ultra-mobile: 360px;
 }
 
-/* Tablet (769px - 1199px) */
-@media (max-width: 1199px) {
-  .headerContent,
-  .profileHeader,
+/* ===== BASE LAYOUT - ALWAYS FULL WIDTH ===== */
+.profileContainer,
+.profilePage {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.mainContentArea {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== LARGE DESKTOP (1200px+) ===== */
+@media (min-width: 1200px) {
+  .userInfoSection {
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  
+  .timelineTab {
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  
   .mainContent {
-    max-width: 100%;
-    padding-left: var(--space-md);
-    padding-right: var(--space-md);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--space-xxl) var(--space-xxl);
+    width: 100%;
+    box-sizing: border-box;
   }
   
   .galleryGrid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
   }
   
   .overviewGrid {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: var(--space-xl);
+  }
+  
+  .postsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: var(--space-lg);
+  }
+  
+  .navigationBar {
+    padding: 0 var(--space-xxl);
+  }
+  
+  .headerContent {
+    padding: calc(var(--avatar-size) - 35px) var(--space-xxl) var(--space-xl) var(--space-xxl);
   }
 }
 
-/* Mobile (768px and below) */
-@media (max-width: 768px) {
-  .headerContent {
+/* ===== TABLET (769px - 1199px) ===== */
+@media (max-width: 1199px) and (min-width: 769px) {
+  .userInfoSection {
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  
+  .timelineTab {
+    max-width: 550px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  
+  .mainContent {
+    padding: 0 var(--space-xl) var(--space-xl);
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .galleryGrid {
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--space-sm);
-    flex-wrap: wrap;
-  }
-
-  .headerInfo {
-    display: none;
   }
   
-  .headerStats {
-    display: none;
+  .overviewGrid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-lg);
   }
   
-  .backText, .actionText {
-    display: none;
-  }
-  
-  .backButton, .followButton, .messageButton, .editButton {
-    padding: var(--space-xs);
-  }
-
-  .backButton {
-    order: 1;
-  }
-  
-  .headerActions {
-    order: 2;
-    margin-left: auto;
-  }
-
-  .banner {
-    min-height: 160px;
-  }
-  
-  .bannerOverlay {
-    padding: var(--space-md) var(--space-sm) var(--space-sm);
-  }
-  
-  .profileHeader {
-    flex-direction: column;
-    align-items: flex-start;
+  .postsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: var(--space-md);
-    margin: 0 var(--space-sm);
   }
   
-  .avatarSection {
-    align-items: flex-start;
+  .navigationBar {
+    padding: 0 var(--space-xl);
   }
   
-  .avatar, .avatarPlaceholder {
-    width: 80px;
-    height: 80px;
-    border-radius: var(--radius-lg);
+  .headerContent {
+    padding: calc(var(--avatar-size) - 35px) var(--space-xl) var(--space-xl) var(--space-xl);
   }
   
-  .onlineIndicator {
-    width: 14px;
-    height: 14px;
-    bottom: 6px;
-    right: 6px;
+  .userStats {
+    gap: var(--space-xl);
   }
+  
+  .actionBtn {
+    min-width: 110px;
+    padding: 8px 20px;
+  }
+}
 
-  .profileBadges {
-    max-width: none;
-    justify-content: flex-start;
-  }
-
-  .profileName {
-    font-size: 1.5rem;
-  }
-  
-  .profileUsername {
-    font-size: 0.9375rem;
-    margin-bottom: var(--space-sm);
+/* ===== MOBILE (768px and below) ===== */
+@media (max-width: 768px) {
+  /* Container full width */
+  .profileContainer {
+    margin-left: 0 !important;
+    width: 100% !important;
   }
   
-  .profileBio {
-    -webkit-line-clamp: 3;
-    font-size: 0.875rem;
+  .mainContentArea {
+    width: 100%;
+  }
+  
+  /* Navigation Bar - Mobile */
+  .navigationBar {
+    padding: 0 var(--space-lg);
+    height: 54px;
+  }
+  
+  .navButton {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  .navProfileName {
+    font-size: 14px;
+  }
+  
+  .navProfileUsername {
+    font-size: 10px;
+  }
+  
+  /* Banner - Smaller on mobile */
+  .bannerSection {
+    height: 160px;
+  }
+  
+  .bannerPlaceholder {
+    font-size: var(--text-sm);
+  }
+  
+  .editBannerBtn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  
+  /* Avatar - Centered on mobile */
+  .avatarContainer {
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90px;
+    height: 90px;
+    top: calc(160px - 45px);
+  }
+  
+  .avatarWrapper {
+    border-width: 3px;
+  }
+  
+  .avatarInitial {
+    font-size: 2rem;
+  }
+  
+  /* Header Content */
+  .headerContent {
+    padding: calc(90px - 30px) var(--space-md) var(--space-lg) var(--space-md);
+    text-align: center;
+  }
+  
+  .userInfoSection {
+    text-align: center;
+    max-width: 100%;
+  }
+  
+  /* User Name Row - Centered */
+  .userNameRow {
+    justify-content: center;
+    flex-direction: column;
+    gap: var(--space-xs);
     margin-bottom: var(--space-md);
   }
   
-  .profileDetails {
+  .userName {
+    font-size: 1.5rem;
+  }
+  
+  .userUsername {
+    font-size: var(--text-sm);
+  }
+  
+  .userBio {
+    font-size: var(--text-sm);
+    margin: 0 auto var(--space-md);
+    max-width: 90%;
+    text-align: center;
+  }
+  
+  /* User Details - Centered */
+  .userDetails {
+    justify-content: center;
+    gap: 6px;
+  }
+  
+  .detailItem {
+    font-size: 11px;
+    padding: 3px 10px;
+  }
+  
+  /* Social Links - Centered */
+  .socialLinksContainer {
+    text-align: center;
+  }
+  
+  .socialLinks {
+    justify-content: center;
+  }
+  
+  .socialLink {
+    padding: 5px 12px;
+    font-size: 11px;
+  }
+  
+  .socialPlatformName {
+    font-size: 10px;
+  }
+  
+  /* User Stats - Centered Row */
+  .userStats {
+    justify-content: center;
+    gap: var(--space-xl);
+    flex-wrap: wrap;
+  }
+  
+  .statValue {
+    font-size: 1rem;
+  }
+  
+  .statLabel {
+    font-size: 10px;
+  }
+  
+  /* Action Buttons - Centered */
+  .actionButtons {
+    justify-content: center;
     gap: var(--space-sm);
   }
   
+  .actionBtn {
+    min-width: 100px;
+    padding: 7px 16px;
+    font-size: 13px;
+  }
+  
+  /* Main Content */
   .mainContent {
-    padding: var(--space-md) var(--space-sm) 80px var(--space-sm); /* Increased bottom padding for mobile tabs */
+    padding: 0 var(--space-md) var(--space-md);
   }
-
-  /* Hide desktop tabs, show mobile tabs */
-  .tabs {
-    display: none;
+  
+  /* Tabs - Mobile Style */
+  .tabsContainer {
+    top: 54px;
   }
-
-  .mobileTabs {
-    display: block; /* Make mobile tabs visible */
+  
+  .tab {
+    padding: 12px 16px;
   }
-
-  .overviewGrid {
-    grid-template-columns: 1fr;
+  
+  .tabIcon {
+    font-size: 16px;
   }
-
-  .statsGrid {
-    grid-template-columns: repeat(2, 1fr);
+  
+  .tabText {
+    font-size: 12px;
   }
-
+  
+  /* Timeline Posts */
+  .timelineTab {
+    max-width: 100%;
+    padding: 0;
+  }
+  
+  .timelinePosts {
+    gap: var(--space-md);
+  }
+  
+  /* Gallery Grid - 2 columns on mobile */
   .galleryGrid {
     grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-xs);
+    gap: 4px;
   }
   
-  .galleryCategories {
-    gap: var(--space-xs);
+  .galleryItem {
+    border-radius: var(--radius-sm);
   }
   
-  .galleryCategory {
-    padding: var(--space-xs) var(--space-sm);
-    font-size: 0.75rem;
+  /* Overview Grid */
+  .overviewGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
   }
-
+  
+  /* Stats Grid */
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-sm);
+  }
+  
+  /* Posts Grid */
+  .postsGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+  
+  /* Create Post */
   .createPostCard {
     padding: var(--space-md);
   }
   
+  .postTextarea {
+    font-size: var(--text-sm);
+    min-height: 70px;
+  }
+  
+  .createPostActions {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  
+  .mediaButtons {
+    justify-content: center;
+  }
+  
+  .postActions {
+    justify-content: center;
+  }
+  
+  /* Post Card */
   .postCard {
     padding: var(--space-md);
   }
   
-  .postHeader {
-    flex-direction: column;
-    gap: var(--space-sm);
+  .postAvatar {
+    width: 40px;
+    height: 40px;
   }
   
-  .postAuthor {
+  .postAuthorInfo strong {
+    font-size: var(--text-sm);
+  }
+  
+  .postUsername {
+    font-size: 11px;
+  }
+  
+  .postTime {
+    font-size: 10px;
+  }
+  
+  .postText {
+    font-size: var(--text-sm);
+  }
+  
+  /* Post Actions - Icon only */
+  .postActions {
+    gap: 8px;
+  }
+  
+  .postAction {
+    padding: 8px;
+    flex: 1;
+  }
+  
+  .postAction span {
+    display: none;
+  }
+  
+  .postAction svg {
+    font-size: 18px;
+  }
+  
+  /* Comments */
+  .commentAvatar {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .commentContent {
+    padding: 8px 12px;
+  }
+  
+  .commentAuthor {
+    font-size: 12px;
+  }
+  
+  .commentText {
+    font-size: 12px;
+  }
+  
+  .commentActions {
+    gap: 8px;
+  }
+  
+  .commentAction {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  
+  /* Replies */
+  .repliesList {
+    margin-left: 40px;
+  }
+  
+  .replyAvatar {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .replyContent {
+    padding: 8px 10px;
+  }
+  
+  .replyAuthor {
+    font-size: 11px;
+  }
+  
+  .replyText {
+    font-size: 11px;
+  }
+  
+  /* Modals */
+  .modalContent {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  /* Loading State */
+  .loadingContainer {
+    min-height: 60vh;
+  }
+  
+  .spinner {
+    width: 36px;
+    height: 36px;
+  }
+  
+  /* Error State */
+  .errorContainer {
+    padding: var(--space-lg);
+    margin: var(--space-lg);
+  }
+  
+  .errorActions {
+    flex-direction: column;
     width: 100%;
   }
   
-  .deletePostButton {
-    align-self: flex-end;
-  }
-
-  .modalOverlay {
-    padding: var(--space-sm);
+  .backButton, .homeButton {
+    width: 100%;
+    justify-content: center;
   }
   
-  .modalContent {
-    max-width: 95%;
-    max-height: 95%;
-  }
-
-  .newsCard {
-    flex-direction: column;
-    text-align: center;
+  /* Charts */
+  .chartsList {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
   }
   
-  .newsImage {
-    width: 60px;
-    height: 60px;
-    align-self: center;
+  .chartItem {
+    margin: 0;
   }
-
+  
+  .chartPreviewContainer {
+    min-height: 180px;
+  }
+  
+  /* Chat Rooms */
   .chatRoomsList {
     grid-template-columns: 1fr;
+    gap: var(--space-md);
   }
   
-  .chartsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Comment cards full width on mobile */
-  .comment {
+  .roomContainer {
     padding: var(--space-sm);
-    margin: 0;
-    width: 100%;
   }
-
-  .commentsList {
-    padding: 0;
-    width: 100%;
+  
+  /* Socket Status */
+  .socketStatus {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  /* Hide tooltips on mobile */
+  .onlineTooltip {
+    display: none;
+  }
+  
+  /* Show mobile online status */
+  .mobileOnlineStatus {
+    display: flex;
+    justify-content: center;
+    margin-top: var(--space-xs);
+  }
+  
+  .onlineStatusFooter {
+    display: block;
+    text-align: center;
+    margin-top: var(--space-sm);
+    padding-top: var(--space-sm);
   }
 }
 
-/* Small Mobile (480px and below) */
+/* ===== SMALL MOBILE (480px and below) ===== */
 @media (max-width: 480px) {
-  .header {
-    padding: var(--space-xs) var(--space-sm);
+  /* Navigation */
+  .navigationBar {
+    padding: 0 var(--space-md);
   }
   
-  .headerActions {
-    gap: var(--space-xs);
-  }
-
-  .backButton, .followButton, .messageButton, .editButton {
-    padding: 6px;
-    font-size: 0.75rem;
-  }
-
-  .banner {
-    min-height: 140px;
+  .navButton {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
   
-  .bannerOverlay {
-    padding: var(--space-sm) var(--space-xs) var(--space-xs);
-  }
-
-  .profileHeader {
-    margin: 0 var(--space-xs);
-    gap: var(--space-sm);
-  }
-
-  .avatar, .avatarPlaceholder {
-    width: 70px;
-    height: 70px;
+  .navProfileName {
+    font-size: 13px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
-  .onlineIndicator {
-    width: 12px;
-    height: 12px;
-    bottom: 4px;
+  /* Banner */
+  .bannerSection {
+    height: 140px;
+  }
+  
+  .avatarContainer {
+    width: 80px;
+    height: 80px;
+    top: calc(140px - 40px);
+  }
+  
+  .avatarInitial {
+    font-size: 1.8rem;
+  }
+  
+  /* Header */
+  .headerContent {
+    padding: calc(80px - 25px) var(--space-sm) var(--space-md) var(--space-sm);
+  }
+  
+  .userName {
+    font-size: 1.3rem;
+  }
+  
+  .userUsername {
+    font-size: 12px;
+  }
+  
+  .userBio {
+    font-size: 12px;
+    max-width: 95%;
+  }
+  
+  /* User Details Chips */
+  .detailItem {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+  
+  .detailIcon {
+    font-size: 9px;
+  }
+  
+  /* Stats */
+  .userStats {
+    gap: var(--space-lg);
+  }
+  
+  .statValue {
+    font-size: 0.9rem;
+  }
+  
+  .statLabel {
+    font-size: 9px;
+  }
+  
+  /* Action Buttons */
+  .actionBtn {
+    min-width: 85px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  /* Social Links - Icon only */
+  .socialPlatformName {
+    display: none;
+  }
+  
+  .socialLink {
+    padding: 6px 10px;
+  }
+  
+  .socialLink svg {
+    margin: 0;
+  }
+  
+  /* Tabs - Icon only */
+  .tab .tabText {
+    display: none;
+  }
+  
+  .tab {
+    padding: 10px;
+    min-width: 50px;
+    justify-content: center;
+  }
+  
+  .tab .tabIcon {
+    font-size: 18px;
+    margin: 0;
+  }
+  
+  .tab .tabCount {
+    position: absolute;
+    top: 4px;
     right: 4px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 8px;
+    padding: 0 4px;
   }
   
-  .badge {
-    padding: 4px 8px;
-    font-size: 0.625rem;
-    border-radius: var(--radius-sm);
-  }
-
-  .profileName {
-    font-size: 1.25rem;
-  }
-
-  .mainContent {
-    padding: var(--space-sm) var(--space-xs) 80px var(--space-xs); /* Increased bottom padding for mobile tabs */
-  }
-
-  .card {
-    padding: var(--space-md);
+  .tab.active::after {
+    width: 30px;
+    height: 2px;
   }
   
+  /* Gallery */
   .galleryGrid {
     grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-xs);
+    gap: 3px;
   }
   
+  /* Stats Grid */
   .statsGrid {
     grid-template-columns: 1fr;
     gap: var(--space-xs);
   }
   
-  .statNumber {
-    font-size: 1.125rem;
+  /* Posts */
+  .postAvatar {
+    width: 36px;
+    height: 36px;
   }
   
-  .statLabel {
-    font-size: 0.6875rem;
-  }
-
-  .mobileTabsList {
-    padding: 0 4px;
+  .postText {
+    font-size: 13px;
   }
   
-  .mobileTab {
-    font-size: 0.625rem;
-    min-height: 44px;
-    padding: 6px 2px;
+  .postStats {
+    gap: var(--space-md);
   }
   
-  .mobileTabIcon {
-    font-size: 1rem;
+  .statButton {
+    font-size: 12px;
   }
-
-  .modalCloseButton {
-    top: var(--space-sm);
-    right: var(--space-sm);
+  
+  /* Comments */
+  .commentAvatar {
     width: 28px;
     height: 28px;
-    font-size: 1rem;
-  }
-
-  .createPostHeader {
-    flex-direction: column;
-    gap: var(--space-sm);
   }
   
-  .postInput {
-    width: 100%;
-  }
-
-  /* Even more compact comments on small mobile */
-  .comment {
-    padding: var(--space-xs);
-  }
-
-  .commentContent p {
-    font-size: 0.75rem;
-  }
-}
-
-/* Ultra-small Mobile (360px and below) */
-@media (max-width: 360px) {
-  .galleryGrid {
-    grid-template-columns: 1fr;
+  .commentContent {
+    padding: 6px 10px;
   }
   
-  .mobileTabsList {
-    grid-template-columns: repeat(3, 1fr);
+  .commentAuthor {
+    font-size: 11px;
   }
   
-  /* Hide less important tabs on very small screens */
-  .mobileTab:nth-child(4),
-  .mobileTab:nth-child(5) {
+  .commentText {
+    font-size: 11px;
+  }
+  
+  .commentAction {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+  
+  .commentAction span {
     display: none;
   }
   
-  .headerActions {
+  .commentAction svg {
+    font-size: 12px;
+  }
+  
+  /* Replies */
+  .repliesList {
+    margin-left: 32px;
+  }
+  
+  .replyAvatar {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .replyContent {
+    padding: 6px 8px;
+  }
+  
+  .replyAuthor {
+    font-size: 10px;
+  }
+  
+  .replyText {
+    font-size: 10px;
+  }
+  
+  /* Modals */
+  .modalContent {
+    width: 98%;
+    padding: var(--space-md);
+  }
+  
+  .modalHeader h3 {
+    font-size: var(--text-md);
+  }
+  
+  /* Charts */
+  .chartHeader {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+  
+  .chartInfo {
+    font-size: 12px;
+  }
+  
+  .chartControls {
     flex-direction: column;
-    gap: var(--space-xs);
+  }
+  
+  /* Create Post */
+  .mediaPreviews {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
+  
+  .pollSettings {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+  
+  .pollDuration {
+    width: 100%;
   }
 }
 
-/* ===== DARK MODE ENHANCEMENTS ===== */
-[data-theme="dark"] .header.scrolled {
-  background: rgba(30, 41, 59, 0.95);
+/* ===== ULTRA SMALL MOBILE (360px and below) ===== */
+@media (max-width: 360px) {
+  /* Navigation */
+  .navigationBar {
+    padding: 0 var(--space-sm);
+  }
+  
+  .navButton {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .navProfileName {
+    font-size: 12px;
+    max-width: 100px;
+  }
+  
+  /* Banner */
+  .bannerSection {
+    height: 120px;
+  }
+  
+  .avatarContainer {
+    width: 70px;
+    height: 70px;
+    top: calc(120px - 35px);
+  }
+  
+  .avatarInitial {
+    font-size: 1.5rem;
+  }
+  
+  /* Header */
+  .headerContent {
+    padding: calc(70px - 20px) var(--space-xs) var(--space-sm) var(--space-xs);
+  }
+  
+  .userName {
+    font-size: 1.2rem;
+  }
+  
+  .userUsername {
+    font-size: 11px;
+  }
+  
+  .userBio {
+    font-size: 11px;
+  }
+  
+  /* Stats */
+  .userStats {
+    gap: var(--space-md);
+  }
+  
+  .statValue {
+    font-size: 0.85rem;
+  }
+  
+  .statLabel {
+    font-size: 8px;
+  }
+  
+  /* Action Buttons */
+  .actionBtn {
+    min-width: 75px;
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  
+  /* Gallery - Single column on ultra small */
+  .galleryGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-xs);
+  }
+  
+  .galleryItem {
+    aspect-ratio: 16/9;
+  }
+  
+  /* Tabs */
+  .tab {
+    min-width: 44px;
+  }
+  
+  .tab .tabIcon {
+    font-size: 16px;
+  }
+  
+  /* Posts */
+  .postCard {
+    padding: var(--space-sm);
+  }
+  
+  .postAvatar {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .postText {
+    font-size: 12px;
+  }
+  
+  /* Comments */
+  .commentAvatar {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .repliesList {
+    margin-left: 28px;
+  }
+  
+  /* Hide some action buttons if needed */
+  .postAction:nth-child(3),
+  .postAction:nth-child(4) {
+    display: none;
+  }
 }
 
-[data-theme="dark"] .card {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+/* ===== LANDSCAPE MODE ON MOBILE ===== */
+@media (max-width: 768px) and (orientation: landscape) {
+  .bannerSection {
+    height: 100px;
+  }
+  
+  .avatarContainer {
+    width: 70px;
+    height: 70px;
+    top: calc(100px - 35px);
+  }
+  
+  .headerContent {
+    padding: calc(70px - 25px) var(--space-md) var(--space-sm) var(--space-md);
+  }
+  
+  .userName {
+    font-size: 1.2rem;
+  }
+  
+  .userStats {
+    gap: var(--space-lg);
+  }
+  
+  .mainContent {
+    padding-bottom: var(--space-md);
+  }
+  
+  .timelinePosts {
+    gap: var(--space-sm);
+  }
 }
 
-[data-theme="dark"] .card:hover {
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="dark"] .postInput,
-[data-theme="dark"] .commentInput input,
-[data-theme="dark"] .modalInput {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-border-dark);
-}
-
-[data-theme="dark"] .galleryCategory {
-  background: var(--color-bg-tertiary);
-}
-
-[data-theme="dark"] .statCard:hover {
-  background: var(--color-bg-tertiary);
+/* ===== DARK MODE ADAPTATIONS ===== */
+@media (prefers-color-scheme: dark) {
+  .card {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+  
+  .card:hover {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  }
 }
 
 /* ===== ACCESSIBILITY ===== */
@@ -395,39 +968,68 @@
 /* Focus styles for keyboard navigation */
 button:focus-visible,
 input:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--color-primary);
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  :root {
-    --color-border: #000000;
-    --color-text-secondary: #000000;
-    --shadow-md: 0 2px 4px -1px rgba(0, 0, 0, 0.8);
+/* Touch-friendly tap targets */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  .tab,
+  .actionBtn,
+  .socialLink,
+  .statItem,
+  .navButton,
+  .galleryItem {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .socialLink {
+    min-height: 40px;
+  }
+  
+  .tab {
+    min-height: 48px;
   }
 }
 
-/* Print styles */
+/* ===== PRINT STYLES ===== */
 @media print {
-  .header,
-  .tabs,
-  .mobileTabs,
-  .postActions,
+  .navigationBar,
+  .tabsContainer,
+  .actionButtons,
   .createPostCard,
-  .galleryActions {
+  .galleryActions,
+  .socketStatus,
+  .bannerEditOverlay,
+  .socialLinksContainer {
     display: none !important;
   }
   
   .profileContainer {
     background: white !important;
     color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   
   .card {
     break-inside: avoid;
     box-shadow: none !important;
-    border: 1px solid #000 !important;
+    border: 1px solid #ccc !important;
+  }
+  
+  .avatarContainer {
+    position: relative !important;
+    margin: 0 auto !important;
+    left: auto !important;
+    transform: none !important;
+  }
+  
+  .bannerSection {
+    height: 100px !important;
   }
 }

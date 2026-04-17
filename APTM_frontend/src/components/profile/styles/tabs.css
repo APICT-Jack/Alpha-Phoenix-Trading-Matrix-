@@ -1,186 +1,160 @@
-/* tabs.css - TABS NAVIGATION STYLES */
-/* ============================================
-   INSTAGRAM-INSPIRED TABS NAVIGATION
+/* tabs.css - PREMIUM MACOS/IOS + TWITTER STYLE
+   Full screen, glass morphism, smooth animations
    ============================================ */
 
-/* ===== CSS VARIABLES (Instagram-inspired) ===== */
+/* ===== CSS VARIABLES ===== */
 :root {
-  --ig-blue: #0095f6;
-  --ig-active-bg: rgba(0, 149, 246, 0.1);
-  --ig-hover-bg: rgba(0, 0, 0, 0.05);
-  --ig-border-light: #dbdbdb;
-  --ig-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --tab-twitter-blue: #1d9bf0;
+  --tab-twitter-blue-hover: #1a8cd8;
+  --tab-twitter-blue-light: rgba(29, 155, 240, 0.1);
+  --tab-ios-blur: blur(20px);
+  --tab-ios-blur-strong: blur(30px);
+  --tab-transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --tab-easing: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* ===== TABS NAVIGATION - STICKY FULL WIDTH ===== */
+/* ===== TABS CONTAINER - FULL WIDTH GLASS ===== */
 .tabsContainer {
   position: sticky;
   top: var(--nav-bar-height);
-  left: var(--nav-width);
+  left: 0;
   right: 0;
-  height: var(--tabs-height);
-  background: var(--bg-blur);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border-primary);
-  border-top: 1px solid var(--border-primary);
+  width: 100%;
+  background: var(--glass-bg);
+  backdrop-filter: var(--tab-ios-blur-strong);
+  -webkit-backdrop-filter: var(--tab-ios-blur-strong);
+  border-bottom: 0.5px solid var(--glass-border);
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: 0 var(--space-xxl);
-  z-index: 900;
-  width: 100%;
-  box-sizing: border-box;
+  justify-content: center;
+  gap: 0;
+  z-index: 90;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
-  transition: var(--ig-transition);
+  transition: var(--tab-transition);
 }
 
 .tabsContainer::-webkit-scrollbar {
   display: none;
 }
 
-/* ===== INSTAGRAM-STYLE TABS ===== */
+/* ===== TWITTER-STYLE TAB BUTTONS ===== */
 .tab {
+  position: relative;
+  padding: 16px 28px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--tab-transition);
+  white-space: nowrap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: -0.2px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  color: var(--text-tertiary);
-  font-size: var(--text-md);
-  font-weight: 500;
-  cursor: pointer;
-  transition: var(--ig-transition);
-  white-space: nowrap;
-  height: 40px;
-  position: relative;
-  opacity: 0.7;
-  font-family: inherit;
-  letter-spacing: 0.2px;
 }
 
-.tab::after {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%) scaleX(0);
-  width: 20px;
-  height: 3px;
-  background: var(--primary);
-  border-radius: 3px 3px 0 0;
-  transition: var(--ig-transition);
-  opacity: 0;
-}
-
+/* Twitter-style hover effect */
 .tab:hover {
-  background: var(--ig-hover-bg);
-  color: var(--text-secondary);
-  opacity: 1;
-  transform: translateY(-1px);
+  color: var(--tab-twitter-blue);
+  background: var(--tab-twitter-blue-light);
 }
 
-.tab:hover::after {
-  transform: translateX(-50%) scaleX(0.5);
-  opacity: 0.3;
-}
-
+/* Twitter-style active indicator */
 .tab.active {
-  background: transparent;
-  color: var(--primary);
-  opacity: 1;
+  color: var(--tab-twitter-blue);
   font-weight: 600;
 }
 
 .tab.active::after {
-  transform: translateX(-50%) scaleX(1);
-  opacity: 1;
-  background: var(--primary);
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 4px;
+  background: var(--tab-twitter-blue);
+  border-radius: 9999px;
+  animation: tabIndicatorSlide 0.3s var(--tab-easing);
 }
 
-.tab.active:hover {
-  background: var(--ig-active-bg);
+@keyframes tabIndicatorSlide {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 56px;
+    opacity: 1;
+  }
 }
 
+/* Tab Icon Styling */
 .tabIcon {
-  font-size: var(--text-md);
-  transition: transform 0.2s ease;
+  font-size: 18px;
+  transition: transform 0.2s var(--tab-easing);
 }
 
 .tab:hover .tabIcon {
-  transform: scale(1.1);
+  transform: translateY(-2px);
 }
 
 .tab.active .tabIcon {
   transform: scale(1.05);
-  color: var(--primary);
+  color: var(--tab-twitter-blue);
 }
 
+/* Tab Count Badge - Twitter Style */
 .tabCount {
+  background: var(--bg-tertiary);
   padding: 2px 8px;
-  background: rgba(var(--primary-rgb), 0.1);
-  border-radius: var(--radius-full);
-  font-size: 10px;
+  border-radius: 9999px;
+  font-size: 12px;
   font-weight: 600;
+  color: var(--text-secondary);
+  transition: var(--tab-transition);
   margin-left: 4px;
-  color: var(--primary);
-  transition: var(--ig-transition);
-  font-family: inherit;
 }
 
 .tab.active .tabCount {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--tab-twitter-blue);
   color: white;
 }
 
 .tab:hover .tabCount {
+  background: var(--tab-twitter-blue-light);
+  color: var(--tab-twitter-blue);
   transform: scale(1.05);
-}
-
-/* ===== TAB WITH ICON ONLY (for mobile) ===== */
-.tab.iconOnly {
-  justify-content: center;
-  width: 44px;
-  padding: 8px 0;
-}
-
-.tab.iconOnly .tabIcon {
-  font-size: 1.25rem;
-  margin: 0;
-}
-
-.tab.iconOnly .tabCount {
-  position: absolute;
-  top: 0;
-  right: 0;
-  margin: 0;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  font-size: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary);
-  color: white;
-  border: 2px solid var(--bg-primary);
 }
 
 /* ===== TAB CONTENT AREA ===== */
 .tabContent {
-  margin-top: calc(var(--tabs-height) + var(--space-lg));
-  min-height: 500px;
   width: 100%;
-  animation: fadeIn 0.3s ease;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-lg));
+  max-width: 100%;
+  margin-top: 0;
+  padding: var(--space-xl) 0;
+  animation: tabFadeIn 0.4s var(--tab-easing);
+  min-height: 500px;
 }
 
-/* ===== TAB SCROLL INDICATORS (Instagram style) ===== */
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== SCROLL INDICATORS (iOS Style) ===== */
 .tabsContainer::before,
 .tabsContainer::after {
   content: '';
@@ -190,244 +164,282 @@
   width: 60px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s ease;
-  z-index: 1;
+  transition: opacity 0.3s ease;
+  z-index: 5;
 }
 
 .tabsContainer::before {
   left: 0;
-  background: linear-gradient(to right, var(--bg-blur), transparent);
+  background: linear-gradient(to right, var(--glass-bg), transparent);
 }
 
 .tabsContainer::after {
   right: 0;
-  background: linear-gradient(to left, var(--bg-blur), transparent);
+  background: linear-gradient(to left, var(--glass-bg), transparent);
 }
 
-.tabsContainer.scrollableLeft::before,
-.tabsContainer.scrollableRight::after {
+.tabsContainer.hasScrollLeft::before,
+.tabsContainer.hasScrollRight::after {
   opacity: 1;
 }
 
-/* ===== MOBILE-FIRST RESPONSIVE DESIGN ===== */
-@media (max-width: 1200px) {
-  .tabsContainer {
-    padding: 0 var(--space-xl);
+/* ===== ICON-ONLY TAB STYLE (for mobile) ===== */
+.tab.iconOnly {
+  padding: 16px;
+  justify-content: center;
+}
+
+.tab.iconOnly .tabIcon {
+  font-size: 20px;
+  margin: 0;
+}
+
+.tab.iconOnly .tabText {
+  display: none;
+}
+
+.tab.iconOnly .tabCount {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== COMPACT TAB STYLE (for very small screens) ===== */
+.tab.compact {
+  padding: 12px 20px;
+  font-size: 13px;
+}
+
+.tab.compact .tabIcon {
+  font-size: 16px;
+}
+
+.tab.compact .tabCount {
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+/* ===== LOADING STATE ===== */
+.tabsContainer.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.tabsContainer.loading .tab {
+  animation: tabPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tabPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }
 
+/* ===== EMPTY STATE ===== */
+.tabsContainer.empty {
+  justify-content: center;
+  padding: var(--space-lg);
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Tablet (768px - 1024px) */
 @media (max-width: 1024px) {
-  .tabsContainer {
-    padding: 0 var(--space-lg);
+  .tab {
+    padding: 14px 24px;
+    font-size: 14px;
   }
   
-  .tab {
-    padding: 8px 14px;
-    font-size: 0.875rem;
+  .tab.active::after {
+    width: 48px;
+  }
+  
+  .tabCount {
+    font-size: 11px;
+    padding: 2px 7px;
   }
 }
 
+/* Mobile (640px - 768px) */
 @media (max-width: 768px) {
   .tabsContainer {
-    left: 0;
-    padding: 0 var(--space-md);
-    gap: var(--space-xs);
-    height: 50px;
+    top: var(--nav-bar-height);
   }
   
   .tab {
-    padding: 8px 12px;
-    font-size: 0.8125rem;
-    height: 36px;
+    padding: 12px 20px;
+    font-size: 13px;
   }
   
   .tabIcon {
-    font-size: 0.875rem;
+    font-size: 16px;
   }
   
-  .tabContent {
-    margin-top: calc(50px + var(--space-md));
-  }
-  
-  /* Show fewer tabs with better spacing */
-  .tab {
-    flex: 0 0 auto;
-  }
-  
-  /* Scroll indicators become more visible on mobile */
-  .tabsContainer::before,
-  .tabsContainer::after {
+  .tab.active::after {
     width: 40px;
-  }
-}
-
-@media (max-width: 640px) {
-  .tabsContainer {
-    padding: 0 var(--space-sm);
-  }
-  
-  .tab {
-    padding: 8px 10px;
-    font-size: 0.75rem;
-  }
-  
-  .tabIcon {
-    font-size: 0.8125rem;
+    height: 3px;
   }
   
   .tabCount {
+    font-size: 10px;
     padding: 2px 6px;
-    font-size: 9px;
-  }
-}
-
-@media (max-width: 480px) {
-  .tabsContainer {
-    padding: 0 var(--space-xs);
-    height: 48px;
-  }
-  
-  /* Switch to icon-only tabs on very small screens */
-  .tab {
-    padding: 8px 0;
-    width: 44px;
-    justify-content: center;
-    gap: 0;
-  }
-  
-  .tab span:not(.tabIcon):not(.tabCount) {
-    display: none; /* Hide text labels */
-  }
-  
-  .tabIcon {
-    font-size: 1.25rem;
-    margin: 0;
-  }
-  
-  .tabCount {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    margin: 0;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
-    font-size: 9px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .tab.active .tabCount {
-    background: white;
-    color: var(--primary);
   }
   
   .tabContent {
-    margin-top: calc(48px + var(--space-md));
+    padding: var(--space-lg) 0;
+  }
+}
+
+/* Small Mobile (480px - 640px) */
+@media (max-width: 640px) {
+  .tab {
+    padding: 12px 16px;
   }
   
-  /* Remove scroll indicators on very small screens */
-  .tabsContainer::before,
-  .tabsContainer::after {
+  .tab .tabText {
     display: none;
   }
-}
-
-@media (max-width: 360px) {
+  
   .tab {
+    padding: 12px;
+    min-width: 60px;
+    justify-content: center;
+  }
+  
+  .tab .tabIcon {
+    font-size: 20px;
+    margin: 0;
+  }
+  
+  .tab .tabCount {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 9px;
+    padding: 0 5px;
+  }
+  
+  .tab.active::after {
+    width: 32px;
+    height: 3px;
+  }
+  
+  .tabsContainer::before,
+  .tabsContainer::after {
     width: 40px;
   }
-  
-  .tabIcon {
-    font-size: 1.125rem;
+}
+
+/* Very Small Mobile (320px - 480px) */
+@media (max-width: 480px) {
+  .tab {
+    min-width: 50px;
   }
   
-  .tabCount {
-    top: 0;
-    right: 0;
-    min-width: 14px;
-    height: 14px;
+  .tab .tabIcon {
+    font-size: 18px;
+  }
+  
+  .tab .tabCount {
+    top: 4px;
+    right: 4px;
+    min-width: 16px;
+    height: 16px;
     font-size: 8px;
+    padding: 0 4px;
+  }
+  
+  .tab.active::after {
+    width: 28px;
+    height: 2px;
+  }
+  
+  .tabContent {
+    padding: var(--space-md) 0;
+  }
+  
+  .tabsContainer::before,
+  .tabsContainer::after {
+    width: 30px;
   }
 }
 
 /* ===== DARK MODE ADAPTATIONS ===== */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ig-hover-bg: rgba(255, 255, 255, 0.1);
-    --ig-active-bg: rgba(0, 149, 246, 0.2);
-    --ig-border-light: #2e2e2e;
-  }
-  
-  .tabCount {
-    background: rgba(0, 149, 246, 0.2);
-  }
-  
-  .tabsContainer::before {
-    background: linear-gradient(to right, var(--bg-blur), transparent);
-  }
-  
-  .tabsContainer::after {
-    background: linear-gradient(to left, var(--bg-blur), transparent);
-  }
+.dark .tabsContainer {
+  --glass-bg: rgba(0, 0, 0, 0.4);
 }
 
-/* ===== LIGHT MODE SPECIFIC ===== */
-.light .tab.active .tabCount {
-  background: rgba(255, 255, 255, 0.3);
-  color: white;
+.dark .tab:hover {
+  background: rgba(29, 155, 240, 0.15);
 }
 
-.light .tabCount {
-  background: rgba(0, 149, 246, 0.1);
+.dark .tabCount {
+  background: var(--bg-tertiary);
+}
+
+.dark .tab.active .tabCount {
+  background: var(--tab-twitter-blue);
+}
+
+/* ===== LIGHT MODE ADAPTATIONS ===== */
+.light .tabsContainer {
+  --glass-bg: rgba(255, 255, 255, 0.4);
+}
+
+.light .tab:hover {
+  background: rgba(29, 155, 240, 0.08);
 }
 
 /* ===== TOUCH OPTIMIZATIONS ===== */
 @media (hover: none) and (pointer: coarse) {
   .tab:hover {
     background: transparent;
-    transform: none;
-  }
-  
-  .tab:hover::after {
-    transform: translateX(-50%) scaleX(0);
-    opacity: 0;
+    color: var(--text-secondary);
   }
   
   .tab:active {
-    background: var(--ig-hover-bg);
+    background: var(--tab-twitter-blue-light);
     transform: scale(0.97);
   }
   
   .tab.active:active {
-    background: var(--ig-active-bg);
+    background: rgba(29, 155, 240, 0.2);
   }
   
   .tab {
     -webkit-tap-highlight-color: transparent;
-  }
-  
-  /* Increase touch targets */
-  .tab {
-    min-height: 44px;
+    min-height: 48px;
   }
 }
 
 /* ===== ACCESSIBILITY ===== */
 .tab:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  outline: 2px solid var(--tab-twitter-blue);
+  outline-offset: -2px;
   border-radius: 8px;
 }
 
 /* ===== ANIMATIONS ===== */
 .tab {
-  animation: slideInTab 0.3s ease;
+  animation: tabSlideIn 0.3s var(--tab-easing);
   animation-fill-mode: both;
 }
 
-@keyframes slideInTab {
+@keyframes tabSlideIn {
   from {
     opacity: 0;
     transform: translateY(-5px);
@@ -438,52 +450,21 @@
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 /* Stagger animation for tabs */
-.tab:nth-child(1) { animation-delay: 0.05s; }
-.tab:nth-child(2) { animation-delay: 0.1s; }
-.tab:nth-child(3) { animation-delay: 0.15s; }
-.tab:nth-child(4) { animation-delay: 0.2s; }
-.tab:nth-child(5) { animation-delay: 0.25s; }
-.tab:nth-child(6) { animation-delay: 0.3s; }
-.tab:nth-child(7) { animation-delay: 0.35s; }
-.tab:nth-child(8) { animation-delay: 0.4s; }
+.tab:nth-child(1) { animation-delay: 0.02s; }
+.tab:nth-child(2) { animation-delay: 0.04s; }
+.tab:nth-child(3) { animation-delay: 0.06s; }
+.tab:nth-child(4) { animation-delay: 0.08s; }
+.tab:nth-child(5) { animation-delay: 0.1s; }
+.tab:nth-child(6) { animation-delay: 0.12s; }
+.tab:nth-child(7) { animation-delay: 0.14s; }
+.tab:nth-child(8) { animation-delay: 0.16s; }
 
 /* ===== SAFE AREA SUPPORT ===== */
 @supports (padding: max(0px)) {
   .tabsContainer {
-    padding-left: max(var(--space-xxl), env(safe-area-inset-left));
-    padding-right: max(var(--space-xxl), env(safe-area-inset-right));
-  }
-  
-  .tabContent {
-    padding-bottom: max(env(safe-area-inset-bottom, 0px) + var(--space-lg), var(--space-lg));
-  }
-}
-
-@media (max-width: 768px) {
-  @supports (padding: max(0px)) {
-    .tabsContainer {
-      padding-left: max(var(--space-md), env(safe-area-inset-left));
-      padding-right: max(var(--space-md), env(safe-area-inset-right));
-    }
-  }
-}
-
-@media (max-width: 480px) {
-  @supports (padding: max(0px)) {
-    .tabsContainer {
-      padding-left: max(var(--space-xs), env(safe-area-inset-left));
-      padding-right: max(var(--space-xs), env(safe-area-inset-right));
-    }
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
   }
 }
 
@@ -495,51 +476,89 @@
   
   .tabContent {
     margin-top: 0;
-    min-height: auto;
+    padding: 0;
   }
 }
 
-/* ===== LOADING STATE ===== */
-.tabsContainer.loading {
-  opacity: 0.6;
-  pointer-events: none;
+/* ===== CUSTOM SCROLLBAR (optional, for scrollable tabs) ===== */
+.tabsContainer.scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tab-twitter-blue) transparent;
 }
 
-.tabsContainer.loading .tab {
-  animation: pulse 1.5s ease infinite;
+.tabsContainer.scrollable::-webkit-scrollbar {
+  height: 2px;
+  display: block;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.7;
-  }
-  50% {
-    opacity: 0.4;
-  }
+.tabsContainer.scrollable::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-/* ===== EMPTY STATE ===== */
-.tabsContainer.empty {
-  justify-content: center;
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
+.tabsContainer.scrollable::-webkit-scrollbar-thumb {
+  background: var(--tab-twitter-blue);
+  border-radius: 9999px;
 }
 
-/* ===== ACTIVE TAB HIGHLIGHT EFFECT ===== */
-.tab.active {
+/* ===== RIPPLE EFFECT ON CLICK (iOS style) ===== */
+.tab {
   position: relative;
   overflow: hidden;
 }
 
-.tab.active::before {
+.tab::before {
   content: '';
   position: absolute;
-  top: 0;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: var(--tab-twitter-blue);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s, opacity 0.2s;
+}
+
+.tab:active::before {
+  width: 120px;
+  height: 120px;
+  opacity: 0.1;
+}
+
+/* ===== GLASS BORDER EFFECT ===== */
+.tabsContainer {
+  position: relative;
+}
+
+.tabsContainer::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: currentColor;
-  opacity: 0.04;
-  border-radius: 8px;
-  pointer-events: none;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+}
+
+/* ===== ACTIVE TAB HIGHLIGHT ===== */
+.tab.active {
+  position: relative;
+}
+
+/* ===== ICON ANIMATION ON ACTIVE ===== */
+.tab.active .tabIcon {
+  animation: iconBounce 0.3s var(--tab-easing);
+}
+
+@keyframes iconBounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1.05);
+  }
 }
