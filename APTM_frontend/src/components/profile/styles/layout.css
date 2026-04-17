@@ -1,6 +1,6 @@
-/* layout.css - CLEANED VERSION - NO CONFLICTING STYLES */
+/* layout.css - CLEAN VERSION - NO CONFLICTING STYLES */
 
-/* Global layout utilities only */
+/* Utility classes only - NO profileContainer or mainContentArea here */
 .flex {
   display: flex;
 }
@@ -33,5 +33,6 @@
   height: 100%;
 }
 
-/* DO NOT add .profileContainer, .mainContentArea, .loadingContainer, or .errorContainer here */
-/* Those are defined in UserProfileView.module.css */
+.min-h-screen {
+  min-height: 100vh;
+}
