@@ -1,4 +1,4 @@
-// PostComponent.jsx - Updated with Cloudinary support
+// PostComponent.jsx - Full working version with all modals
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -20,7 +20,6 @@ import {
   FaCheckCircle,
   FaTimes,
   FaPaperPlane,
-  FaShareAlt,
   FaCopy,
   FaTwitter,
   FaFacebook,
@@ -28,53 +27,38 @@ import {
   FaTelegram,
   FaEnvelope,
   FaRetweet,
-  FaGlobe,
-  FaUserFriends,
-  FaLock,
   FaSpinner,
-  FaImage,
-  FaVideo,
   FaFileAlt,
-  FaPlay,
-  FaPause,
   FaVolumeUp,
   FaVolumeMute,
   FaExpand,
   FaCompress,
   FaExclamationCircle,
-  FaMapMarkerAlt,
-  FaChartLine,
-  FaExpandArrowsAlt
+  FaMapMarkerAlt
 } from 'react-icons/fa';
 import AvatarWithFallback from './AvatarWithFallback';
-import ChartWidget from './ChartWidget';
 import Lightbox from 'react-image-lightbox';
 import 'react-image-lightbox/style.css';
 
 // ============================================
-// UPDATED: Helper functions for Cloudinary URLs
+// Helper functions for Cloudinary URLs
 // ============================================
 
-// Check if URL is from Cloudinary
 const isCloudinaryUrl = (url) => {
   return url && (url.includes('cloudinary') || url.includes('res.cloudinary.com'));
 };
 
-// Format image URL with Cloudinary support
 const formatImageUrl = (imagePath, type = 'avatar') => {
   if (!imagePath) return null;
   
-  // If it's already a full URL (Cloudinary or other CDN), return as is
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
   
-  // If it's a data URL, return as is
   if (imagePath.startsWith('data:')) {
     return imagePath;
   }
   
-  // For local development paths
   let cleanPath = imagePath;
   if (imagePath.includes('/')) {
     cleanPath = imagePath.split('/').pop();
@@ -92,11 +76,9 @@ const formatImageUrl = (imagePath, type = 'avatar') => {
   return `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/uploads/${folder}/${cleanPath}`;
 };
 
-// Format media URL with Cloudinary support
 const formatMediaUrl = (media) => {
   if (!media) return null;
   
-  // If it's a string
   if (typeof media === 'string') {
     if (media.startsWith('http://') || media.startsWith('https://') || media.startsWith('data:')) {
       return media;
@@ -105,7 +87,6 @@ const formatMediaUrl = (media) => {
     return `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/${cleanPath}`;
   }
   
-  // If it's an object with url
   if (media.url) {
     if (media.url.startsWith('http://') || media.url.startsWith('https://') || media.url.startsWith('data:')) {
       return media.url;
@@ -114,7 +95,6 @@ const formatMediaUrl = (media) => {
     return `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/${cleanPath}`;
   }
   
-  // If it's an object with path (Cloudinary format)
   if (media.path) {
     return media.path;
   }
@@ -122,7 +102,6 @@ const formatMediaUrl = (media) => {
   return null;
 };
 
-// Get optimized Cloudinary URL with transformations
 const getOptimizedCloudinaryUrl = (url, options = {}) => {
   if (!url || !isCloudinaryUrl(url)) return url;
   
@@ -132,7 +111,6 @@ const getOptimizedCloudinaryUrl = (url, options = {}) => {
     return url;
   }
   
-  // Build transformations
   const transformations = [];
   if (width) transformations.push(`w_${width}`);
   if (height) transformations.push(`h_${height}`);
@@ -142,7 +120,6 @@ const getOptimizedCloudinaryUrl = (url, options = {}) => {
   
   if (transformations.length === 0) return url;
   
-  // Insert transformations after '/upload/'
   return url.replace('/upload/', `/upload/${transformations.join(',')}/`);
 };
 
@@ -152,22 +129,6 @@ const notificationService = {
   error: (message) => console.error(`❌ Error: ${message}`),
   warning: (message) => console.warn(`⚠️ Warning: ${message}`),
   info: (message) => console.log(`ℹ️ Info: ${message}`)
-};
-
-// Simple socket service
-const socketService = {
-  getSocket: () => {
-    if (typeof window !== 'undefined' && window.io) {
-      return window.io();
-    }
-    return {
-      emit: () => {},
-      on: () => {},
-      off: () => {}
-    };
-  },
-  isConnected: () => false,
-  emit: (event, data) => console.log(`📡 Socket emit: ${event}`, data)
 };
 
 const PostComponent = ({ 
@@ -204,7 +165,7 @@ const PostComponent = ({
 }) => {
   const navigate = useNavigate();
   
-  // State management (same as before)
+  // State management
   const [postData, setPostData] = useState(post);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -245,7 +206,6 @@ const PostComponent = ({
   const [videoMuted, setVideoMuted] = useState({});
   const [videoFullscreen, setVideoFullscreen] = useState({});
   const [onlineStatus, setOnlineStatus] = useState({});
-  const [typingUsers, setTypingUsers] = useState({});
   const [replyLikes, setReplyLikes] = useState({});
   const [commentLikes, setCommentLikes] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -259,10 +219,6 @@ const PostComponent = ({
   // Refs
   const commentInputRef = useRef(null);
   const replyInputRef = useRef(null);
-  const shareModalRef = useRef(null);
-  const repostModalRef = useRef(null);
-  const editModalRef = useRef(null);
-  const optionsRef = useRef(null);
   const videoRefs = useRef({});
   
   // ============ INITIALIZATION ============
@@ -380,7 +336,7 @@ const PostComponent = ({
   const getShareCount = () => post?.shares || 0;
   const getCommentCount = () => post?.comments?.length || 0;
 
-  // Get post user data (same as before)
+  // Get post user data
   const getPostUser = useCallback(() => {
     if (!postData) return {};
     
@@ -434,25 +390,19 @@ const PostComponent = ({
   const isRepost = useMemo(() => postData?.repostOf || postData?.sharedPost || postData?.originalPost, [postData]);
   const originalPost = useMemo(() => postData?.repostOf || postData?.sharedPost || postData?.originalPost || null, [postData]);
 
-  // ============================================
-  // UPDATED: Format avatar URL with Cloudinary support
-  // ============================================
   const formatAvatarUrlWithCloudinary = useCallback((avatar) => {
     if (!avatar) return null;
     
-    // If it's a full URL (Cloudinary or other CDN)
     if (typeof avatar === 'string' && (avatar.startsWith('http') || avatar.startsWith('data:'))) {
       return avatar;
     }
     
-    // If it's an object with url
     if (typeof avatar === 'object' && avatar?.url) {
       if (avatar.url.startsWith('http') || avatar.url.startsWith('data:')) {
         return avatar.url;
       }
     }
     
-    // For local paths
     if (typeof avatar === 'string') {
       const cleanPath = avatar.replace(/^\/+/, '');
       if (cleanPath.startsWith('uploads/')) {
@@ -464,9 +414,6 @@ const PostComponent = ({
     return null;
   }, []);
 
-  // ============================================
-  // UPDATED: Get user display with Cloudinary support
-  // ============================================
   const getUserDisplay = useCallback((user) => {
     if (!user) return { 
       name: 'User', 
@@ -1090,6 +1037,8 @@ const PostComponent = ({
       
       if (!response.ok) throw new Error('Failed to repost');
       
+      const data = await response.json();
+      
       setShowRepostModal(false);
       setRepostContent('');
       setRepostCount(prev => prev + 1);
@@ -1097,13 +1046,17 @@ const PostComponent = ({
       
       notificationService.success('Post shared to your timeline!');
       
+      if (onRepost) {
+        onRepost(data);
+      }
+      
     } catch (error) {
       console.error('Failed to repost:', error);
-      notificationService.error('Could not share post');
+      notificationService.error(error.message || 'Could not share post');
     } finally {
       setIsReposting(false);
     }
-  }, [postData?._id, currentUserId, repostContent, repostVisibility, isReposting]);
+  }, [postData?._id, currentUserId, repostContent, repostVisibility, isReposting, onRepost]);
 
   // ============ SAVE FUNCTIONALITY ============
   const handleSave = useCallback(async () => {
@@ -1128,12 +1081,16 @@ const PostComponent = ({
       
       notificationService.success(newSavedState ? 'Post saved' : 'Post unsaved');
       
+      if (onSave) {
+        onSave(postData._id, newSavedState);
+      }
+      
     } catch (error) {
       setIsSavedState(!newSavedState);
       console.error('Failed to save post:', error);
       notificationService.error('Could not save post');
     }
-  }, [isSavedState, postData?._id, currentUserId]);
+  }, [isSavedState, postData?._id, currentUserId, onSave]);
 
   // ============ DELETE POST FUNCTIONALITY ============
   const handleDelete = useCallback(async () => {
@@ -1158,6 +1115,10 @@ const PostComponent = ({
       
       notificationService.success('Post deleted');
       
+      if (onDelete) {
+        onDelete(postData._id);
+      }
+      
       if (window.location.pathname.includes(`/post/${postData._id}`)) {
         navigate(-1);
       }
@@ -1168,7 +1129,7 @@ const PostComponent = ({
     } finally {
       setIsDeleting(false);
     }
-  }, [postData?._id, currentUserId, navigate]);
+  }, [postData?._id, currentUserId, navigate, onDelete]);
 
   // ============ EDIT POST FUNCTIONALITY ============
   const handleEdit = useCallback(async () => {
@@ -1201,13 +1162,17 @@ const PostComponent = ({
       
       notificationService.success('Post updated');
       
+      if (onPostUpdate) {
+        onPostUpdate(data.post);
+      }
+      
     } catch (error) {
       console.error('Failed to edit post:', error);
       notificationService.error('Could not update post');
     } finally {
       setIsEditing(false);
     }
-  }, [editContent, postData?._id, currentUserId]);
+  }, [editContent, postData?._id, currentUserId, onPostUpdate]);
 
   // ============ REPORT POST FUNCTIONALITY ============
   const handleReport = useCallback(async () => {
@@ -1243,13 +1208,17 @@ const PostComponent = ({
       
       notificationService.success('Post has been reported for review');
       
+      if (onReport) {
+        onReport(postData._id);
+      }
+      
     } catch (error) {
       console.error('Failed to report post:', error);
       notificationService.error('Could not report post');
     } finally {
       setIsReporting(false);
     }
-  }, [postData?._id, reportReason, reportDetails, currentUserId]);
+  }, [postData?._id, reportReason, reportDetails, currentUserId, onReport]);
 
   // ============ VIDEO CONTROLS ============
   const handleVideoPlay = useCallback((videoId) => {
@@ -1277,23 +1246,8 @@ const PostComponent = ({
     }
   }, []);
 
-  // ============================================
-  // UPDATED: MEDIA RENDERING WITH CLOUDINARY SUPPORT
-  // ============================================
+  // ============ MEDIA RENDERING WITH CLOUDINARY SUPPORT ============
   const renderMedia = useCallback((media, index) => {
-    // Check if it's a chart
-    if (media.type === 'chart') {
-      return (
-        <div key={index} className={styles.chartMediaItem}>
-          <ChartWidget 
-            chartData={media.chartData}
-            onClick={() => setExpandedChart(media.chartData)}
-            isExpanded={expandedChart === media.chartData}
-          />
-        </div>
-      );
-    }
-
     const mediaUrl = formatMediaUrl(media);
     if (!mediaUrl) return null;
     
@@ -1301,8 +1255,6 @@ const PostComponent = ({
       (media.url ? media.type : media.split('.').pop()?.toLowerCase());
     
     const mediaId = `${postData._id}-${index}`;
-    
-    // Check if it's a Cloudinary URL for optimization
     const isCloudinary = isCloudinaryUrl(mediaUrl);
     
     if (mediaType?.startsWith('image') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(mediaType)) {
@@ -1312,7 +1264,12 @@ const PostComponent = ({
         <div 
           key={index} 
           className={styles.mediaItem}
-          onClick={() => showMediaLightbox && openLightbox(index)}
+          onClick={() => {
+            if (showMediaLightbox) {
+              setLightboxIndex(index);
+              setShowMediaLightbox(true);
+            }
+          }}
         >
           <img 
             src={optimizedUrl} 
@@ -1369,13 +1326,7 @@ const PostComponent = ({
         </a>
       </div>
     );
-  }, [formatMediaUrl, postData?._id, showMediaLightbox, autoPlayVideo, muteVideo, videoPlaying, videoMuted, videoFullscreen, expandedChart]);
-
-  // ============ LIGHTBOX FUNCTIONS ============
-  const openLightbox = useCallback((index) => {
-    setLightboxIndex(index);
-    setShowMediaLightbox(true);
-  }, []);
+  }, [formatMediaUrl, postData?._id, showMediaLightbox, autoPlayVideo, muteVideo, videoPlaying, videoMuted, videoFullscreen]);
 
   // ============ TOGGLE FUNCTIONS ============
   const toggleReplies = useCallback((commentId) => {
@@ -1405,8 +1356,244 @@ const PostComponent = ({
     return postData.comments.length > maxInitialComments && !showAllCommentsState;
   }, [postData?.comments, maxInitialComments, showAllCommentsState]);
 
-  // ============ RENDER MODALS (same as before, omitted for brevity) ============
-  // ... (keep all modal render functions exactly as they were)
+  // ============ RENDER MODAL FUNCTIONS ============
+  const renderShareModal = () => {
+    if (!showShareModal) return null;
+    
+    return (
+      <div className={styles.modalOverlay} onClick={() => setShowShareModal(false)}>
+        <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalHeader}>
+            <h3>Share Post</h3>
+            <button onClick={() => setShowShareModal(false)} className={styles.closeModalBtn}>
+              <FaTimes />
+            </button>
+          </div>
+          
+          <div className={styles.modalBody}>
+            <div className={styles.shareLinkContainer}>
+              <input 
+                type="text" 
+                value={shareUrl} 
+                readOnly 
+                className={styles.shareLinkInput}
+              />
+              <button onClick={handleCopyLink} className={styles.copyLinkBtn}>
+                {copySuccess ? <FaCheckCircle /> : <FaCopy />}
+                {copySuccess || 'Copy'}
+              </button>
+            </div>
+            
+            <div className={styles.sharePlatforms}>
+              <button onClick={() => handleShare('twitter')} className={styles.twitterShare}>
+                <FaTwitter /> Twitter
+              </button>
+              <button onClick={() => handleShare('facebook')} className={styles.facebookShare}>
+                <FaFacebook /> Facebook
+              </button>
+              <button onClick={() => handleShare('whatsapp')} className={styles.whatsappShare}>
+                <FaWhatsapp /> WhatsApp
+              </button>
+              <button onClick={() => handleShare('telegram')} className={styles.telegramShare}>
+                <FaTelegram /> Telegram
+              </button>
+              <button onClick={() => handleShare('email')} className={styles.emailShare}>
+                <FaEnvelope /> Email
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderRepostModal = () => {
+    if (!showRepostModal) return null;
+    
+    return (
+      <div className={styles.modalOverlay} onClick={() => setShowRepostModal(false)}>
+        <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalHeader}>
+            <h3>Repost</h3>
+            <button onClick={() => setShowRepostModal(false)} className={styles.closeModalBtn}>
+              <FaTimes />
+            </button>
+          </div>
+          
+          <div className={styles.modalBody}>
+            <p className={styles.modalDescription}>
+              Share this post with your followers
+            </p>
+            
+            <div className={styles.repostContentWrapper}>
+              <textarea
+                placeholder="Add a comment (optional)..."
+                value={repostContent}
+                onChange={(e) => setRepostContent(e.target.value)}
+                className={styles.repostTextarea}
+                rows={3}
+              />
+              
+              <div className={styles.visibilitySelector}>
+                <label>Who can see this repost?</label>
+                <select 
+                  value={repostVisibility} 
+                  onChange={(e) => setRepostVisibility(e.target.value)}
+                  className={styles.visibilitySelect}
+                >
+                  <option value="public">🌍 Public</option>
+                  <option value="friends">👥 Friends</option>
+                  <option value="onlyMe">🔒 Only me</option>
+                </select>
+              </div>
+              
+              <div className={styles.originalPostPreview}>
+                <div className={styles.previewHeader}>
+                  <FaRetweet />
+                  <span>Original post by @{postUser.username}</span>
+                </div>
+                <p className={styles.previewContent}>
+                  {postData.content?.substring(0, 150)}
+                  {postData.content?.length > 150 ? '...' : ''}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className={styles.modalFooter}>
+            <button 
+              onClick={() => setShowRepostModal(false)} 
+              className={styles.cancelBtn}
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleRepost} 
+              className={styles.repostBtn}
+              disabled={isReposting}
+            >
+              {isReposting ? <FaSpinner className={styles.spinning} /> : <FaRetweet />}
+              {isReposting ? 'Reposting...' : 'Repost'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderEditModal = () => {
+    if (!showEditModal) return null;
+    
+    return (
+      <div className={styles.modalOverlay} onClick={() => setShowEditModal(false)}>
+        <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalHeader}>
+            <h3>Edit Post</h3>
+            <button onClick={() => setShowEditModal(false)} className={styles.closeModalBtn}>
+              <FaTimes />
+            </button>
+          </div>
+          
+          <div className={styles.modalBody}>
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className={styles.editTextarea}
+              rows={5}
+              placeholder="What's on your mind?"
+            />
+          </div>
+          
+          <div className={styles.modalFooter}>
+            <button 
+              onClick={() => setShowEditModal(false)} 
+              className={styles.cancelBtn}
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleEdit} 
+              className={styles.saveBtn}
+              disabled={isEditing || !editContent.trim()}
+            >
+              {isEditing ? <FaSpinner className={styles.spinning} /> : <FaEdit />}
+              {isEditing ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderReportModal = () => {
+    if (!showReportModal) return null;
+    
+    const reasons = [
+      'Spam or misleading',
+      'Harassment or hate speech',
+      'Inappropriate content',
+      'False information',
+      'Copyright violation',
+      'Other'
+    ];
+    
+    return (
+      <div className={styles.modalOverlay} onClick={() => setShowReportModal(false)}>
+        <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalHeader}>
+            <h3>Report Post</h3>
+            <button onClick={() => setShowReportModal(false)} className={styles.closeModalBtn}>
+              <FaTimes />
+            </button>
+          </div>
+          
+          <div className={styles.modalBody}>
+            <div className={styles.reportReasonGroup}>
+              <label>Reason for reporting</label>
+              <select 
+                value={reportReason} 
+                onChange={(e) => setReportReason(e.target.value)}
+                className={styles.reportSelect}
+              >
+                <option value="">Select a reason...</option>
+                {reasons.map(reason => (
+                  <option key={reason} value={reason}>{reason}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className={styles.reportDetailsGroup}>
+              <label>Additional details (optional)</label>
+              <textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                className={styles.reportTextarea}
+                rows={4}
+                placeholder="Please provide any additional information..."
+              />
+            </div>
+          </div>
+          
+          <div className={styles.modalFooter}>
+            <button 
+              onClick={() => setShowReportModal(false)} 
+              className={styles.cancelBtn}
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleReport} 
+              className={styles.reportBtn}
+              disabled={isReporting || !reportReason}
+            >
+              {isReporting ? <FaSpinner className={styles.spinning} /> : <FaFlag />}
+              {isReporting ? 'Reporting...' : 'Report Post'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ============ RENDER LOADING/ERROR STATE ============
   if (loading) {
@@ -1437,11 +1624,11 @@ const PostComponent = ({
   // ============ MAIN RENDER ============
   return (
     <div className={styles.postCard} data-post-id={postData._id}>
-      {/* Modals - keep same as before */}
-      {showShareModal && renderShareModal()}
-      {showRepostModal && renderRepostModal()}
-      {showEditModal && renderEditModal()}
-      {showReportModal && renderReportModal()}
+      {/* Modals */}
+      {renderShareModal()}
+      {renderRepostModal()}
+      {renderEditModal()}
+      {renderReportModal()}
       
       {/* Media Lightbox */}
       {showMediaLightboxState && postData.media && postData.media.length > 0 && (
@@ -1456,7 +1643,7 @@ const PostComponent = ({
         />
       )}
 
-      {/* Post Header - keep same as before */}
+      {/* Post Header */}
       <div className={styles.postHeader}>
         <div 
           className={styles.postAuthor}
@@ -1484,7 +1671,7 @@ const PostComponent = ({
         </div>
         
         {showActions && (
-          <div className={styles.postHeaderActions} ref={optionsRef}>
+          <div className={styles.postHeaderActions}>
             {allowSaving && (
               <button 
                 className={`${styles.iconButton} ${isSavedState ? styles.saved : ''}`}
@@ -1664,7 +1851,7 @@ const PostComponent = ({
         </div>
       )}
 
-      {/* Comments Section - keep same as before */}
+      {/* Comments Section */}
       {!hideComments && showComments && (
         <div className={styles.commentsSection}>
           {/* Comment Input */}
@@ -1702,7 +1889,7 @@ const PostComponent = ({
             </div>
           )}
           
-          {/* Comments List - keep same as before */}
+          {/* Comments List */}
           <div className={styles.commentsList}>
             {visibleComments.map((comment) => {
               if (!comment) return null;
