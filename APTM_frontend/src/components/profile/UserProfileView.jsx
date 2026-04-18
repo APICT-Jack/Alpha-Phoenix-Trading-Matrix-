@@ -57,7 +57,10 @@ import {
   FaPlug,
   FaSignal,
   FaChevronLeft,
-  FaChevronRight
+  FaChevronRight,
+  FaUserPlus,
+  FaUserCheck,
+  FaComments as FaMessage
 } from 'react-icons/fa';
 
 // Constants for API URLs
@@ -93,6 +96,7 @@ const UserProfileView = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [lastSeen, setLastSeen] = useState(null);
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [showStickyHeader, setShowStickyHeader] = useState(false);
   
   // Wallpaper state
   const [wallpaperSettings, setWallpaperSettings] = useState({
@@ -154,6 +158,19 @@ const UserProfileView = () => {
     return () => {
       window.removeEventListener('panelStateChange', handlePanelStateChange);
     };
+  }, []);
+
+  // ============ STICKY HEADER SCROLL DETECTION ============
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      // Show sticky header after scrolling past 200px
+      setShowStickyHeader(scrollPosition > 200);
+      setIsScrolled(scrollPosition > 100);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // ============ USER STATUS SERVICE SETUP ============
@@ -1019,12 +1036,6 @@ const UserProfileView = () => {
     }
   }, [profileUser, fetchUserPosts, fetchUserGallery]);
 
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 100);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   // Tab content rendering
   const renderTimelineTab = () => (
     <div className={styles.timelineTab}>
@@ -1174,6 +1185,71 @@ const UserProfileView = () => {
                 <FaPlug />
               </span>
             )}
+          </div>
+        </div>
+
+        {/* STICKY HEADER - NEW */}
+        <div className={`${styles.stickyHeader} ${showStickyHeader ? styles.visible : ''}`}>
+          <div className={styles.stickyHeaderContent}>
+            <button className={styles.stickyBackButton} onClick={handleGoBack} title="Go back">
+              <FaArrowLeft />
+            </button>
+            
+            <div className={styles.stickyAvatar} onClick={openModal}>
+              {profileUser.avatar && !avatarError ? (
+                <img src={profileUser.avatar} alt={profileUser.name} />
+              ) : (
+                <div className={styles.stickyAvatarInitial}>
+                  {getAvatarInitial(profileUser)}
+                </div>
+              )}
+            </div>
+            
+            <div className={styles.stickyUserInfo}>
+              <div className={styles.stickyName}>{profileUser.name}</div>
+              <div className={styles.stickyUsername}>@{profileUser.username}</div>
+            </div>
+            
+            {isUserOnline && (
+              <div className={styles.stickyOnlineIndicator}>
+                <span className={styles.stickyOnlineDot}></span>
+                <span>Online</span>
+              </div>
+            )}
+            
+            <div className={styles.stickyStats}>
+              <div className={styles.stickyStat} onClick={() => handleStatClick('followers')}>
+                <span className={styles.stickyStatValue}>{profileUser.followers?.toLocaleString() || 0}</span>
+                <span className={styles.stickyStatLabel}>followers</span>
+              </div>
+              <div className={styles.stickyStat} onClick={() => handleStatClick('following')}>
+                <span className={styles.stickyStatValue}>{profileUser.following?.toLocaleString() || 0}</span>
+                <span className={styles.stickyStatLabel}>following</span>
+              </div>
+            </div>
+            
+            <div className={styles.stickyActions}>
+              {!isOwnProfile ? (
+                <>
+                  <button 
+                    className={`${styles.stickyFollowBtn} ${isFollowing ? styles.following : ''}`}
+                    onClick={handleFollow}
+                  >
+                    {isFollowing ? <FaUserCheck size={12} /> : <FaUserPlus size={12} />}
+                    <span>{isFollowing ? 'Following' : 'Follow'}</span>
+                  </button>
+                  <button className={styles.stickyMessageBtn} onClick={handleMessage}>
+                    <FaMessage size={12} />
+                    <span>Message</span>
+                  </button>
+                </>
+              ) : (
+                <button className={styles.stickyEditBtn} onClick={handleEditProfile}>
+                  <FaEdit size={12} />
+                  <span>Edit</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
