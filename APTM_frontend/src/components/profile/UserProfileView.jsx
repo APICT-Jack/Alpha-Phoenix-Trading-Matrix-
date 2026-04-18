@@ -1188,12 +1188,18 @@ const UserProfileView = () => {
           </div>
         </div>
 
-        {/* STICKY HEADER - NEW */}
+        {/* STICKY HEADER - WITH HOME AND BACK BUTTONS */}
         <div className={`${styles.stickyHeader} ${showStickyHeader ? styles.visible : ''}`}>
           <div className={styles.stickyHeaderContent}>
-            <button className={styles.stickyBackButton} onClick={handleGoBack} title="Go back">
-              <FaArrowLeft />
-            </button>
+            {/* Navigation Buttons Group */}
+            <div className={styles.stickyNavButtons}>
+              <button className={styles.stickyNavButton} onClick={handleGoBack} title="Go back">
+                <FaArrowLeft />
+              </button>
+              <button className={styles.stickyNavButton} onClick={handleGoHome} title="Go home">
+                <FaHome />
+              </button>
+            </div>
             
             <div className={styles.stickyAvatar} onClick={openModal}>
               {profileUser.avatar && !avatarError ? (
