@@ -850,7 +850,7 @@ const handleCreatePost = useCallback(async () => {
                 </div>
               </div>
             )}
-            
+
             <button 
               className={styles.removeMediaBtn}
               onClick={() => removeMedia(index)}

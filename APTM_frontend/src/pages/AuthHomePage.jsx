@@ -1,6 +1,6 @@
-// src/pages/AuthHomePage.jsx - Premium Edition with Activity Feed
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/pages/AuthHomePage.jsx - Premium Edition with YouTube-style Navigation & Integrated Activity Panel
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useConnectionPanel } from '../context/ConnectionPanelContext';
@@ -10,556 +10,503 @@ import './AuthHomePage.css';
 
 const AuthHomePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { openPanel } = useConnectionPanel();
-  const [showMoreFeatures, setShowMoreFeatures] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [availableFeatures, setAvailableFeatures] = useState([]);
-  const [activeFeatures, setActiveFeatures] = useState([]);
-  const [showAddPanel, setShowAddPanel] = useState(false);
-  const [showWallpaperModal, setShowWallpaperModal] = useState(false);
-  const [activeActivityTab, setActiveActivityTab] = useState('all');
-  const [wallpaperSettings, setWallpaperSettings] = useState({
-    url: '',
-    brightness: 0.6,
-    blur: 0,
-    opacity: 0.8,
-    overlay: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)'
-  });
+  
+  // State Management
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const [activeNavItem, setActiveNavItem] = useState('home');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const [activeActivityTab, setActiveActivityTab] = useState('all');
+  const [showMoreTools, setShowMoreTools] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [expandedActivity, setExpandedActivity] = useState(null);
+  const [notifications, setNotifications] = useState([
+    { id: 1, type: 'trade', message: 'AAPL up 2.5%', read: false, time: '5 min ago' },
+    { id: 2, type: 'signal', message: 'New buy signal for BTC', read: false, time: '15 min ago' },
+    { id: 3, type: 'news', message: 'Fed announces rate decision', read: true, time: '1 hour ago' }
+  ]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [sidebarScrollTop, setSidebarScrollTop] = useState(0);
+  
+  const searchInputRef = useRef(null);
+  const searchSuggestionsRef = useRef(null);
+  const notificationRef = useRef(null);
+  const userMenuRef = useRef(null);
+  const sidebarRef = useRef(null);
 
-  // Sample activity data
-  const activities = {
+  // Navigation Items with Icons and Sub-items
+  const navigationItems = [
+    { id: 'home', label: 'Home', icon: 'FaHome', path: '/', requiresAuth: false, divider: false },
+    { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard', badge: 'Live', requiresAuth: true, divider: false },
+    { id: 'profile', label: 'Profile', icon: 'FaUser', path: '/profile', requiresAuth: true, divider: false },
+    { id: 'chat', label: 'Trading Chat', icon: 'FaComments', path: '/chat', badge: '12', requiresAuth: true, divider: false },
+    { id: 'education', label: 'Academy', icon: 'FaGraduationCap', path: '/education', requiresAuth: true, divider: false },
+    { id: 'tools', label: 'Tools Suite', icon: 'FaToolbox', path: '/tools', requiresAuth: true, divider: false },
+    { id: 'library', label: 'Library', icon: 'FaBookOpen', path: '/education', requiresAuth: true, divider: false },
+    { id: 'cashier', label: 'Cashier', icon: 'FaDollarSign', path: '/cashier', requiresAuth: true, divider: false },
+    { id: 'friends', label: 'Network', icon: 'FaUserFriends', path: '/friends', requiresAuth: true, divider: true },
+    { id: 'settings', label: 'Settings', icon: 'FaCog', path: '/profile/settings', requiresAuth: true, divider: false }
+  ];
+
+  // Activity Data - Will be displayed in sidebar
+  const activities = useMemo(() => ({
     news: [
-      { id: 1, type: 'news', title: 'Fed Announces Rate Decision', description: 'Interest rates remain unchanged at 5.25%', time: '2 hours ago', icon: 'FaNewspaper', color: '#3b82f6' },
-      { id: 2, type: 'news', title: 'Bitcoin Surpasses $50,000', description: 'Cryptocurrency market sees major rally', time: '5 hours ago', icon: 'FaBitcoin', color: '#f59e0b' },
-      { id: 3, type: 'news', title: 'Oil Prices Drop 5%', description: 'Supply concerns ease as production increases', time: '1 day ago', icon: 'FaOilCan', color: '#10b981' }
+      { id: 1, type: 'news', title: 'Fed Announces Rate Decision', description: 'Interest rates remain unchanged at 5.25%', time: '2 hours ago', timestamp: Date.now() - 2 * 60 * 60 * 1000, icon: 'FaNewspaper', color: '#3b82f6', link: '/news', priority: 'high' },
+      { id: 2, type: 'news', title: 'Bitcoin Surpasses $50,000', description: 'Cryptocurrency market sees major rally', time: '5 hours ago', timestamp: Date.now() - 5 * 60 * 60 * 1000, icon: 'FaBitcoin', color: '#f59e0b', link: '/news', priority: 'high' },
+      { id: 3, type: 'news', title: 'Oil Prices Drop 5%', description: 'Supply concerns ease as production increases', time: '1 day ago', timestamp: Date.now() - 24 * 60 * 60 * 1000, icon: 'FaOilCan', color: '#10b981', link: '/news', priority: 'medium' }
     ],
     trades: [
-      { id: 4, type: 'trade', title: 'AAPL +2.5%', description: 'Apple stock hits new all-time high', time: '1 hour ago', icon: 'FaChartLine', color: '#34c759' },
-      { id: 5, type: 'trade', title: 'TSLA -1.2%', description: 'Tesla shares dip after earnings report', time: '3 hours ago', icon: 'FaChartLine', color: '#ff3b30' },
-      { id: 6, type: 'trade', title: 'Volume Alert: NVDA', description: 'Unusual options activity detected', time: '6 hours ago', icon: 'FaBell', color: '#f59e0b' }
+      { id: 4, type: 'trade', title: 'AAPL +2.5%', description: 'Apple stock hits new all-time high', time: '1 hour ago', timestamp: Date.now() - 1 * 60 * 60 * 1000, icon: 'FaChartLine', color: '#34c759', link: '/dashboard', priority: 'high' },
+      { id: 5, type: 'trade', title: 'TSLA -1.2%', description: 'Tesla shares dip after earnings report', time: '3 hours ago', timestamp: Date.now() - 3 * 60 * 60 * 1000, icon: 'FaChartLine', color: '#ff3b30', link: '/dashboard', priority: 'medium' },
+      { id: 6, type: 'trade', title: 'Volume Alert: NVDA', description: 'Unusual options activity detected', time: '6 hours ago', timestamp: Date.now() - 6 * 60 * 60 * 1000, icon: 'FaBell', color: '#f59e0b', link: '/dashboard', priority: 'medium' }
     ],
     signals: [
-      { id: 7, type: 'signal', title: 'Buy Signal: EUR/USD', description: 'Bullish divergence detected on 4H chart', time: '30 minutes ago', icon: 'FaSignal', color: '#34c759' },
-      { id: 8, type: 'signal', title: 'Take Profit: BTC/USD', description: 'Target reached at $52,000', time: '2 hours ago', icon: 'FaDollarSign', color: '#34c759' },
-      { id: 9, type: 'signal', title: 'Stop Loss Triggered', description: 'GBP/JPY hits stop loss at 188.50', time: '4 hours ago', icon: 'FaStop', color: '#ff3b30' }
+      { id: 7, type: 'signal', title: 'Buy Signal: EUR/USD', description: 'Bullish divergence detected on 4H chart', time: '30 minutes ago', timestamp: Date.now() - 30 * 60 * 1000, icon: 'FaSignal', color: '#34c759', link: '/tools', priority: 'critical' },
+      { id: 8, type: 'signal', title: 'Take Profit: BTC/USD', description: 'Target reached at $52,000', time: '2 hours ago', timestamp: Date.now() - 2 * 60 * 60 * 1000, icon: 'FaDollarSign', color: '#34c759', link: '/tools', priority: 'high' },
+      { id: 9, type: 'signal', title: 'Stop Loss Triggered', description: 'GBP/JPY hits stop loss at 188.50', time: '4 hours ago', timestamp: Date.now() - 4 * 60 * 60 * 1000, icon: 'FaStop', color: '#ff3b30', link: '/tools', priority: 'critical' }
     ]
-  };
+  }), []);
 
-  const getAllActivities = () => {
-    return [...activities.news, ...activities.trades, ...activities.signals].sort((a, b) => {
-      const timeA = parseInt(a.time) || 0;
-      const timeB = parseInt(b.time) || 0;
-      return timeA - timeB;
-    });
-  };
+  // Advanced Tools Data
+  const advancedTools = useMemo(() => [
+    { id: 'scanner', icon: 'FaChartLine', title: 'Market Scanner Pro', description: 'AI-powered market scanning for high-probability setups', color: '#3b82f6', category: 'Analysis', popular: true },
+    { id: 'ai_assistant', icon: 'FaRobot', title: 'AI Trading Assistant', description: '24/7 intelligent assistant with real-time insights', color: '#10b981', category: 'AI', popular: true },
+    { id: 'live_trading', icon: 'FaVideo', title: 'Live Trading Room', description: 'Watch professional traders in real-time', color: '#ef4444', category: 'Live', popular: true },
+    { id: 'podcasts', icon: 'FaPodcast', title: 'Trading Podcasts', description: 'Expert interviews and market analysis', color: '#8b5cf6', category: 'Education', popular: false },
+    { id: 'news_aggregator', icon: 'FaNewspaper', title: 'News Aggregator', description: 'Real-time news from 100+ sources', color: '#f59e0b', category: 'News', popular: true },
+    { id: 'portfolio_analytics', icon: 'FaChartPie', title: 'Portfolio Analytics', description: 'Advanced performance metrics and risk analysis', color: '#ec489a', category: 'Analytics', popular: true },
+    { id: 'economic_calendar', icon: 'FaCalendarAlt', title: 'Economic Calendar', description: 'Earnings reports and economic events', color: '#14b8a6', category: 'Calendar', popular: false },
+    { id: 'global_markets', icon: 'FaGlobe', title: 'Global Markets', description: 'Stocks, forex, crypto, and commodities', color: '#6b7280', category: 'Markets', popular: true },
+    { id: 'risk_management', icon: 'FaShieldAlt', title: 'Risk Management Suite', description: 'Advanced risk analysis and position sizing', color: '#10b981', category: 'Risk', popular: false },
+    { id: 'cloud_sync', icon: 'FaCloudUploadAlt', title: 'Cloud Sync', description: 'Sync your data across all devices', color: '#3b82f6', category: 'Sync', popular: false },
+    { id: 'backtesting', icon: 'FaHistory', title: 'Strategy Backtester', description: 'Test your strategies with historical data', color: '#8b5cf6', category: 'Analysis', popular: true },
+    { id: 'social_trading', icon: 'FaUsers', title: 'Social Trading', description: 'Copy top traders and share strategies', color: '#ec489a', category: 'Social', popular: false }
+  ], []);
 
-  const getFilteredActivities = () => {
+  // Get all activities sorted by time
+  const getAllActivities = useCallback(() => {
+    return [...activities.news, ...activities.trades, ...activities.signals]
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [activities]);
+
+  // Get filtered activities based on tab
+  const getFilteredActivities = useCallback(() => {
     if (activeActivityTab === 'all') return getAllActivities();
     if (activeActivityTab === 'news') return activities.news;
     if (activeActivityTab === 'trades') return activities.trades;
     if (activeActivityTab === 'signals') return activities.signals;
     return getAllActivities();
+  }, [activeActivityTab, activities, getAllActivities]);
+
+  // Get priority color for activity
+  const getPriorityColor = (priority) => {
+    switch(priority) {
+      case 'critical': return '#ef4444';
+      case 'high': return '#f59e0b';
+      case 'medium': return '#3b82f6';
+      default: return '#6b7280';
+    }
   };
 
-  // Predefined wallpapers with theme support
-  const wallpapers = [
-    { id: 1, name: 'macOS Default', url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)' },
-    { id: 2, name: 'iOS Sunset', url: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)' },
-    { id: 3, name: 'Abstract Ocean', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 100%)' },
-    { id: 4, name: 'Mountain Peak', url: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.45) 100%)' },
-    { id: 5, name: 'Night City', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 100%)' },
-    { id: 6, name: 'Forest Dreams', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)' }
-  ];
+  // Search Suggestions based on query
+  useEffect(() => {
+    if (searchQuery.length > 1) {
+      const filtered = [
+        ...navigationItems.filter(item => 
+          item.label.toLowerCase().includes(searchQuery.toLowerCase())
+        ),
+        ...advancedTools.filter(tool => 
+          tool.title.toLowerCase().includes(searchQuery.toLowerCase())
+        ),
+        ...getAllActivities().filter(activity => 
+          activity.title.toLowerCase().includes(searchQuery.toLowerCase())
+        ),
+        { id: 'search_all', label: `Search all for "${searchQuery}"`, icon: 'FaSearch', type: 'action' }
+      ];
+      setSearchSuggestions(filtered.slice(0, 6));
+      setShowSearchSuggestions(true);
+    } else {
+      setSearchSuggestions([]);
+      setShowSearchSuggestions(false);
+    }
+  }, [searchQuery, navigationItems, advancedTools, getAllActivities]);
 
-  // Helper function to safely render icons
-  const renderIcon = (iconName, size = 24, className = '') => {
+  // Handle click outside for dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchSuggestionsRef.current && !searchSuggestionsRef.current.contains(event.target) &&
+          searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+        setShowSearchSuggestions(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 1024;
+      setIsMobile(mobile);
+      if (mobile) setIsSidebarExpanded(false);
+      else setIsSidebarExpanded(true);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Handle sidebar scroll
+  useEffect(() => {
+    const handleSidebarScroll = () => {
+      if (sidebarRef.current) {
+        setSidebarScrollTop(sidebarRef.current.scrollTop);
+      }
+    };
+    if (sidebarRef.current) {
+      sidebarRef.current.addEventListener('scroll', handleSidebarScroll);
+    }
+    return () => {
+      if (sidebarRef.current) {
+        sidebarRef.current.removeEventListener('scroll', handleSidebarScroll);
+      }
+    };
+  }, []);
+
+  const handleNavigation = (item) => {
+    if (item.id === 'search_all') {
+      handleSearch();
+      return;
+    }
+    setActiveNavItem(item.id);
+    if (item.path) {
+      navigate(item.path);
+    }
+    if (isMobile) {
+      setIsSidebarExpanded(false);
+    }
+  };
+
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      console.log('Searching for:', searchQuery);
+      // Implement search functionality
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setShowSearchSuggestions(false);
+      setIsSearchFocused(false);
+    }
+  };
+
+  const handleActivityClick = (activity) => {
+    if (activity.link) {
+      navigate(activity.link);
+    }
+    if (isMobile) {
+      setIsSidebarExpanded(false);
+    }
+  };
+
+  const toggleExpandActivity = (activityId) => {
+    setExpandedActivity(expandedActivity === activityId ? null : activityId);
+  };
+
+  const markNotificationRead = (id) => {
+    setNotifications(notifications.map(notif => 
+      notif.id === id ? { ...notif, read: true } : notif
+    ));
+  };
+
+  const renderIcon = (iconName, size = 20, className = '') => {
     if (!iconName || !Icons[iconName]) {
-      console.warn(`Icon not found: ${iconName}`);
       return null;
     }
     const IconComponent = Icons[iconName];
     return React.createElement(IconComponent, { size: size, className: className });
   };
 
-  // All available features (same as before but with glass styling)
-  const allFeaturesList = [
-    {
-      id: 'profile',
-      iconName: 'FaUser',
-      title: 'Profile Center',
-      description: 'View and manage your personal information, track your progress',
-      detailedDescription: 'Complete profile management with achievement tracking and stats',
-      path: '/profile',
-      color: '#3b82f6',
-      category: 'personal',
-      defaultActive: true,
-      isPanel: false,
-      badge: 'Essential'
-    },
-    {
-      id: 'chat',
-      iconName: 'FaComments',
-      title: 'Trading Chat',
-      description: 'Connect with traders and join real-time discussions',
-      detailedDescription: 'Real-time messaging with professional traders',
-      path: '/chat',
-      color: '#10b981',
-      category: 'social',
-      defaultActive: true,
-      isPanel: false,
-      badge: 'Popular'
-    },
-    {
-      id: 'library',
-      iconName: 'FaBookOpen',
-      title: 'Resource Library',
-      description: 'Access premium trading books and research',
-      detailedDescription: 'Curated library of 500+ trading resources',
-      path: '/education',
-      color: '#8b5cf6',
-      category: 'education',
-      defaultActive: true,
-      isPanel: false,
-      badge: 'Premium'
-    },
-    {
-      id: 'academy',
-      iconName: 'FaGraduationCap',
-      title: 'Trading Academy',
-      description: 'Structured courses from beginner to expert',
-      detailedDescription: 'Professional courses and certification programs',
-      path: '/education',
-      color: '#f59e0b',
-      category: 'education',
-      defaultActive: true,
-      isPanel: false,
-      badge: 'New'
-    },
-    {
-      id: 'office',
-      iconName: 'FaLaptopCode',
-      title: 'Trading Office',
-      description: 'Advanced trading journal and analytics',
-      detailedDescription: 'Complete trading workspace with analytics',
-      path: '/dashboard',
-      color: '#ef4444',
-      category: 'tools',
-      defaultActive: true,
-      isPanel: false,
-      badge: 'Pro'
-    },
-    {
-      id: 'tools',
-      iconName: 'FaToolbox',
-      title: 'Tool Suite',
-      description: 'Advanced trading tools and indicators',
-      detailedDescription: '50+ professional trading tools',
-      path: '/tools',
-      color: '#ec489a',
-      category: 'tools',
-      defaultActive: true,
-      isPanel: false,
-      badge: 'Essential'
-    },
-    {
-      id: 'settings',
-      iconName: 'FaCog',
-      title: 'Preferences',
-      description: 'Customize your experience and settings',
-      detailedDescription: 'Full customization of layout and themes',
-      path: '/profile/settings',
-      color: '#6b7280',
-      category: 'personal',
-      defaultActive: true,
-      isPanel: false
-    },
-    {
-      id: 'dashboard',
-      iconName: 'FaTachometerAlt',
-      title: 'Analytics Hub',
-      description: 'Real-time portfolio tracking and analytics',
-      detailedDescription: 'Interactive dashboards with real-time data',
-      path: '/dashboard',
-      color: '#14b8a6',
-      category: 'analytics',
-      defaultActive: false,
-      isPanel: false,
-      badge: 'New'
-    },
-    {
-      id: 'cashier',
-      iconName: 'FaDollarSign',
-      title: 'Cashier',
-      description: 'Manage deposits, withdrawals, and transactions',
-      detailedDescription: 'Secure payment processing',
-      path: '/cashier',
-      color: '#f59e0b',
-      category: 'finance',
-      defaultActive: false,
-      isPanel: false,
-      badge: 'Secure'
-    },
-    {
-      id: 'subscription',
-      iconName: 'FaCreditCard',
-      title: 'Subscription Hub',
-      description: 'Manage your plan and billing',
-      detailedDescription: 'Flexible plans and subscription management',
-      path: '/subscription',
-      color: '#8b5cf6',
-      category: 'finance',
-      defaultActive: false,
-      isPanel: false
-    },
-    {
-      id: 'friends',
-      iconName: 'FaUserFriends',
-      title: 'Trading Network',
-      description: 'Connect and collaborate with other traders',
-      detailedDescription: 'Social network for traders',
-      path: '/friends',
-      color: '#ec489a',
-      category: 'social',
-      defaultActive: false,
-      isPanel: true,
-      panelTab: 'followers',
-      badge: 'Social'
-    }
-  ];
-
-  // Advanced tools
-  const advancedTools = [
-    {
-      id: 'scanner',
-      iconName: 'FaChartLine',
-      title: 'Market Scanner Pro',
-      description: 'AI-powered market scanning for high-probability setups',
-      color: '#3b82f6'
-    },
-    {
-      id: 'ai_assistant',
-      iconName: 'FaRobot',
-      title: 'AI Trading Assistant',
-      description: '24/7 intelligent assistant with real-time insights',
-      color: '#10b981'
-    },
-    {
-      id: 'live_trading',
-      iconName: 'FaVideo',
-      title: 'Live Trading Room',
-      description: 'Watch professional traders in real-time',
-      color: '#ef4444'
-    },
-    {
-      id: 'podcasts',
-      iconName: 'FaPodcast',
-      title: 'Trading Podcasts',
-      description: 'Expert interviews and market analysis',
-      color: '#8b5cf6'
-    },
-    {
-      id: 'news',
-      iconName: 'FaNewspaper',
-      title: 'News Aggregator',
-      description: 'Real-time news from 100+ sources',
-      color: '#f59e0b'
-    },
-    {
-      id: 'analytics',
-      iconName: 'FaChartPie',
-      title: 'Portfolio Analytics',
-      description: 'Advanced performance metrics and risk analysis',
-      color: '#ec489a'
-    },
-    {
-      id: 'calendar',
-      iconName: 'FaCalendarAlt',
-      title: 'Economic Calendar',
-      description: 'Earnings reports and economic events',
-      color: '#14b8a6'
-    },
-    {
-      id: 'global_markets',
-      iconName: 'FaGlobe',
-      title: 'Global Markets',
-      description: 'Stocks, forex, crypto, and commodities',
-      color: '#6b7280'
-    },
-    {
-      id: 'risk_mgmt',
-      iconName: 'FaShieldAlt',
-      title: 'Risk Management Suite',
-      description: 'Advanced risk analysis and position sizing',
-      color: '#10b981'
-    },
-    {
-      id: 'cloud_sync',
-      iconName: 'FaCloudUploadAlt',
-      title: 'Cloud Sync',
-      description: 'Sync your data across all devices',
-      color: '#3b82f6'
-    }
-  ];
-
-  // Load saved layout
-  useEffect(() => {
-    const savedLayout = localStorage.getItem(`user_layout_${user?.id || 'default'}`);
-    if (savedLayout) {
-      try {
-        const parsed = JSON.parse(savedLayout);
-        const validatedFeatures = parsed.map(savedFeature => {
-          const originalFeature = allFeaturesList.find(f => f.id === savedFeature.id);
-          return originalFeature || savedFeature;
-        });
-        setActiveFeatures(validatedFeatures);
-      } catch (e) {
-        console.error('Error parsing saved layout:', e);
-        const defaultActive = allFeaturesList.filter(f => f.defaultActive);
-        setActiveFeatures(defaultActive);
-      }
-    } else {
-      const defaultActive = allFeaturesList.filter(f => f.defaultActive);
-      setActiveFeatures(defaultActive);
-    }
-    
-    // Load wallpaper settings
-    const savedWallpaper = localStorage.getItem('wallpaper_settings');
-    if (savedWallpaper) {
-      try {
-        const parsed = JSON.parse(savedWallpaper);
-        setWallpaperSettings(parsed);
-        applyWallpaperSettings(parsed);
-      } catch (e) {
-        console.error('Error loading wallpaper:', e);
-      }
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    const activeIds = activeFeatures.map(f => f.id);
-    setAvailableFeatures(allFeaturesList.filter(f => !activeIds.includes(f.id)));
-  }, [activeFeatures]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const applyWallpaperSettings = (settings) => {
-    document.documentElement.style.setProperty('--wallpaper-url', `url(${settings.url})`);
-    document.documentElement.style.setProperty('--wallpaper-brightness', settings.brightness);
-    document.documentElement.style.setProperty('--wallpaper-blur', `${settings.blur}px`);
-    document.documentElement.style.setProperty('--wallpaper-opacity', settings.opacity);
-    document.documentElement.style.setProperty('--wallpaper-overlay', settings.overlay);
-  };
-
-  const saveLayout = () => {
-    const layoutToSave = activeFeatures.map(feature => ({
-      id: feature.id,
-      iconName: feature.iconName,
-      title: feature.title,
-      description: feature.description,
-      path: feature.path,
-      color: feature.color,
-      category: feature.category,
-      defaultActive: feature.defaultActive,
-      isPanel: feature.isPanel,
-      panelTab: feature.panelTab,
-      badge: feature.badge
-    }));
-    localStorage.setItem(`user_layout_${user?.id || 'default'}`, JSON.stringify(layoutToSave));
-    setIsEditing(false);
-    setShowAddPanel(false);
-  };
-
-  const cancelEditing = () => {
-    const savedLayout = localStorage.getItem(`user_layout_${user?.id || 'default'}`);
-    if (savedLayout) {
-      try {
-        const parsed = JSON.parse(savedLayout);
-        const validatedFeatures = parsed.map(savedFeature => {
-          const originalFeature = allFeaturesList.find(f => f.id === savedFeature.id);
-          return originalFeature || savedFeature;
-        });
-        setActiveFeatures(validatedFeatures);
-      } catch (e) {
-        const defaultActive = allFeaturesList.filter(f => f.defaultActive);
-        setActiveFeatures(defaultActive);
-      }
-    } else {
-      const defaultActive = allFeaturesList.filter(f => f.defaultActive);
-      setActiveFeatures(defaultActive);
-    }
-    setIsEditing(false);
-    setShowAddPanel(false);
-  };
-
-  const addFeature = (feature) => {
-    setActiveFeatures([...activeFeatures, feature]);
-  };
-
-  const removeFeature = (featureId) => {
-    setActiveFeatures(activeFeatures.filter(f => f.id !== featureId));
-  };
-
-  const moveFeature = (index, direction) => {
-    const newFeatures = [...activeFeatures];
-    if (direction === 'up' && index > 0) {
-      [newFeatures[index], newFeatures[index - 1]] = [newFeatures[index - 1], newFeatures[index]];
-    } else if (direction === 'down' && index < newFeatures.length - 1) {
-      [newFeatures[index], newFeatures[index + 1]] = [newFeatures[index + 1], newFeatures[index]];
-    }
-    setActiveFeatures(newFeatures);
-  };
-
-  const handleCardClick = (feature) => {
-    if (isEditing) return;
-    if (feature.isPanel) {
-      openPanel(feature.panelTab || 'followers');
-    } else {
-      navigate(feature.path);
-    }
-  };
-
-  const handleWallpaperChange = (wallpaper) => {
-    const newSettings = {
-      ...wallpaperSettings,
-      url: wallpaper.url,
-      overlay: wallpaper.gradient
-    };
-    setWallpaperSettings(newSettings);
-    applyWallpaperSettings(newSettings);
-    localStorage.setItem('wallpaper_settings', JSON.stringify(newSettings));
-    setShowWallpaperModal(false);
-  };
-
-  const updateWallpaperSetting = (key, value) => {
-    const newSettings = { ...wallpaperSettings, [key]: value };
-    setWallpaperSettings(newSettings);
-    applyWallpaperSettings(newSettings);
-    localStorage.setItem('wallpaper_settings', JSON.stringify(newSettings));
-  };
-
-  const handleActivityClick = (activity) => {
-    if (activity.type === 'news') {
-      navigate('/news');
-    } else if (activity.type === 'trades') {
-      navigate('/dashboard');
-    } else if (activity.type === 'signals') {
-      navigate('/tools');
-    }
-  };
+  // Sidebar width based on expansion state
+  const sidebarWidth = isSidebarExpanded ? (isSidebarHovered || !isMobile ? '280px' : '72px') : '0px';
+  const mainMarginLeft = isSidebarExpanded ? (isSidebarHovered || !isMobile ? '280px' : '72px') : '0px';
 
   return (
-    <div className={`auth-homepage ${isMobile ? 'mobile-mode' : 'desktop-mode'}`}>
-      {/* Wallpaper Controls */}
-      <div className="wallpaper-controls">
-        <button className="wallpaper-btn" onClick={() => setShowWallpaperModal(true)}>
-          {renderIcon('FaImage', 18)}
-        </button>
-        <button className="wallpaper-btn" onClick={() => updateWallpaperSetting('brightness', Math.min(1, wallpaperSettings.brightness + 0.1))}>
-          {renderIcon('FaSun', 16)}
-        </button>
-        <button className="wallpaper-btn" onClick={() => updateWallpaperSetting('brightness', Math.max(0.3, wallpaperSettings.brightness - 0.1))}>
-          {renderIcon('FaMoon', 14)}
-        </button>
-      </div>
-
-      {/* Wallpaper Modal */}
-      {showWallpaperModal && (
-        <div className="wallpaper-modal" onClick={() => setShowWallpaperModal(false)}>
-          <div className="wallpaper-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="wallpaper-modal-header">
-              <h3>Choose Wallpaper</h3>
-              <button className="close-modal" onClick={() => setShowWallpaperModal(false)}>
-                {renderIcon('FaTimes', 20)}
-              </button>
+    <div className={`auth-homepage ${isMobile ? 'mobile-mode' : 'desktop-mode'} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
+      {/* YouTube-style Side Navigation Panel with Activity Feed */}
+      <aside 
+        className={`side-navigation ${isSidebarExpanded ? 'expanded' : 'collapsed'} ${isSidebarHovered ? 'hovered' : ''}`}
+        onMouseEnter={() => !isMobile && setIsSidebarHovered(true)}
+        onMouseLeave={() => !isMobile && setIsSidebarHovered(false)}
+        style={{ width: sidebarWidth }}
+      >
+        <div className="sidebar-container" ref={sidebarRef}>
+          {/* Sidebar Header with Logo */}
+          <div className="sidebar-header">
+            <div className="logo-container" onClick={() => handleNavigation({ id: 'home', path: '/' })}>
+              {renderIcon('FaChartLine', 28, 'logo-icon')}
+              {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
+                <span className="logo-text">TradePro</span>
+              )}
             </div>
-            <div className="wallpaper-grid">
-              {wallpapers.map(wallpaper => (
-                <div
-                  key={wallpaper.id}
-                  className={`wallpaper-option ${wallpaperSettings.url === wallpaper.url ? 'selected' : ''}`}
-                  style={{ backgroundImage: `url(${wallpaper.url})` }}
-                  onClick={() => handleWallpaperChange(wallpaper)}
-                />
-              ))}
-            </div>
-            <div className="wallpaper-settings">
-              <div className="wallpaper-setting">
-                <label>Brightness</label>
-                <input type="range" min="0.3" max="1" step="0.01" value={wallpaperSettings.brightness} onChange={(e) => updateWallpaperSetting('brightness', parseFloat(e.target.value))} />
-              </div>
-              <div className="wallpaper-setting">
-                <label>Blur Effect</label>
-                <input type="range" min="0" max="20" step="1" value={wallpaperSettings.blur} onChange={(e) => updateWallpaperSetting('blur', parseInt(e.target.value))} />
-              </div>
-            </div>
+            <button 
+              className="sidebar-toggle-btn"
+              onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
+            >
+              {renderIcon(isSidebarExpanded ? 'FaChevronLeft' : 'FaChevronRight', 16)}
+            </button>
           </div>
+
+          {/* Main Navigation Items */}
+          <nav className="sidebar-nav">
+            {navigationItems.map((item, index) => (
+              <React.Fragment key={item.id}>
+                <div 
+                  className={`nav-item ${activeNavItem === item.id ? 'active' : ''} ${item.divider ? 'with-divider' : ''}`}
+                  onClick={() => handleNavigation(item)}
+                >
+                  <div className="nav-item-icon">
+                    {renderIcon(item.icon, 22)}
+                    {item.badge && <span className="nav-badge">{item.badge}</span>}
+                  </div>
+                  {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
+                    <span className="nav-item-label">{item.label}</span>
+                  )}
+                </div>
+                {item.divider && (isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
+                  <div className="sidebar-divider" />
+                )}
+              </React.Fragment>
+            ))}
+          </nav>
+
+          {/* Recent Activity Section in Sidebar */}
+          <div className="sidebar-activity-section">
+            {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
+              <>
+                <div className="activity-section-header">
+                  <div className="activity-header-title">
+                    {renderIcon('FaClock', 18)}
+                    <h3>Recent Activity</h3>
+                  </div>
+                  <div className="activity-tabs">
+                    <button 
+                      className={`activity-tab ${activeActivityTab === 'all' ? 'active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setActiveActivityTab('all'); }}
+                    >
+                      All
+                    </button>
+                    <button 
+                      className={`activity-tab ${activeActivityTab === 'news' ? 'active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setActiveActivityTab('news'); }}
+                    >
+                      News
+                    </button>
+                    <button 
+                      className={`activity-tab ${activeActivityTab === 'trades' ? 'active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setActiveActivityTab('trades'); }}
+                    >
+                      Trades
+                    </button>
+                    <button 
+                      className={`activity-tab ${activeActivityTab === 'signals' ? 'active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setActiveActivityTab('signals'); }}
+                    >
+                      Signals
+                    </button>
+                  </div>
+                </div>
+                <div className="activity-list">
+                  {getFilteredActivities().slice(0, 8).map((activity) => (
+                    <div 
+                      key={activity.id} 
+                      className={`activity-item ${expandedActivity === activity.id ? 'expanded' : ''}`}
+                      onClick={() => handleActivityClick(activity)}
+                    >
+                      <div className="activity-item-header">
+                        <div className="activity-icon" style={{ background: activity.color }}>
+                          {renderIcon(activity.icon, 18)}
+                        </div>
+                        <div className="activity-info">
+                          <div className="activity-title">{activity.title}</div>
+                          <div className="activity-time">{activity.time}</div>
+                        </div>
+                        <button 
+                          className="activity-expand-btn"
+                          onClick={(e) => { e.stopPropagation(); toggleExpandActivity(activity.id); }}
+                        >
+                          {renderIcon(expandedActivity === activity.id ? 'FaChevronUp' : 'FaChevronDown', 12)}
+                        </button>
+                      </div>
+                      {expandedActivity === activity.id && (
+                        <div className="activity-expanded-content">
+                          <p className="activity-description">{activity.description}</p>
+                          <div className="activity-priority" style={{ color: getPriorityColor(activity.priority) }}>
+                            {renderIcon('FaFlag', 12)}
+                            <span>{activity.priority?.toUpperCase()}</span>
+                          </div>
+                          <button className="activity-action-btn">
+                            View Details {renderIcon('FaArrowRight', 12)}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {getFilteredActivities().length > 8 && (
+                    <div className="view-all-activities" onClick={() => navigate('/activity')}>
+                      View all activities {renderIcon('FaArrowRight', 12)}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+            {(!isSidebarExpanded || (!isSidebarHovered && isMobile)) && (
+              <div className="collapsed-activity-indicator">
+                <div className="activity-dot" />
+                <div className="activity-dot" />
+                <div className="activity-dot" />
+              </div>
+            )}
+          </div>
+
+          {/* User Profile Section in Sidebar */}
+          {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
+            <div className="sidebar-user-section">
+              <div className="sidebar-user-info" onClick={() => setShowUserMenu(!showUserMenu)}>
+                <div className="user-avatar">
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt={user?.name} />
+                  ) : (
+                    <span>{user?.name?.charAt(0) || 'U'}</span>
+                  )}
+                </div>
+                <div className="user-details">
+                  <div className="user-name">{user?.name || 'Guest User'}</div>
+                  <div className="user-email">{user?.email || 'guest@example.com'}</div>
+                </div>
+                {renderIcon('FaChevronDown', 12, 'user-menu-icon')}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </aside>
 
-      <main className="auth-main-content">
-        {/* Customize Panel */}
-        {!isEditing && (
-          <div className="customize-bar">
-            <Container>
-              <button className="customize-btn" onClick={() => setIsEditing(true)}>
-                {renderIcon('FaEdit', 16)} Customize Dashboard
-              </button>
-            </Container>
-          </div>
-        )}
+      {/* Main Content Area */}
+      <main className="auth-main-content" style={{ marginLeft: mainMarginLeft }}>
+        {/* Top Navigation Bar */}
+        <header className="top-navbar">
+          <Container>
+            <div className="navbar-container">
+              {/* Mobile menu toggle */}
+              {isMobile && (
+                <button 
+                  className="mobile-menu-toggle"
+                  onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
+                >
+                  {renderIcon('FaBars', 24)}
+                </button>
+              )}
 
-        {/* Edit Mode Controls */}
-        {isEditing && (
-          <div className="edit-mode-bar">
-            <Container>
-              <div className="edit-controls">
-                <span className="edit-title">{renderIcon('FaEdit', 16)} Editing Mode - Customize your experience</span>
-                <div className="edit-buttons">
-                  <button className="edit-btn add-btn" onClick={() => setShowAddPanel(!showAddPanel)}>
-                    {renderIcon('FaPlus', 14)} Add Features
+              {/* Right side actions */}
+              <div className="navbar-actions">
+                <button 
+                  className="notification-btn"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                >
+                  {renderIcon('FaBell', 20)}
+                  {notifications.filter(n => !n.read).length > 0 && (
+                    <span className="notification-badge">
+                      {notifications.filter(n => !n.read).length}
+                    </span>
+                  )}
+                </button>
+                
+                {/* Notifications Dropdown */}
+                {showNotifications && (
+                  <div className="notifications-dropdown" ref={notificationRef}>
+                    <div className="dropdown-header">
+                      <h4>Notifications</h4>
+                      <button onClick={() => setNotifications(notifications.map(n => ({ ...n, read: true })))}>
+                        Mark all read
+                      </button>
+                    </div>
+                    <div className="notifications-list">
+                      {notifications.map(notif => (
+                        <div 
+                          key={notif.id} 
+                          className={`notification-item ${!notif.read ? 'unread' : ''}`}
+                          onClick={() => markNotificationRead(notif.id)}
+                        >
+                          <div className="notification-content">
+                            <div className="notification-message">{notif.message}</div>
+                            <div className="notification-time">{notif.time}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="user-menu-container" ref={userMenuRef}>
+                  <button 
+                    className="user-menu-btn"
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                  >
+                    <div className="user-avatar-small">
+                      {user?.avatar ? (
+                        <img src={user.avatar} alt={user?.name} />
+                      ) : (
+                        <span>{user?.name?.charAt(0) || 'U'}</span>
+                      )}
+                    </div>
                   </button>
-                  <button className="edit-btn save-btn" onClick={saveLayout}>
-                    {renderIcon('FaSave', 14)} Save Layout
-                  </button>
-                  <button className="edit-btn cancel-btn" onClick={cancelEditing}>
-                    {renderIcon('FaTimes', 14)} Cancel
-                  </button>
+                  
+                  {showUserMenu && (
+                    <div className="user-menu-dropdown">
+                      <div className="dropdown-user-info">
+                        <div className="user-avatar-dropdown">
+                          {user?.avatar ? (
+                            <img src={user.avatar} alt={user?.name} />
+                          ) : (
+                            <span>{user?.name?.charAt(0) || 'U'}</span>
+                          )}
+                        </div>
+                        <div className="user-info-dropdown">
+                          <div className="user-name-dropdown">{user?.name || 'Guest User'}</div>
+                          <div className="user-email-dropdown">{user?.email || 'guest@example.com'}</div>
+                        </div>
+                      </div>
+                      <div className="dropdown-divider" />
+                      <div className="dropdown-menu-items">
+                        <div className="dropdown-item" onClick={() => navigate('/profile')}>
+                          {renderIcon('FaUser', 16)} Profile
+                        </div>
+                        <div className="dropdown-item" onClick={() => navigate('/profile/settings')}>
+                          {renderIcon('FaCog', 16)} Settings
+                        </div>
+                        <div className="dropdown-divider" />
+                        <div className="dropdown-item" onClick={() => { /* Handle logout */ }}>
+                          {renderIcon('FaSignOutAlt', 16)} Logout
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </Container>
-          </div>
-        )}
-
-        {/* Add Features Panel */}
-        {showAddPanel && isEditing && (
-          <div className="add-features-panel">
-            <Container>
-              <h3>Add New Features</h3>
-              <div className="available-features-grid">
-                {availableFeatures.map((feature) => (
-                  <div key={feature.id} className="available-feature-card" onClick={() => addFeature(feature)}>
-                    <div className="available-icon" style={{ color: feature.color }}>
-                      {renderIcon(feature.iconName, 32)}
-                    </div>
-                    <div className="available-info">
-                      <h4>{feature.title}</h4>
-                      <p>{feature.description}</p>
-                    </div>
-                    <button className="add-feature-btn">{renderIcon('FaPlus', 16)}</button>
-                  </div>
-                ))}
-              </div>
-            </Container>
-          </div>
-        )}
+            </div>
+          </Container>
+        </header>
 
         {/* Hero Welcome Section */}
         <div className="welcome-section">
@@ -575,33 +522,55 @@ const AuthHomePage = () => {
           </Container>
         </div>
 
-        {/* Recent Activity Section - NEW */}
-        <div className="recent-activity-section">
+        {/* Google-style Search Bar */}
+        <div className="search-section">
           <Container>
-            <div className="activity-container">
-              <div className="section-header">
-                <h2>Recent Activity</h2>
-                <div className="activity-tabs">
-                  <button className={`activity-tab ${activeActivityTab === 'all' ? 'active' : ''}`} onClick={() => setActiveActivityTab('all')}>All</button>
-                  <button className={`activity-tab ${activeActivityTab === 'news' ? 'active' : ''}`} onClick={() => setActiveActivityTab('news')}>News</button>
-                  <button className={`activity-tab ${activeActivityTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveActivityTab('trades')}>Trades</button>
-                  <button className={`activity-tab ${activeActivityTab === 'signals' ? 'active' : ''}`} onClick={() => setActiveActivityTab('signals')}>Signals</button>
+            <div className="search-container">
+              <div className={`search-wrapper ${isSearchFocused ? 'focused' : ''}`}>
+                <div className="search-icon">
+                  {renderIcon('FaSearch', 20)}
                 </div>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className="search-input"
+                  placeholder="Search trading tools, news, signals..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                {searchQuery && (
+                  <button className="search-clear" onClick={() => setSearchQuery('')}>
+                    {renderIcon('FaTimes', 16)}
+                  </button>
+                )}
+                <button className="search-btn" onClick={handleSearch}>
+                  Search
+                </button>
               </div>
-              <div className="activity-list">
-                {getFilteredActivities().map((activity) => (
-                  <div key={activity.id} className="activity-item" onClick={() => handleActivityClick(activity)}>
-                    <div className="activity-icon" style={{ background: `linear-gradient(135deg, ${activity.color} 0%, ${activity.color}dd 100%)` }}>
-                      {renderIcon(activity.icon, 24)}
+              
+              {/* Search Suggestions */}
+              {showSearchSuggestions && searchSuggestions.length > 0 && (
+                <div className="search-suggestions" ref={searchSuggestionsRef}>
+                  {searchSuggestions.map((suggestion, index) => (
+                    <div 
+                      key={index}
+                      className="suggestion-item"
+                      onClick={() => handleNavigation(suggestion)}
+                    >
+                      <div className="suggestion-icon">
+                        {renderIcon(suggestion.icon || (suggestion.type === 'action' ? 'FaSearch' : 'FaLink'), 16)}
+                      </div>
+                      <div className="suggestion-text">{suggestion.label}</div>
+                      {suggestion.type === 'action' && (
+                        <div className="suggestion-action">Search</div>
+                      )}
                     </div>
-                    <div className="activity-content">
-                      <div className="activity-title">{activity.title}</div>
-                      <div className="activity-description">{activity.description}</div>
-                    </div>
-                    <div className="activity-time">{activity.time}</div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </Container>
         </div>
@@ -609,63 +578,40 @@ const AuthHomePage = () => {
         {/* Main Features Section */}
         <section className="main-features-section">
           <Container>
-            {/* Desktop View */}
-            <div className="features-grid desktop-features">
-              {activeFeatures.map((feature, index) => (
-                <div key={feature.id} className={`feature-card ${isEditing ? 'editing-mode' : ''} ${feature.isPanel ? 'panel-feature' : ''}`} onClick={() => handleCardClick(feature)}>
-                  <div className="feature-card-content">
-                    {isEditing && (
-                      <div className="card-controls">
-                        <button className="remove-card-btn" onClick={(e) => { e.stopPropagation(); removeFeature(feature.id); }}>
-                          {renderIcon('FaTrash', 12)}
-                        </button>
-                        <div className="move-buttons">
-                          {index > 0 && <button className="move-btn" onClick={(e) => { e.stopPropagation(); moveFeature(index, 'up'); }}>↑</button>}
-                          {index < activeFeatures.length - 1 && <button className="move-btn" onClick={(e) => { e.stopPropagation(); moveFeature(index, 'down'); }}>↓</button>}
-                        </div>
-                      </div>
-                    )}
-                    {feature.badge && !isEditing && <div className="feature-badge">{feature.badge}</div>}
-                    <div className="feature-icon-wrapper">
-                      {renderIcon(feature.iconName, 36)}
-                    </div>
-                    <h3 className="feature-title">{feature.title}</h3>
-                    <p className="feature-description">{feature.detailedDescription || feature.description}</p>
-                    <div className="feature-link">
-                      {feature.isPanel ? 'Launch Panel' : 'Access Now'} {renderIcon('FaArrowRight', 12, 'link-icon')}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="section-header">
+              <h2 className="section-title">Your Dashboard</h2>
+              <p className="section-subtitle">Quick access to your favorite tools and features</p>
             </div>
-
-            {/* Mobile View */}
-            <div className="mobile-features-grid">
-              {activeFeatures.map((feature) => (
-                <div key={feature.id} className={`mobile-feature-item ${isEditing ? 'editing-mode' : ''} ${feature.isPanel ? 'panel-feature' : ''}`} onClick={() => handleCardClick(feature)}>
-                  {isEditing && (
-                    <button className="mobile-remove-btn" onClick={(e) => { e.stopPropagation(); removeFeature(feature.id); }}>
-                      {renderIcon('FaTimes', 12)}
-                    </button>
-                  )}
-                  <div className="mobile-feature-icon">
-                    {renderIcon(feature.iconName, 32)}
+            
+            <div className="features-grid">
+              {navigationItems.slice(0, 8).map((item) => (
+                <div 
+                  key={item.id} 
+                  className={`feature-card ${activeNavItem === item.id ? 'active' : ''}`}
+                  onClick={() => handleNavigation(item)}
+                >
+                  <div className="feature-card-icon" style={{ color: item.id === 'dashboard' ? '#3b82f6' : '#6b7280' }}>
+                    {renderIcon(item.icon, 32)}
                   </div>
-                  <span className="mobile-feature-label">{feature.title}</span>
-                  {feature.isPanel && <span className="panel-indicator">Panel</span>}
+                  <div className="feature-card-content">
+                    <h3 className="feature-title">{item.label}</h3>
+                    <p className="feature-description">
+                      {item.id === 'dashboard' && 'View real-time analytics and performance metrics'}
+                      {item.id === 'profile' && 'Manage your personal information and preferences'}
+                      {item.id === 'chat' && 'Connect with traders in real-time discussions'}
+                      {item.id === 'education' && 'Access premium courses and learning materials'}
+                      {item.id === 'tools' && 'Professional-grade trading tools and indicators'}
+                      {item.id === 'library' && 'Curated library of trading resources'}
+                      {item.id === 'cashier' && 'Secure deposits, withdrawals, and transactions'}
+                      {item.id === 'friends' && 'Build your trading network and community'}
+                    </p>
+                    {item.badge && <div className="feature-badge">{item.badge}</div>}
+                  </div>
+                  <div className="feature-arrow">
+                    {renderIcon('FaArrowRight', 16)}
+                  </div>
                 </div>
               ))}
-              {isEditing ? (
-                <div className="mobile-feature-item add-more" onClick={() => setShowAddPanel(!showAddPanel)}>
-                  <div className="mobile-feature-icon add-icon">{renderIcon('FaPlus', 32)}</div>
-                  <span className="mobile-feature-label">Add More</span>
-                </div>
-              ) : (
-                <div className="mobile-feature-item add-more" onClick={() => setIsEditing(true)}>
-                  <div className="mobile-feature-icon add-icon">{renderIcon('FaEdit', 32)}</div>
-                  <span className="mobile-feature-label">Customize</span>
-                </div>
-              )}
             </div>
           </Container>
         </section>
@@ -678,28 +624,39 @@ const AuthHomePage = () => {
               <p className="section-subtitle">Professional-grade tools to elevate your strategy</p>
             </div>
             <div className="tools-grid">
-              {(showMoreFeatures ? advancedTools : advancedTools.slice(0, 6)).map((tool) => (
+              {(showMoreTools ? advancedTools : advancedTools.slice(0, 8)).map((tool) => (
                 <div key={tool.id} className="tool-card">
-                  <div className="tool-icon" style={{ color: tool.color }}>{renderIcon(tool.iconName, 36)}</div>
-                  <div className="tool-content">
-                    <h4>{tool.title}</h4>
-                    <p>{tool.description}</p>
+                  <div className="tool-card-icon" style={{ color: tool.color }}>
+                    {renderIcon(tool.icon, 28)}
+                  </div>
+                  <div className="tool-card-content">
+                    <h4 className="tool-title">
+                      {tool.title}
+                      {tool.popular && <span className="popular-badge">Popular</span>}
+                    </h4>
+                    <p className="tool-description">{tool.description}</p>
+                    <div className="tool-category">{tool.category}</div>
                   </div>
                 </div>
               ))}
             </div>
-            {!showMoreFeatures && advancedTools.length > 6 && (
+            {!showMoreTools && advancedTools.length > 8 && (
               <div className="show-more-container">
-                <button className="show-more-btn" onClick={() => setShowMoreFeatures(true)}>
-                  {renderIcon('FaPlus', 14)} Explore All Tools {renderIcon('FaArrowRight', 12)}
+                <button className="show-more-btn" onClick={() => setShowMoreTools(true)}>
+                  {renderIcon('FaPlus', 14)} Explore All {advancedTools.length} Tools
                 </button>
               </div>
             )}
           </Container>
         </section>
+
+        <Footer />
       </main>
 
-      <Footer />
+      {/* Mobile Overlay */}
+      {isMobile && isSidebarExpanded && (
+        <div className="mobile-overlay" onClick={() => setIsSidebarExpanded(false)} />
+      )}
     </div>
   );
 };
