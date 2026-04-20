@@ -3,16 +3,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-import { useConnectionPanel } from '../context/ConnectionPanelContext';
 import Container from '../components/ui/Container';
-import Footer from '../components/layout/Footer';
 import './AuthHomePage.css';
 
 const AuthHomePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { openPanel } = useConnectionPanel();
   
   // State Management
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -23,9 +20,14 @@ const AuthHomePage = () => {
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   
-  // Filter State
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [peopleSubFilter, setPeopleSubFilter] = useState(null);
+  // Filter State - Multiple selection for people
+  const [activeFilters, setActiveFilters] = useState(['all']);
+  const [peopleFilters, setPeopleFilters] = useState({
+    traders: [],
+    developers: false,
+    students: false,
+    friends: false
+  });
   
   // Wallpaper Settings
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
@@ -39,6 +41,8 @@ const AuthHomePage = () => {
   
   const searchInputRef = useRef(null);
   const searchSuggestionsRef = useRef(null);
+  const filterBarRef = useRef(null);
+  const mainContentRef = useRef(null);
 
   // Filter categories
   const filterCategories = [
@@ -174,7 +178,6 @@ const AuthHomePage = () => {
     }
   ];
 
-  // Wallpaper categories for filtering
   const wallpaperCategories = [
     { id: 'all', label: 'All' },
     { id: 'nature', label: 'Nature' },
@@ -199,16 +202,56 @@ const AuthHomePage = () => {
     { id: 'settings', label: 'Settings', icon: 'FaCog', path: '/profile/settings' }
   ];
 
-  // Filter handlers
-  const handleFilterChange = (filterId) => {
-    setActiveFilter(filterId);
-    if (filterId !== 'people') {
-      setPeopleSubFilter(null);
+  // Filter handlers with multiple selection
+  const handleFilterToggle = (filterId) => {
+    setActiveFilters(prev => {
+      if (filterId === 'all') {
+        return ['all'];
+      }
+      
+      const newFilters = prev.filter(f => f !== 'all');
+      
+      if (newFilters.includes(filterId)) {
+        const filtered = newFilters.filter(f => f !== filterId);
+        return filtered.length === 0 ? ['all'] : filtered;
+      } else {
+        return [...newFilters, filterId];
+      }
+    });
+  };
+
+  const handlePeopleFilterToggle = (category, subcategory = null) => {
+    setActiveFilters(prev => {
+      const newFilters = prev.filter(f => f !== 'all');
+      if (!newFilters.includes('people')) {
+        newFilters.push('people');
+      }
+      return newFilters;
+    });
+
+    if (category === 'traders' && subcategory) {
+      setPeopleFilters(prev => ({
+        ...prev,
+        traders: prev.traders.includes(subcategory)
+          ? prev.traders.filter(s => s !== subcategory)
+          : [...prev.traders, subcategory]
+      }));
+    } else {
+      setPeopleFilters(prev => ({
+        ...prev,
+        [category]: !prev[category]
+      }));
     }
   };
 
-  const handlePeopleSubFilterChange = (category, subcategory = null) => {
-    setPeopleSubFilter({ category, subcategory });
+  const clearAllFilters = () => {
+    setActiveFilters(['all']);
+    setPeopleFilters({
+      traders: [],
+      developers: false,
+      students: false,
+      friends: false
+    });
   };
 
   const filteredWallpapers = useCallback(() => {
@@ -266,6 +309,36 @@ const AuthHomePage = () => {
     }
   }, []);
 
+  // Adjust main content margin based on header height
+  useEffect(() => {
+    const adjustContentMargin = () => {
+      const header = document.querySelector('.main-header');
+      if (header && mainContentRef.current) {
+        const headerHeight = header.offsetHeight;
+        mainContentRef.current.style.paddingTop = `${headerHeight}px`;
+        
+        // Also adjust side panel top position
+        const sidePanel = document.querySelector('.side-panel');
+        if (sidePanel) {
+          sidePanel.style.top = `${headerHeight}px`;
+        }
+      }
+    };
+
+    adjustContentMargin();
+    window.addEventListener('resize', adjustContentMargin);
+    
+    // Observe header changes
+    const observer = new ResizeObserver(adjustContentMargin);
+    const header = document.querySelector('.main-header');
+    if (header) observer.observe(header);
+
+    return () => {
+      window.removeEventListener('resize', adjustContentMargin);
+      observer.disconnect();
+    };
+  }, []);
+
   const applyWallpaperSettings = (settings) => {
     document.documentElement.style.setProperty('--wallpaper-url', `url(${settings.url})`);
     document.documentElement.style.setProperty('--wallpaper-brightness', settings.brightness);
@@ -312,6 +385,32 @@ const AuthHomePage = () => {
     if (!iconName || !Icons[iconName]) return null;
     const IconComponent = Icons[iconName];
     return React.createElement(IconComponent, { size: size, className: className });
+  };
+
+  // Get active filter label
+  const getActiveFilterLabel = () => {
+    if (activeFilters.includes('all')) return 'All';
+    
+    const labels = activeFilters.map(f => {
+      const category = filterCategories.find(c => c.id === f);
+      return category?.label || f;
+    });
+    
+    if (activeFilters.includes('people')) {
+      const peopleLabels = [];
+      if (peopleFilters.traders.length > 0) {
+        peopleLabels.push(`Traders: ${peopleFilters.traders.join(', ')}`);
+      }
+      if (peopleFilters.developers) peopleLabels.push('Developers');
+      if (peopleFilters.students) peopleLabels.push('Students');
+      if (peopleFilters.friends) peopleLabels.push('Friends');
+      
+      if (peopleLabels.length > 0) {
+        return `${labels.join(' + ')} (${peopleLabels.join('; ')})`;
+      }
+    }
+    
+    return labels.join(' + ');
   };
 
   return (
@@ -379,7 +478,7 @@ const AuthHomePage = () => {
         </div>
       )}
 
-      {/* macOS/iOS Style Side Navigation Panel */}
+      {/* macOS/iOS Style Side Navigation Panel - No hover effects */}
       <div className={`side-panel ${isSidebarCollapsed ? 'collapsed' : 'expanded'}`}>
         <div className="panel-header">
           <button 
@@ -420,182 +519,165 @@ const AuthHomePage = () => {
         )}
       </div>
 
-      {/* Main Content */}
-      <main className="main-content">
-        {/* Hero Welcome Section */}
-        <div className="hero-section">
+      {/* Main Content - No hero section */}
+      <main ref={mainContentRef} className="main-content">
+        {/* Sticky Search and Filter Bar */}
+        <div ref={filterBarRef} className="sticky-search-filter">
           <Container>
-            <div className="hero-content">
-              <h1 className="hero-title">
-                Welcome back, <span className="highlight">{user?.name || 'Trader'}</span>
-              </h1>
-              <p className="hero-description">
-                Your premium trading dashboard is ready. Track performance, discover insights, and elevate your trading.
-              </p>
-            </div>
-          </Container>
-        </div>
-
-        {/* Google-style Search Bar */}
-        <div className="search-section">
-          <Container>
-            <div className="search-container">
-              <div className={`search-box ${isSearchFocused ? 'focused' : ''}`}>
-                <div className="search-icon">
-                  {renderIcon('FaSearch', 18)}
-                </div>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  className="search-input"
-                  placeholder="Search trading tools, news, signals..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                {searchQuery && (
-                  <button className="clear-btn" onClick={() => setSearchQuery('')}>
-                    {renderIcon('FaTimes', 14)}
-                  </button>
-                )}
-                <button className="search-button" onClick={handleSearch}>
-                  Search
-                </button>
-              </div>
-              
-              {showSearchSuggestions && searchSuggestions.length > 0 && (
-                <div className="search-suggestions" ref={searchSuggestionsRef}>
-                  {searchSuggestions.map((suggestion, index) => (
-                    <div key={index} className="suggestion" onClick={() => handleNavigation(suggestion)}>
-                      <div className="suggestion-icon">
-                        {renderIcon(suggestion.icon || 'FaSearch', 14)}
-                      </div>
-                      <div className="suggestion-text">{suggestion.label}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Container>
-        </div>
-
-        {/* Filter Buttons Section */}
-        <div className="filter-section">
-          <Container>
-            <div className="filter-container">
-              <div className="filter-label">Filters:</div>
-              <div className="filter-buttons">
-                {filterCategories.map(category => (
-                  <div key={category.id} className="filter-group">
-                    <button
-                      className={`filter-btn ${activeFilter === category.id ? 'active' : ''}`}
-                      onClick={() => handleFilterChange(category.id)}
-                    >
-                      {renderIcon(category.icon, 16)}
-                      <span>{category.label}</span>
-                      {category.hasSubmenu && renderIcon('FaChevronDown', 10, 'dropdown-arrow')}
+            {/* Google-style Search Bar */}
+            <div className="search-section">
+              <div className="search-container">
+                <div className={`search-box ${isSearchFocused ? 'focused' : ''}`}>
+                  <div className="search-icon">
+                    {renderIcon('FaSearch', 18)}
+                  </div>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    className="search-input"
+                    placeholder="Search trading tools, news, signals..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  />
+                  {searchQuery && (
+                    <button className="clear-btn" onClick={() => setSearchQuery('')}>
+                      {renderIcon('FaTimes', 14)}
                     </button>
-                    
-                    {/* People Submenu */}
-                    {category.id === 'people' && activeFilter === 'people' && (
-                      <div className="people-submenu">
-                        {/* Traders with nested subcategories */}
-                        <div className="submenu-group">
-                          <button
-                            className={`submenu-btn ${peopleSubFilter?.category === 'traders' ? 'active' : ''}`}
-                            onClick={() => handlePeopleSubFilterChange('traders')}
-                          >
-                            {renderIcon(peopleSubCategories.traders.icon, 14)}
-                            <span>{peopleSubCategories.traders.label}</span>
-                            {renderIcon('FaChevronRight', 10)}
-                          </button>
-                          
-                          {peopleSubFilter?.category === 'traders' && (
+                  )}
+                  <button className="search-button" onClick={handleSearch}>
+                    Search
+                  </button>
+                </div>
+                
+                {showSearchSuggestions && searchSuggestions.length > 0 && (
+                  <div className="search-suggestions" ref={searchSuggestionsRef}>
+                    {searchSuggestions.map((suggestion, index) => (
+                      <div key={index} className="suggestion" onClick={() => handleNavigation(suggestion)}>
+                        <div className="suggestion-icon">
+                          {renderIcon(suggestion.icon || 'FaSearch', 14)}
+                        </div>
+                        <div className="suggestion-text">{suggestion.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Filter Buttons Section */}
+            <div className="filter-section">
+              <div className="filter-container">
+                <div className="filter-label">Filters:</div>
+                <div className="filter-buttons">
+                  {filterCategories.map(category => (
+                    <div key={category.id} className="filter-group">
+                      <button
+                        className={`filter-btn ${activeFilters.includes(category.id) ? 'active' : ''}`}
+                        onClick={() => handleFilterToggle(category.id)}
+                      >
+                        {renderIcon(category.icon, 16)}
+                        <span>{category.label}</span>
+                        {category.hasSubmenu && renderIcon('FaChevronDown', 10, 'dropdown-arrow')}
+                      </button>
+                      
+                      {/* People Submenu - Multiple selection */}
+                      {category.id === 'people' && activeFilters.includes('people') && (
+                        <div className="people-submenu">
+                          {/* Traders with nested subcategories */}
+                          <div className="submenu-group">
+                            <button
+                              className={`submenu-btn ${peopleFilters.traders.length > 0 ? 'active' : ''}`}
+                              onClick={() => {}}
+                            >
+                              {renderIcon(peopleSubCategories.traders.icon, 14)}
+                              <span>{peopleSubCategories.traders.label}</span>
+                              {renderIcon('FaChevronRight', 10)}
+                            </button>
+                            
                             <div className="nested-submenu">
                               {peopleSubCategories.traders.subcategories.map(sub => (
                                 <button
                                   key={sub}
-                                  className={`nested-btn ${peopleSubFilter?.subcategory === sub ? 'active' : ''}`}
-                                  onClick={() => handlePeopleSubFilterChange('traders', sub)}
+                                  className={`nested-btn ${peopleFilters.traders.includes(sub) ? 'active' : ''}`}
+                                  onClick={() => handlePeopleFilterToggle('traders', sub)}
                                 >
+                                  <span className="checkbox-indicator">
+                                    {peopleFilters.traders.includes(sub) ? '✓ ' : '○ '}
+                                  </span>
                                   {sub.charAt(0).toUpperCase() + sub.slice(1)}
                                 </button>
                               ))}
                             </div>
-                          )}
+                          </div>
+                          
+                          {/* Developers */}
+                          <button
+                            className={`submenu-btn ${peopleFilters.developers ? 'active' : ''}`}
+                            onClick={() => handlePeopleFilterToggle('developers')}
+                          >
+                            <span className="checkbox-indicator">
+                              {peopleFilters.developers ? '✓ ' : '○ '}
+                            </span>
+                            {renderIcon(peopleSubCategories.developers.icon, 14)}
+                            <span>{peopleSubCategories.developers.label}</span>
+                          </button>
+                          
+                          {/* Students */}
+                          <button
+                            className={`submenu-btn ${peopleFilters.students ? 'active' : ''}`}
+                            onClick={() => handlePeopleFilterToggle('students')}
+                          >
+                            <span className="checkbox-indicator">
+                              {peopleFilters.students ? '✓ ' : '○ '}
+                            </span>
+                            {renderIcon(peopleSubCategories.students.icon, 14)}
+                            <span>{peopleSubCategories.students.label}</span>
+                          </button>
+                          
+                          {/* Friends */}
+                          <button
+                            className={`submenu-btn ${peopleFilters.friends ? 'active' : ''}`}
+                            onClick={() => handlePeopleFilterToggle('friends')}
+                          >
+                            <span className="checkbox-indicator">
+                              {peopleFilters.friends ? '✓ ' : '○ '}
+                            </span>
+                            {renderIcon(peopleSubCategories.friends.icon, 14)}
+                            <span>{peopleSubCategories.friends.label}</span>
+                          </button>
                         </div>
-                        
-                        {/* Developers */}
-                        <button
-                          className={`submenu-btn ${peopleSubFilter?.category === 'developers' ? 'active' : ''}`}
-                          onClick={() => handlePeopleSubFilterChange('developers')}
-                        >
-                          {renderIcon(peopleSubCategories.developers.icon, 14)}
-                          <span>{peopleSubCategories.developers.label}</span>
-                        </button>
-                        
-                        {/* Students */}
-                        <button
-                          className={`submenu-btn ${peopleSubFilter?.category === 'students' ? 'active' : ''}`}
-                          onClick={() => handlePeopleSubFilterChange('students')}
-                        >
-                          {renderIcon(peopleSubCategories.students.icon, 14)}
-                          <span>{peopleSubCategories.students.label}</span>
-                        </button>
-                        
-                        {/* Friends */}
-                        <button
-                          className={`submenu-btn ${peopleSubFilter?.category === 'friends' ? 'active' : ''}`}
-                          onClick={() => handlePeopleSubFilterChange('friends')}
-                        >
-                          {renderIcon(peopleSubCategories.friends.icon, 14)}
-                          <span>{peopleSubCategories.friends.label}</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Active Filter Indicator */}
-              {activeFilter !== 'all' && (
-                <div className="active-filter-indicator">
-                  <span>Active: {filterCategories.find(f => f.id === activeFilter)?.label}</span>
-                  {peopleSubFilter && (
-                    <span className="subfilter-badge">
-                      {peopleSubFilter.category}
-                      {peopleSubFilter.subcategory && ` / ${peopleSubFilter.subcategory}`}
-                    </span>
-                  )}
-                  <button className="clear-filter" onClick={() => {
-                    setActiveFilter('all');
-                    setPeopleSubFilter(null);
-                  }}>
-                    {renderIcon('FaTimes', 12)}
-                  </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
+                
+                {/* Active Filter Indicator */}
+                {!activeFilters.includes('all') && (
+                  <div className="active-filter-indicator">
+                    <span>Active: {getActiveFilterLabel()}</span>
+                    <button className="clear-filter" onClick={clearAllFilters}>
+                      {renderIcon('FaTimes', 12)}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </Container>
         </div>
 
-        {/* Content Area - Will display filtered content based on activeFilter */}
+        {/* Content Area - Transparent with blur */}
         <div className="content-area">
           <Container>
-            <div className="content-placeholder">
-              {/* Content will be populated based on filters */}
-              <p className="placeholder-text">
-                {activeFilter === 'all' && 'Showing all content...'}
-                {activeFilter === 'videos' && 'Videos content will appear here...'}
-                {activeFilter === 'charts' && 'Charts content will appear here...'}
-                {activeFilter === 'academies' && 'Academies content will appear here...'}
-                {activeFilter === 'tools' && 'Tools content will appear here...'}
-                {activeFilter === 'people' && peopleSubFilter && 
-                  `Showing ${peopleSubFilter.category}${peopleSubFilter.subcategory ? ` - ${peopleSubFilter.subcategory}` : ''}...`
-                }
-              </p>
+            <div className="content-wrapper">
+              <div className="content-card">
+                <p className="placeholder-text">
+                  {activeFilters.includes('all') && 'Showing all content...'}
+                  {!activeFilters.includes('all') && `Showing filtered content: ${getActiveFilterLabel()}`}
+                </p>
+              </div>
             </div>
           </Container>
         </div>
