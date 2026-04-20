@@ -1,4 +1,4 @@
-// src/pages/AuthHomePage.jsx - Premium Edition with YouTube-style Navigation
+// src/pages/AuthHomePage.jsx - Premium Edition with macOS/iOS Style
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
@@ -16,8 +16,7 @@ const AuthHomePage = () => {
   
   // State Management
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
-  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -25,7 +24,6 @@ const AuthHomePage = () => {
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [activeActivityTab, setActiveActivityTab] = useState('all');
   const [expandedActivity, setExpandedActivity] = useState(null);
-  const [sidebarScrollTop, setSidebarScrollTop] = useState(0);
   
   // Wallpaper Settings
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
@@ -39,7 +37,6 @@ const AuthHomePage = () => {
   
   const searchInputRef = useRef(null);
   const searchSuggestionsRef = useRef(null);
-  const sidebarRef = useRef(null);
 
   // Predefined wallpapers
   const wallpapers = [
@@ -51,18 +48,18 @@ const AuthHomePage = () => {
     { id: 6, name: 'Forest Dreams', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)' }
   ];
 
-  // Navigation Items with Icons (No title header)
+  // Navigation Items with Icons
   const navigationItems = [
-    { id: 'home', label: 'Home', icon: 'FaHome', path: '/', requiresAuth: false },
-    { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard', badge: 'Live', requiresAuth: true },
-    { id: 'profile', label: 'Profile', icon: 'FaUser', path: '/profile', requiresAuth: true },
-    { id: 'chat', label: 'Trading Chat', icon: 'FaComments', path: '/chat', badge: '12', requiresAuth: true },
-    { id: 'education', label: 'Academy', icon: 'FaGraduationCap', path: '/education', requiresAuth: true },
-    { id: 'tools', label: 'Tools Suite', icon: 'FaToolbox', path: '/tools', requiresAuth: true },
-    { id: 'library', label: 'Library', icon: 'FaBookOpen', path: '/education', requiresAuth: true },
-    { id: 'cashier', label: 'Cashier', icon: 'FaDollarSign', path: '/cashier', requiresAuth: true },
-    { id: 'friends', label: 'Network', icon: 'FaUserFriends', path: '/friends', requiresAuth: true },
-    { id: 'settings', label: 'Settings', icon: 'FaCog', path: '/profile/settings', requiresAuth: true }
+    { id: 'home', label: 'Home', icon: 'FaHome', path: '/' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard', badge: 'Live' },
+    { id: 'profile', label: 'Profile', icon: 'FaUser', path: '/profile' },
+    { id: 'chat', label: 'Trading Chat', icon: 'FaComments', path: '/chat', badge: '12' },
+    { id: 'education', label: 'Academy', icon: 'FaGraduationCap', path: '/education' },
+    { id: 'tools', label: 'Tools Suite', icon: 'FaToolbox', path: '/tools' },
+    { id: 'library', label: 'Library', icon: 'FaBookOpen', path: '/education' },
+    { id: 'cashier', label: 'Cashier', icon: 'FaDollarSign', path: '/cashier' },
+    { id: 'friends', label: 'Network', icon: 'FaUserFriends', path: '/friends' },
+    { id: 'settings', label: 'Settings', icon: 'FaCog', path: '/profile/settings' }
   ];
 
   // Activity Data
@@ -84,13 +81,11 @@ const AuthHomePage = () => {
     ]
   }), []);
 
-  // Get all activities sorted by time
   const getAllActivities = useCallback(() => {
     return [...activities.news, ...activities.trades, ...activities.signals]
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [activities]);
 
-  // Get filtered activities based on tab
   const getFilteredActivities = useCallback(() => {
     if (activeActivityTab === 'all') return getAllActivities();
     if (activeActivityTab === 'news') return activities.news;
@@ -99,17 +94,6 @@ const AuthHomePage = () => {
     return getAllActivities();
   }, [activeActivityTab, activities, getAllActivities]);
 
-  // Get priority color for activity
-  const getPriorityColor = (priority) => {
-    switch(priority) {
-      case 'critical': return '#ef4444';
-      case 'high': return '#f59e0b';
-      case 'medium': return '#3b82f6';
-      default: return '#6b7280';
-    }
-  };
-
-  // Search Suggestions based on query
   useEffect(() => {
     if (searchQuery.length > 1) {
       const filtered = [
@@ -129,7 +113,6 @@ const AuthHomePage = () => {
     }
   }, [searchQuery, navigationItems, getAllActivities]);
 
-  // Handle click outside for search suggestions
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (searchSuggestionsRef.current && !searchSuggestionsRef.current.contains(event.target) &&
@@ -141,19 +124,15 @@ const AuthHomePage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
-      if (!mobile) setIsSidebarExpanded(true);
+      setIsMobile(window.innerWidth <= 768);
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load wallpaper settings
   useEffect(() => {
     const savedWallpaper = localStorage.getItem('wallpaper_settings');
     if (savedWallpaper) {
@@ -186,14 +165,10 @@ const AuthHomePage = () => {
     if (item.path) {
       navigate(item.path);
     }
-    if (isMobile) {
-      setIsSidebarExpanded(false);
-    }
   };
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      console.log('Searching for:', searchQuery);
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       setShowSearchSuggestions(false);
       setIsSearchFocused(false);
@@ -203,9 +178,6 @@ const AuthHomePage = () => {
   const handleActivityClick = (activity) => {
     if (activity.link) {
       navigate(activity.link);
-    }
-    if (isMobile) {
-      setIsSidebarExpanded(false);
     }
   };
 
@@ -233,19 +205,13 @@ const AuthHomePage = () => {
   };
 
   const renderIcon = (iconName, size = 20, className = '') => {
-    if (!iconName || !Icons[iconName]) {
-      return null;
-    }
+    if (!iconName || !Icons[iconName]) return null;
     const IconComponent = Icons[iconName];
     return React.createElement(IconComponent, { size: size, className: className });
   };
 
-  // Sidebar width based on expansion state
-  const sidebarWidth = isSidebarExpanded ? (isSidebarHovered || !isMobile ? '280px' : '72px') : '0px';
-  const mainMarginLeft = isSidebarExpanded ? (isSidebarHovered || !isMobile ? '280px' : '72px') : '0px';
-
   return (
-    <div className={`auth-homepage ${isMobile ? 'mobile-mode' : 'desktop-mode'} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
+    <div className={`auth-homepage ${isMobile ? 'mobile-mode' : 'desktop-mode'}`}>
       {/* Wallpaper Controls - Floating Buttons */}
       <div className="wallpaper-controls">
         <button className="wallpaper-btn" onClick={() => setShowWallpaperModal(true)}>
@@ -293,153 +259,108 @@ const AuthHomePage = () => {
         </div>
       )}
 
-      {/* YouTube-style Side Navigation Panel with Activity Feed - No Header Title */}
-      <aside 
-        className={`side-navigation ${isSidebarExpanded ? 'expanded' : 'collapsed'} ${isSidebarHovered ? 'hovered' : ''}`}
-        onMouseEnter={() => !isMobile && setIsSidebarHovered(true)}
-        onMouseLeave={() => !isMobile && setIsSidebarHovered(false)}
-        style={{ width: sidebarWidth }}
-      >
-        <div className="sidebar-container" ref={sidebarRef}>
-          {/* Sidebar Toggle Button - No Logo/Header */}
-          <div className="sidebar-toggle-wrapper">
-            <button 
-              className="sidebar-toggle-btn"
-              onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
-            >
-              {renderIcon(isSidebarExpanded ? 'FaChevronLeft' : 'FaChevronRight', 16)}
-            </button>
-          </div>
-
-          {/* Main Navigation Items */}
-          <nav className="sidebar-nav">
-            {navigationItems.map((item) => (
-              <div 
-                key={item.id} 
-                className={`nav-item ${activeNavItem === item.id ? 'active' : ''}`}
-                onClick={() => handleNavigation(item)}
-              >
-                <div className="nav-item-icon">
-                  {renderIcon(item.icon, 22)}
-                  {item.badge && <span className="nav-badge">{item.badge}</span>}
-                </div>
-                {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
-                  <span className="nav-item-label">{item.label}</span>
-                )}
-              </div>
-            ))}
-          </nav>
-
-          {/* Recent Activity Section in Sidebar */}
-          <div className="sidebar-activity-section">
-            {(isSidebarExpanded && (isSidebarHovered || !isMobile)) ? (
-              <>
-                <div className="activity-section-header">
-                  <div className="activity-header-title">
-                    {renderIcon('FaClock', 16)}
-                    <h3>Recent Activity</h3>
-                  </div>
-                  <div className="activity-tabs">
-                    <button 
-                      className={`activity-tab ${activeActivityTab === 'all' ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setActiveActivityTab('all'); }}
-                    >
-                      All
-                    </button>
-                    <button 
-                      className={`activity-tab ${activeActivityTab === 'news' ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setActiveActivityTab('news'); }}
-                    >
-                      News
-                    </button>
-                    <button 
-                      className={`activity-tab ${activeActivityTab === 'trades' ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setActiveActivityTab('trades'); }}
-                    >
-                      Trades
-                    </button>
-                    <button 
-                      className={`activity-tab ${activeActivityTab === 'signals' ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setActiveActivityTab('signals'); }}
-                    >
-                      Signals
-                    </button>
-                  </div>
-                </div>
-                <div className="activity-list">
-                  {getFilteredActivities().slice(0, 8).map((activity) => (
-                    <div 
-                      key={activity.id} 
-                      className={`activity-item ${expandedActivity === activity.id ? 'expanded' : ''}`}
-                    >
-                      <div className="activity-item-header" onClick={() => handleActivityClick(activity)}>
-                        <div className="activity-icon" style={{ background: activity.color }}>
-                          {renderIcon(activity.icon, 16)}
-                        </div>
-                        <div className="activity-info">
-                          <div className="activity-title">{activity.title}</div>
-                          <div className="activity-time">{activity.time}</div>
-                        </div>
-                        <button 
-                          className="activity-expand-btn"
-                          onClick={(e) => { e.stopPropagation(); toggleExpandActivity(activity.id); }}
-                        >
-                          {renderIcon(expandedActivity === activity.id ? 'FaChevronUp' : 'FaChevronDown', 10)}
-                        </button>
-                      </div>
-                      {expandedActivity === activity.id && (
-                        <div className="activity-expanded-content" onClick={() => handleActivityClick(activity)}>
-                          <p className="activity-description">{activity.description}</p>
-                          <div className="activity-priority" style={{ color: getPriorityColor(activity.priority) }}>
-                            {renderIcon('FaFlag', 10)}
-                            <span>{activity.priority?.toUpperCase()}</span>
-                          </div>
-                          <button className="activity-action-btn">
-                            View Details {renderIcon('FaArrowRight', 10)}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {getFilteredActivities().length > 8 && (
-                    <div className="view-all-activities" onClick={() => navigate('/activity')}>
-                      View all activities {renderIcon('FaArrowRight', 10)}
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="collapsed-activity-indicator">
-                <div className="activity-dot" />
-                <div className="activity-dot" />
-                <div className="activity-dot" />
-              </div>
-            )}
-          </div>
+      {/* macOS/iOS Style Side Navigation Panel */}
+      <div className={`side-panel ${isSidebarCollapsed ? 'collapsed' : 'expanded'}`}>
+        <div className="panel-header">
+          <button 
+            className="collapse-btn"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          >
+            {renderIcon(isSidebarCollapsed ? 'FaChevronRight' : 'FaChevronLeft', 14)}
+          </button>
         </div>
-      </aside>
 
-      {/* Main Content Area */}
-      <main className="auth-main-content" style={{ marginLeft: mainMarginLeft }}>
+        <nav className="panel-nav">
+          {navigationItems.map((item) => (
+            <div 
+              key={item.id} 
+              className={`nav-item ${activeNavItem === item.id ? 'active' : ''}`}
+              onClick={() => handleNavigation(item)}
+            >
+              <div className="nav-icon">
+                {renderIcon(item.icon, 22)}
+                {item.badge && <span className="nav-badge">{item.badge}</span>}
+              </div>
+              {!isSidebarCollapsed && <span className="nav-label">{item.label}</span>}
+            </div>
+          ))}
+        </nav>
+
+        {/* Activity Section */}
+        <div className="panel-activity">
+          {!isSidebarCollapsed ? (
+            <>
+              <div className="activity-header">
+                <div className="activity-title">
+                  {renderIcon('FaClock', 14)}
+                  <h4>Recent Activity</h4>
+                </div>
+                <div className="activity-tabs">
+                  <button className={`tab ${activeActivityTab === 'all' ? 'active' : ''}`} onClick={() => setActiveActivityTab('all')}>All</button>
+                  <button className={`tab ${activeActivityTab === 'news' ? 'active' : ''}`} onClick={() => setActiveActivityTab('news')}>News</button>
+                  <button className={`tab ${activeActivityTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveActivityTab('trades')}>Trades</button>
+                  <button className={`tab ${activeActivityTab === 'signals' ? 'active' : ''}`} onClick={() => setActiveActivityTab('signals')}>Signals</button>
+                </div>
+              </div>
+              <div className="activity-list">
+                {getFilteredActivities().slice(0, 6).map((activity) => (
+                  <div key={activity.id} className="activity-item">
+                    <div className="activity-main" onClick={() => handleActivityClick(activity)}>
+                      <div className="activity-icon" style={{ background: activity.color }}>
+                        {renderIcon(activity.icon, 14)}
+                      </div>
+                      <div className="activity-info">
+                        <div className="activity-name">{activity.title}</div>
+                        <div className="activity-time">{activity.time}</div>
+                      </div>
+                      <button 
+                        className="expand-btn"
+                        onClick={(e) => { e.stopPropagation(); toggleExpandActivity(activity.id); }}
+                      >
+                        {renderIcon(expandedActivity === activity.id ? 'FaChevronUp' : 'FaChevronDown', 10)}
+                      </button>
+                    </div>
+                    {expandedActivity === activity.id && (
+                      <div className="activity-details">
+                        <p>{activity.description}</p>
+                        <button className="view-btn">View Details {renderIcon('FaArrowRight', 10)}</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="collapsed-indicator">
+              <div className="dot" />
+              <div className="dot" />
+              <div className="dot" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="main-content">
         {/* Hero Welcome Section */}
-        <div className="welcome-section">
+        <div className="hero-section">
           <Container>
-            <div className="welcome-content">
-              <h1 className="welcome-title">
-                Welcome back, <span className="user-name">{user?.name || 'Trader'}</span>
+            <div className="hero-content">
+              <h1 className="hero-title">
+                Welcome back, <span className="highlight">{user?.name || 'Trader'}</span>
               </h1>
-              <p className="welcome-description">
+              <p className="hero-description">
                 Your premium trading dashboard is ready. Track performance, discover insights, and elevate your trading.
               </p>
             </div>
           </Container>
         </div>
 
-        {/* Google-style Search Bar - Below Hero Section */}
+        {/* Google-style Search Bar */}
         <div className="search-section">
           <Container>
             <div className="search-container">
-              <div className={`search-wrapper ${isSearchFocused ? 'focused' : ''}`}>
+              <div className={`search-box ${isSearchFocused ? 'focused' : ''}`}>
                 <div className="search-icon">
                   {renderIcon('FaSearch', 18)}
                 </div>
@@ -455,31 +376,24 @@ const AuthHomePage = () => {
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 />
                 {searchQuery && (
-                  <button className="search-clear" onClick={() => setSearchQuery('')}>
+                  <button className="clear-btn" onClick={() => setSearchQuery('')}>
                     {renderIcon('FaTimes', 14)}
                   </button>
                 )}
-                <button className="search-btn" onClick={handleSearch}>
+                <button className="search-button" onClick={handleSearch}>
                   Search
                 </button>
               </div>
               
-              {/* Search Suggestions */}
               {showSearchSuggestions && searchSuggestions.length > 0 && (
                 <div className="search-suggestions" ref={searchSuggestionsRef}>
                   {searchSuggestions.map((suggestion, index) => (
-                    <div 
-                      key={index}
-                      className="suggestion-item"
-                      onClick={() => handleNavigation(suggestion)}
-                    >
+                    <div key={index} className="suggestion" onClick={() => handleNavigation(suggestion)}>
                       <div className="suggestion-icon">
-                        {renderIcon(suggestion.icon || (suggestion.type === 'action' ? 'FaSearch' : 'FaLink'), 14)}
+                        {renderIcon(suggestion.icon || 'FaSearch', 14)}
                       </div>
                       <div className="suggestion-text">{suggestion.label}</div>
-                      {suggestion.type === 'action' && (
-                        <div className="suggestion-action">Search</div>
-                      )}
+                      {suggestion.type === 'action' && <div className="suggestion-action">Search</div>}
                     </div>
                   ))}
                 </div>
@@ -487,13 +401,10 @@ const AuthHomePage = () => {
             </div>
           </Container>
         </div>
-
-        {/* NOTHING BELOW SEARCH BAR - Everything removed as requested */}
       </main>
 
-      {/* Mobile Overlay */}
-      {isMobile && isSidebarExpanded && (
-        <div className="mobile-overlay" onClick={() => setIsSidebarExpanded(false)} />
+      {isMobile && !isSidebarCollapsed && (
+        <div className="mobile-overlay" onClick={() => setIsSidebarCollapsed(true)} />
       )}
     </div>
   );
