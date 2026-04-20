@@ -1,4 +1,4 @@
-// src/pages/AuthHomePage.jsx - Premium Edition with YouTube-style Navigation & Integrated Activity Panel
+// src/pages/AuthHomePage.jsx - Premium Edition with YouTube-style Navigation
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
@@ -24,39 +24,48 @@ const AuthHomePage = () => {
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [activeActivityTab, setActiveActivityTab] = useState('all');
-  const [showMoreTools, setShowMoreTools] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [expandedActivity, setExpandedActivity] = useState(null);
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'trade', message: 'AAPL up 2.5%', read: false, time: '5 min ago' },
-    { id: 2, type: 'signal', message: 'New buy signal for BTC', read: false, time: '15 min ago' },
-    { id: 3, type: 'news', message: 'Fed announces rate decision', read: true, time: '1 hour ago' }
-  ]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [sidebarScrollTop, setSidebarScrollTop] = useState(0);
+  
+  // Wallpaper Settings
+  const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+  const [wallpaperSettings, setWallpaperSettings] = useState({
+    url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop',
+    brightness: 0.6,
+    blur: 0,
+    opacity: 0.8,
+    overlay: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)'
+  });
   
   const searchInputRef = useRef(null);
   const searchSuggestionsRef = useRef(null);
-  const notificationRef = useRef(null);
-  const userMenuRef = useRef(null);
   const sidebarRef = useRef(null);
 
-  // Navigation Items with Icons and Sub-items
-  const navigationItems = [
-    { id: 'home', label: 'Home', icon: 'FaHome', path: '/', requiresAuth: false, divider: false },
-    { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard', badge: 'Live', requiresAuth: true, divider: false },
-    { id: 'profile', label: 'Profile', icon: 'FaUser', path: '/profile', requiresAuth: true, divider: false },
-    { id: 'chat', label: 'Trading Chat', icon: 'FaComments', path: '/chat', badge: '12', requiresAuth: true, divider: false },
-    { id: 'education', label: 'Academy', icon: 'FaGraduationCap', path: '/education', requiresAuth: true, divider: false },
-    { id: 'tools', label: 'Tools Suite', icon: 'FaToolbox', path: '/tools', requiresAuth: true, divider: false },
-    { id: 'library', label: 'Library', icon: 'FaBookOpen', path: '/education', requiresAuth: true, divider: false },
-    { id: 'cashier', label: 'Cashier', icon: 'FaDollarSign', path: '/cashier', requiresAuth: true, divider: false },
-    { id: 'friends', label: 'Network', icon: 'FaUserFriends', path: '/friends', requiresAuth: true, divider: true },
-    { id: 'settings', label: 'Settings', icon: 'FaCog', path: '/profile/settings', requiresAuth: true, divider: false }
+  // Predefined wallpapers
+  const wallpapers = [
+    { id: 1, name: 'macOS Default', url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)' },
+    { id: 2, name: 'iOS Sunset', url: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)' },
+    { id: 3, name: 'Abstract Ocean', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 100%)' },
+    { id: 4, name: 'Mountain Peak', url: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.45) 100%)' },
+    { id: 5, name: 'Night City', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 100%)' },
+    { id: 6, name: 'Forest Dreams', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)' }
   ];
 
-  // Activity Data - Will be displayed in sidebar
+  // Navigation Items with Icons (No title header)
+  const navigationItems = [
+    { id: 'home', label: 'Home', icon: 'FaHome', path: '/', requiresAuth: false },
+    { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard', badge: 'Live', requiresAuth: true },
+    { id: 'profile', label: 'Profile', icon: 'FaUser', path: '/profile', requiresAuth: true },
+    { id: 'chat', label: 'Trading Chat', icon: 'FaComments', path: '/chat', badge: '12', requiresAuth: true },
+    { id: 'education', label: 'Academy', icon: 'FaGraduationCap', path: '/education', requiresAuth: true },
+    { id: 'tools', label: 'Tools Suite', icon: 'FaToolbox', path: '/tools', requiresAuth: true },
+    { id: 'library', label: 'Library', icon: 'FaBookOpen', path: '/education', requiresAuth: true },
+    { id: 'cashier', label: 'Cashier', icon: 'FaDollarSign', path: '/cashier', requiresAuth: true },
+    { id: 'friends', label: 'Network', icon: 'FaUserFriends', path: '/friends', requiresAuth: true },
+    { id: 'settings', label: 'Settings', icon: 'FaCog', path: '/profile/settings', requiresAuth: true }
+  ];
+
+  // Activity Data
   const activities = useMemo(() => ({
     news: [
       { id: 1, type: 'news', title: 'Fed Announces Rate Decision', description: 'Interest rates remain unchanged at 5.25%', time: '2 hours ago', timestamp: Date.now() - 2 * 60 * 60 * 1000, icon: 'FaNewspaper', color: '#3b82f6', link: '/news', priority: 'high' },
@@ -74,22 +83,6 @@ const AuthHomePage = () => {
       { id: 9, type: 'signal', title: 'Stop Loss Triggered', description: 'GBP/JPY hits stop loss at 188.50', time: '4 hours ago', timestamp: Date.now() - 4 * 60 * 60 * 1000, icon: 'FaStop', color: '#ff3b30', link: '/tools', priority: 'critical' }
     ]
   }), []);
-
-  // Advanced Tools Data
-  const advancedTools = useMemo(() => [
-    { id: 'scanner', icon: 'FaChartLine', title: 'Market Scanner Pro', description: 'AI-powered market scanning for high-probability setups', color: '#3b82f6', category: 'Analysis', popular: true },
-    { id: 'ai_assistant', icon: 'FaRobot', title: 'AI Trading Assistant', description: '24/7 intelligent assistant with real-time insights', color: '#10b981', category: 'AI', popular: true },
-    { id: 'live_trading', icon: 'FaVideo', title: 'Live Trading Room', description: 'Watch professional traders in real-time', color: '#ef4444', category: 'Live', popular: true },
-    { id: 'podcasts', icon: 'FaPodcast', title: 'Trading Podcasts', description: 'Expert interviews and market analysis', color: '#8b5cf6', category: 'Education', popular: false },
-    { id: 'news_aggregator', icon: 'FaNewspaper', title: 'News Aggregator', description: 'Real-time news from 100+ sources', color: '#f59e0b', category: 'News', popular: true },
-    { id: 'portfolio_analytics', icon: 'FaChartPie', title: 'Portfolio Analytics', description: 'Advanced performance metrics and risk analysis', color: '#ec489a', category: 'Analytics', popular: true },
-    { id: 'economic_calendar', icon: 'FaCalendarAlt', title: 'Economic Calendar', description: 'Earnings reports and economic events', color: '#14b8a6', category: 'Calendar', popular: false },
-    { id: 'global_markets', icon: 'FaGlobe', title: 'Global Markets', description: 'Stocks, forex, crypto, and commodities', color: '#6b7280', category: 'Markets', popular: true },
-    { id: 'risk_management', icon: 'FaShieldAlt', title: 'Risk Management Suite', description: 'Advanced risk analysis and position sizing', color: '#10b981', category: 'Risk', popular: false },
-    { id: 'cloud_sync', icon: 'FaCloudUploadAlt', title: 'Cloud Sync', description: 'Sync your data across all devices', color: '#3b82f6', category: 'Sync', popular: false },
-    { id: 'backtesting', icon: 'FaHistory', title: 'Strategy Backtester', description: 'Test your strategies with historical data', color: '#8b5cf6', category: 'Analysis', popular: true },
-    { id: 'social_trading', icon: 'FaUsers', title: 'Social Trading', description: 'Copy top traders and share strategies', color: '#ec489a', category: 'Social', popular: false }
-  ], []);
 
   // Get all activities sorted by time
   const getAllActivities = useCallback(() => {
@@ -123,9 +116,6 @@ const AuthHomePage = () => {
         ...navigationItems.filter(item => 
           item.label.toLowerCase().includes(searchQuery.toLowerCase())
         ),
-        ...advancedTools.filter(tool => 
-          tool.title.toLowerCase().includes(searchQuery.toLowerCase())
-        ),
         ...getAllActivities().filter(activity => 
           activity.title.toLowerCase().includes(searchQuery.toLowerCase())
         ),
@@ -137,20 +127,14 @@ const AuthHomePage = () => {
       setSearchSuggestions([]);
       setShowSearchSuggestions(false);
     }
-  }, [searchQuery, navigationItems, advancedTools, getAllActivities]);
+  }, [searchQuery, navigationItems, getAllActivities]);
 
-  // Handle click outside for dropdowns
+  // Handle click outside for search suggestions
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (searchSuggestionsRef.current && !searchSuggestionsRef.current.contains(event.target) &&
           searchInputRef.current && !searchInputRef.current.contains(event.target)) {
         setShowSearchSuggestions(false);
-      }
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-        setShowNotifications(false);
-      }
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-        setShowUserMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -160,32 +144,38 @@ const AuthHomePage = () => {
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth <= 1024;
+      const mobile = window.innerWidth <= 768;
       setIsMobile(mobile);
-      if (mobile) setIsSidebarExpanded(false);
-      else setIsSidebarExpanded(true);
+      if (!mobile) setIsSidebarExpanded(true);
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Handle sidebar scroll
+  // Load wallpaper settings
   useEffect(() => {
-    const handleSidebarScroll = () => {
-      if (sidebarRef.current) {
-        setSidebarScrollTop(sidebarRef.current.scrollTop);
+    const savedWallpaper = localStorage.getItem('wallpaper_settings');
+    if (savedWallpaper) {
+      try {
+        const parsed = JSON.parse(savedWallpaper);
+        setWallpaperSettings(parsed);
+        applyWallpaperSettings(parsed);
+      } catch (e) {
+        console.error('Error loading wallpaper:', e);
       }
-    };
-    if (sidebarRef.current) {
-      sidebarRef.current.addEventListener('scroll', handleSidebarScroll);
+    } else {
+      applyWallpaperSettings(wallpaperSettings);
     }
-    return () => {
-      if (sidebarRef.current) {
-        sidebarRef.current.removeEventListener('scroll', handleSidebarScroll);
-      }
-    };
   }, []);
+
+  const applyWallpaperSettings = (settings) => {
+    document.documentElement.style.setProperty('--wallpaper-url', `url(${settings.url})`);
+    document.documentElement.style.setProperty('--wallpaper-brightness', settings.brightness);
+    document.documentElement.style.setProperty('--wallpaper-blur', `${settings.blur}px`);
+    document.documentElement.style.setProperty('--wallpaper-opacity', settings.opacity);
+    document.documentElement.style.setProperty('--wallpaper-overlay', settings.overlay);
+  };
 
   const handleNavigation = (item) => {
     if (item.id === 'search_all') {
@@ -204,7 +194,6 @@ const AuthHomePage = () => {
   const handleSearch = () => {
     if (searchQuery.trim()) {
       console.log('Searching for:', searchQuery);
-      // Implement search functionality
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       setShowSearchSuggestions(false);
       setIsSearchFocused(false);
@@ -224,10 +213,23 @@ const AuthHomePage = () => {
     setExpandedActivity(expandedActivity === activityId ? null : activityId);
   };
 
-  const markNotificationRead = (id) => {
-    setNotifications(notifications.map(notif => 
-      notif.id === id ? { ...notif, read: true } : notif
-    ));
+  const handleWallpaperChange = (wallpaper) => {
+    const newSettings = {
+      ...wallpaperSettings,
+      url: wallpaper.url,
+      overlay: wallpaper.gradient
+    };
+    setWallpaperSettings(newSettings);
+    applyWallpaperSettings(newSettings);
+    localStorage.setItem('wallpaper_settings', JSON.stringify(newSettings));
+    setShowWallpaperModal(false);
+  };
+
+  const updateWallpaperSetting = (key, value) => {
+    const newSettings = { ...wallpaperSettings, [key]: value };
+    setWallpaperSettings(newSettings);
+    applyWallpaperSettings(newSettings);
+    localStorage.setItem('wallpaper_settings', JSON.stringify(newSettings));
   };
 
   const renderIcon = (iconName, size = 20, className = '') => {
@@ -244,7 +246,54 @@ const AuthHomePage = () => {
 
   return (
     <div className={`auth-homepage ${isMobile ? 'mobile-mode' : 'desktop-mode'} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
-      {/* YouTube-style Side Navigation Panel with Activity Feed */}
+      {/* Wallpaper Controls - Floating Buttons */}
+      <div className="wallpaper-controls">
+        <button className="wallpaper-btn" onClick={() => setShowWallpaperModal(true)}>
+          {renderIcon('FaImage', 18)}
+        </button>
+        <button className="wallpaper-btn" onClick={() => updateWallpaperSetting('brightness', Math.min(1, wallpaperSettings.brightness + 0.1))}>
+          {renderIcon('FaSun', 16)}
+        </button>
+        <button className="wallpaper-btn" onClick={() => updateWallpaperSetting('brightness', Math.max(0.3, wallpaperSettings.brightness - 0.1))}>
+          {renderIcon('FaMoon', 14)}
+        </button>
+      </div>
+
+      {/* Wallpaper Modal */}
+      {showWallpaperModal && (
+        <div className="wallpaper-modal" onClick={() => setShowWallpaperModal(false)}>
+          <div className="wallpaper-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="wallpaper-modal-header">
+              <h3>Choose Wallpaper</h3>
+              <button className="close-modal" onClick={() => setShowWallpaperModal(false)}>
+                {renderIcon('FaTimes', 20)}
+              </button>
+            </div>
+            <div className="wallpaper-grid">
+              {wallpapers.map(wallpaper => (
+                <div
+                  key={wallpaper.id}
+                  className={`wallpaper-option ${wallpaperSettings.url === wallpaper.url ? 'selected' : ''}`}
+                  style={{ backgroundImage: `url(${wallpaper.url})` }}
+                  onClick={() => handleWallpaperChange(wallpaper)}
+                />
+              ))}
+            </div>
+            <div className="wallpaper-settings">
+              <div className="wallpaper-setting">
+                <label>Brightness</label>
+                <input type="range" min="0.3" max="1" step="0.01" value={wallpaperSettings.brightness} onChange={(e) => updateWallpaperSetting('brightness', parseFloat(e.target.value))} />
+              </div>
+              <div className="wallpaper-setting">
+                <label>Blur Effect</label>
+                <input type="range" min="0" max="20" step="1" value={wallpaperSettings.blur} onChange={(e) => updateWallpaperSetting('blur', parseInt(e.target.value))} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* YouTube-style Side Navigation Panel with Activity Feed - No Header Title */}
       <aside 
         className={`side-navigation ${isSidebarExpanded ? 'expanded' : 'collapsed'} ${isSidebarHovered ? 'hovered' : ''}`}
         onMouseEnter={() => !isMobile && setIsSidebarHovered(true)}
@@ -252,14 +301,8 @@ const AuthHomePage = () => {
         style={{ width: sidebarWidth }}
       >
         <div className="sidebar-container" ref={sidebarRef}>
-          {/* Sidebar Header with Logo */}
-          <div className="sidebar-header">
-            <div className="logo-container" onClick={() => handleNavigation({ id: 'home', path: '/' })}>
-              {renderIcon('FaChartLine', 28, 'logo-icon')}
-              {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
-                <span className="logo-text">TradePro</span>
-              )}
-            </div>
+          {/* Sidebar Toggle Button - No Logo/Header */}
+          <div className="sidebar-toggle-wrapper">
             <button 
               className="sidebar-toggle-btn"
               onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
@@ -270,34 +313,30 @@ const AuthHomePage = () => {
 
           {/* Main Navigation Items */}
           <nav className="sidebar-nav">
-            {navigationItems.map((item, index) => (
-              <React.Fragment key={item.id}>
-                <div 
-                  className={`nav-item ${activeNavItem === item.id ? 'active' : ''} ${item.divider ? 'with-divider' : ''}`}
-                  onClick={() => handleNavigation(item)}
-                >
-                  <div className="nav-item-icon">
-                    {renderIcon(item.icon, 22)}
-                    {item.badge && <span className="nav-badge">{item.badge}</span>}
-                  </div>
-                  {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
-                    <span className="nav-item-label">{item.label}</span>
-                  )}
+            {navigationItems.map((item) => (
+              <div 
+                key={item.id} 
+                className={`nav-item ${activeNavItem === item.id ? 'active' : ''}`}
+                onClick={() => handleNavigation(item)}
+              >
+                <div className="nav-item-icon">
+                  {renderIcon(item.icon, 22)}
+                  {item.badge && <span className="nav-badge">{item.badge}</span>}
                 </div>
-                {item.divider && (isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
-                  <div className="sidebar-divider" />
+                {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
+                  <span className="nav-item-label">{item.label}</span>
                 )}
-              </React.Fragment>
+              </div>
             ))}
           </nav>
 
           {/* Recent Activity Section in Sidebar */}
           <div className="sidebar-activity-section">
-            {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
+            {(isSidebarExpanded && (isSidebarHovered || !isMobile)) ? (
               <>
                 <div className="activity-section-header">
                   <div className="activity-header-title">
-                    {renderIcon('FaClock', 18)}
+                    {renderIcon('FaClock', 16)}
                     <h3>Recent Activity</h3>
                   </div>
                   <div className="activity-tabs">
@@ -332,11 +371,10 @@ const AuthHomePage = () => {
                     <div 
                       key={activity.id} 
                       className={`activity-item ${expandedActivity === activity.id ? 'expanded' : ''}`}
-                      onClick={() => handleActivityClick(activity)}
                     >
-                      <div className="activity-item-header">
+                      <div className="activity-item-header" onClick={() => handleActivityClick(activity)}>
                         <div className="activity-icon" style={{ background: activity.color }}>
-                          {renderIcon(activity.icon, 18)}
+                          {renderIcon(activity.icon, 16)}
                         </div>
                         <div className="activity-info">
                           <div className="activity-title">{activity.title}</div>
@@ -346,18 +384,18 @@ const AuthHomePage = () => {
                           className="activity-expand-btn"
                           onClick={(e) => { e.stopPropagation(); toggleExpandActivity(activity.id); }}
                         >
-                          {renderIcon(expandedActivity === activity.id ? 'FaChevronUp' : 'FaChevronDown', 12)}
+                          {renderIcon(expandedActivity === activity.id ? 'FaChevronUp' : 'FaChevronDown', 10)}
                         </button>
                       </div>
                       {expandedActivity === activity.id && (
-                        <div className="activity-expanded-content">
+                        <div className="activity-expanded-content" onClick={() => handleActivityClick(activity)}>
                           <p className="activity-description">{activity.description}</p>
                           <div className="activity-priority" style={{ color: getPriorityColor(activity.priority) }}>
-                            {renderIcon('FaFlag', 12)}
+                            {renderIcon('FaFlag', 10)}
                             <span>{activity.priority?.toUpperCase()}</span>
                           </div>
                           <button className="activity-action-btn">
-                            View Details {renderIcon('FaArrowRight', 12)}
+                            View Details {renderIcon('FaArrowRight', 10)}
                           </button>
                         </div>
                       )}
@@ -365,13 +403,12 @@ const AuthHomePage = () => {
                   ))}
                   {getFilteredActivities().length > 8 && (
                     <div className="view-all-activities" onClick={() => navigate('/activity')}>
-                      View all activities {renderIcon('FaArrowRight', 12)}
+                      View all activities {renderIcon('FaArrowRight', 10)}
                     </div>
                   )}
                 </div>
               </>
-            )}
-            {(!isSidebarExpanded || (!isSidebarHovered && isMobile)) && (
+            ) : (
               <div className="collapsed-activity-indicator">
                 <div className="activity-dot" />
                 <div className="activity-dot" />
@@ -379,135 +416,11 @@ const AuthHomePage = () => {
               </div>
             )}
           </div>
-
-          {/* User Profile Section in Sidebar */}
-          {(isSidebarExpanded && (isSidebarHovered || !isMobile)) && (
-            <div className="sidebar-user-section">
-              <div className="sidebar-user-info" onClick={() => setShowUserMenu(!showUserMenu)}>
-                <div className="user-avatar">
-                  {user?.avatar ? (
-                    <img src={user.avatar} alt={user?.name} />
-                  ) : (
-                    <span>{user?.name?.charAt(0) || 'U'}</span>
-                  )}
-                </div>
-                <div className="user-details">
-                  <div className="user-name">{user?.name || 'Guest User'}</div>
-                  <div className="user-email">{user?.email || 'guest@example.com'}</div>
-                </div>
-                {renderIcon('FaChevronDown', 12, 'user-menu-icon')}
-              </div>
-            </div>
-          )}
         </div>
       </aside>
 
       {/* Main Content Area */}
       <main className="auth-main-content" style={{ marginLeft: mainMarginLeft }}>
-        {/* Top Navigation Bar */}
-        <header className="top-navbar">
-          <Container>
-            <div className="navbar-container">
-              {/* Mobile menu toggle */}
-              {isMobile && (
-                <button 
-                  className="mobile-menu-toggle"
-                  onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
-                >
-                  {renderIcon('FaBars', 24)}
-                </button>
-              )}
-
-              {/* Right side actions */}
-              <div className="navbar-actions">
-                <button 
-                  className="notification-btn"
-                  onClick={() => setShowNotifications(!showNotifications)}
-                >
-                  {renderIcon('FaBell', 20)}
-                  {notifications.filter(n => !n.read).length > 0 && (
-                    <span className="notification-badge">
-                      {notifications.filter(n => !n.read).length}
-                    </span>
-                  )}
-                </button>
-                
-                {/* Notifications Dropdown */}
-                {showNotifications && (
-                  <div className="notifications-dropdown" ref={notificationRef}>
-                    <div className="dropdown-header">
-                      <h4>Notifications</h4>
-                      <button onClick={() => setNotifications(notifications.map(n => ({ ...n, read: true })))}>
-                        Mark all read
-                      </button>
-                    </div>
-                    <div className="notifications-list">
-                      {notifications.map(notif => (
-                        <div 
-                          key={notif.id} 
-                          className={`notification-item ${!notif.read ? 'unread' : ''}`}
-                          onClick={() => markNotificationRead(notif.id)}
-                        >
-                          <div className="notification-content">
-                            <div className="notification-message">{notif.message}</div>
-                            <div className="notification-time">{notif.time}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="user-menu-container" ref={userMenuRef}>
-                  <button 
-                    className="user-menu-btn"
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                  >
-                    <div className="user-avatar-small">
-                      {user?.avatar ? (
-                        <img src={user.avatar} alt={user?.name} />
-                      ) : (
-                        <span>{user?.name?.charAt(0) || 'U'}</span>
-                      )}
-                    </div>
-                  </button>
-                  
-                  {showUserMenu && (
-                    <div className="user-menu-dropdown">
-                      <div className="dropdown-user-info">
-                        <div className="user-avatar-dropdown">
-                          {user?.avatar ? (
-                            <img src={user.avatar} alt={user?.name} />
-                          ) : (
-                            <span>{user?.name?.charAt(0) || 'U'}</span>
-                          )}
-                        </div>
-                        <div className="user-info-dropdown">
-                          <div className="user-name-dropdown">{user?.name || 'Guest User'}</div>
-                          <div className="user-email-dropdown">{user?.email || 'guest@example.com'}</div>
-                        </div>
-                      </div>
-                      <div className="dropdown-divider" />
-                      <div className="dropdown-menu-items">
-                        <div className="dropdown-item" onClick={() => navigate('/profile')}>
-                          {renderIcon('FaUser', 16)} Profile
-                        </div>
-                        <div className="dropdown-item" onClick={() => navigate('/profile/settings')}>
-                          {renderIcon('FaCog', 16)} Settings
-                        </div>
-                        <div className="dropdown-divider" />
-                        <div className="dropdown-item" onClick={() => { /* Handle logout */ }}>
-                          {renderIcon('FaSignOutAlt', 16)} Logout
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Container>
-        </header>
-
         {/* Hero Welcome Section */}
         <div className="welcome-section">
           <Container>
@@ -522,13 +435,13 @@ const AuthHomePage = () => {
           </Container>
         </div>
 
-        {/* Google-style Search Bar */}
+        {/* Google-style Search Bar - Below Hero Section */}
         <div className="search-section">
           <Container>
             <div className="search-container">
               <div className={`search-wrapper ${isSearchFocused ? 'focused' : ''}`}>
                 <div className="search-icon">
-                  {renderIcon('FaSearch', 20)}
+                  {renderIcon('FaSearch', 18)}
                 </div>
                 <input
                   ref={searchInputRef}
@@ -543,7 +456,7 @@ const AuthHomePage = () => {
                 />
                 {searchQuery && (
                   <button className="search-clear" onClick={() => setSearchQuery('')}>
-                    {renderIcon('FaTimes', 16)}
+                    {renderIcon('FaTimes', 14)}
                   </button>
                 )}
                 <button className="search-btn" onClick={handleSearch}>
@@ -561,7 +474,7 @@ const AuthHomePage = () => {
                       onClick={() => handleNavigation(suggestion)}
                     >
                       <div className="suggestion-icon">
-                        {renderIcon(suggestion.icon || (suggestion.type === 'action' ? 'FaSearch' : 'FaLink'), 16)}
+                        {renderIcon(suggestion.icon || (suggestion.type === 'action' ? 'FaSearch' : 'FaLink'), 14)}
                       </div>
                       <div className="suggestion-text">{suggestion.label}</div>
                       {suggestion.type === 'action' && (
@@ -575,82 +488,7 @@ const AuthHomePage = () => {
           </Container>
         </div>
 
-        {/* Main Features Section */}
-        <section className="main-features-section">
-          <Container>
-            <div className="section-header">
-              <h2 className="section-title">Your Dashboard</h2>
-              <p className="section-subtitle">Quick access to your favorite tools and features</p>
-            </div>
-            
-            <div className="features-grid">
-              {navigationItems.slice(0, 8).map((item) => (
-                <div 
-                  key={item.id} 
-                  className={`feature-card ${activeNavItem === item.id ? 'active' : ''}`}
-                  onClick={() => handleNavigation(item)}
-                >
-                  <div className="feature-card-icon" style={{ color: item.id === 'dashboard' ? '#3b82f6' : '#6b7280' }}>
-                    {renderIcon(item.icon, 32)}
-                  </div>
-                  <div className="feature-card-content">
-                    <h3 className="feature-title">{item.label}</h3>
-                    <p className="feature-description">
-                      {item.id === 'dashboard' && 'View real-time analytics and performance metrics'}
-                      {item.id === 'profile' && 'Manage your personal information and preferences'}
-                      {item.id === 'chat' && 'Connect with traders in real-time discussions'}
-                      {item.id === 'education' && 'Access premium courses and learning materials'}
-                      {item.id === 'tools' && 'Professional-grade trading tools and indicators'}
-                      {item.id === 'library' && 'Curated library of trading resources'}
-                      {item.id === 'cashier' && 'Secure deposits, withdrawals, and transactions'}
-                      {item.id === 'friends' && 'Build your trading network and community'}
-                    </p>
-                    {item.badge && <div className="feature-badge">{item.badge}</div>}
-                  </div>
-                  <div className="feature-arrow">
-                    {renderIcon('FaArrowRight', 16)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Container>
-        </section>
-
-        {/* Advanced Tools Section */}
-        <section className="advanced-tools-section">
-          <Container>
-            <div className="section-header">
-              <h2 className="section-title">Advanced Trading Suite</h2>
-              <p className="section-subtitle">Professional-grade tools to elevate your strategy</p>
-            </div>
-            <div className="tools-grid">
-              {(showMoreTools ? advancedTools : advancedTools.slice(0, 8)).map((tool) => (
-                <div key={tool.id} className="tool-card">
-                  <div className="tool-card-icon" style={{ color: tool.color }}>
-                    {renderIcon(tool.icon, 28)}
-                  </div>
-                  <div className="tool-card-content">
-                    <h4 className="tool-title">
-                      {tool.title}
-                      {tool.popular && <span className="popular-badge">Popular</span>}
-                    </h4>
-                    <p className="tool-description">{tool.description}</p>
-                    <div className="tool-category">{tool.category}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {!showMoreTools && advancedTools.length > 8 && (
-              <div className="show-more-container">
-                <button className="show-more-btn" onClick={() => setShowMoreTools(true)}>
-                  {renderIcon('FaPlus', 14)} Explore All {advancedTools.length} Tools
-                </button>
-              </div>
-            )}
-          </Container>
-        </section>
-
-        <Footer />
+        {/* NOTHING BELOW SEARCH BAR - Everything removed as requested */}
       </main>
 
       {/* Mobile Overlay */}
