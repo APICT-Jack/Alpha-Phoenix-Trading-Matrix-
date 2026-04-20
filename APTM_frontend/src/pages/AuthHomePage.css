@@ -1,6 +1,8 @@
-/* src/pages/AuthHomePage.css - macOS/iOS Premium Style */
+/* src/pages/AuthHomePage.css - Premium macOS/iOS Edition with Theme Support */
 
-/* Root Variables */
+/* ============================================
+   ROOT VARIABLES
+   ============================================ */
 :root {
   --wallpaper-url: url('https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop');
   --wallpaper-brightness: 0.6;
@@ -23,16 +25,26 @@
   --success: #34c759;
   --warning: #f59e0b;
   --danger: #ef4444;
+  
+  --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
 }
 
-/* Base Styles */
+/* ============================================
+   BASE STYLES
+   ============================================ */
 .auth-homepage {
   min-height: 100vh;
   position: relative;
-  background: var(--wallpaper-url) center center fixed;
-  background-size: cover;
+  transition: all 0.3s var(--transition-easing);
 }
 
+/* Wallpaper Background System */
 .auth-homepage::before {
   content: '';
   position: fixed;
@@ -40,10 +52,42 @@
   left: 0;
   right: 0;
   bottom: 0;
+  background-image: var(--wallpaper-url);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  filter: brightness(var(--wallpaper-brightness)) blur(var(--wallpaper-blur));
+  transition: all 0.6s var(--transition-easing);
+  z-index: -2;
+  opacity: var(--wallpaper-opacity);
+}
+
+.auth-homepage::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: var(--wallpaper-overlay);
-  backdrop-filter: blur(var(--wallpaper-blur)) brightness(var(--wallpaper-brightness));
-  pointer-events: none;
   z-index: -1;
+}
+
+/* Light mode */
+body.light-mode .auth-homepage::after {
+  background: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%);
+}
+
+body.light-mode {
+  --panel-bg: rgba(255, 255, 255, 0.85);
+  --panel-border: rgba(0, 0, 0, 0.1);
+  --card-bg: rgba(0, 0, 0, 0.05);
+  --hover-bg: rgba(0, 0, 0, 0.08);
+  --active-bg: rgba(59, 130, 246, 0.1);
+  --text-primary: #1f2937;
+  --text-secondary: rgba(0, 0, 0, 0.6);
+  --text-tertiary: rgba(0, 0, 0, 0.4);
 }
 
 /* ============================================
@@ -52,7 +96,7 @@
 .side-panel {
   position: fixed;
   left: 0;
-  top: 80px; /* Below your original header */
+  top: 80px;
   bottom: 0;
   background: var(--panel-bg);
   backdrop-filter: blur(20px);
@@ -76,6 +120,10 @@
 .side-panel.collapsed:hover {
   width: 280px;
   background: rgba(20, 20, 30, 0.95);
+}
+
+body.light-mode .side-panel.collapsed:hover {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 /* Panel Header */
@@ -185,7 +233,7 @@
   display: inline-block;
 }
 
-/* Activity Section */
+/* Activity Section in Panel */
 .panel-activity {
   border-top: 1px solid var(--panel-border);
   padding: 16px 12px;
@@ -379,16 +427,6 @@
 .dot:nth-child(2) { animation-delay: 0.3s; }
 .dot:nth-child(3) { animation-delay: 0.6s; }
 
-@keyframes pulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 /* ============================================
    MAIN CONTENT
    ============================================ */
@@ -406,10 +444,30 @@
 .hero-section {
   padding: 60px 0 40px;
   position: relative;
+  overflow: hidden;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -20%;
+  width: 140%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  animation: slowRotate 20s linear infinite;
+}
+
+@keyframes slowRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .hero-content {
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 .hero-title {
@@ -421,6 +479,7 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   letter-spacing: -0.02em;
+  animation: fadeInUp 0.8s var(--transition-easing);
 }
 
 .highlight {
@@ -435,6 +494,18 @@
   font-size: 1.1rem;
   max-width: 600px;
   margin: 0 auto;
+  animation: fadeInUp 0.8s var(--transition-easing) 0.1s backwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Search Section - Google Style */
@@ -529,7 +600,7 @@
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  background: rgba(20, 20, 30, 0.95);
+  background: var(--panel-bg);
   backdrop-filter: blur(20px);
   border: 1px solid var(--panel-border);
   border-radius: 20px;
@@ -573,6 +644,17 @@
   font-size: 0.75rem;
   color: var(--accent);
   font-weight: 500;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ============================================
@@ -755,6 +837,11 @@
   to { opacity: 1; }
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
 /* ============================================
    RESPONSIVE DESIGN
    ============================================ */
@@ -772,6 +859,10 @@
   
   .main-content {
     margin-left: 0 !important;
+  }
+  
+  .hero-section {
+    padding: 40px 0 30px;
   }
   
   .hero-title {
@@ -825,4 +916,12 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+body.light-mode ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+body.light-mode ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
