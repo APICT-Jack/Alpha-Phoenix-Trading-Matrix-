@@ -115,7 +115,7 @@ body.light-mode {
 .side-panel {
   position: fixed;
   left: 0;
-  top: 80px;
+  top: 70px;
   bottom: 0;
   background: var(--system-background);
   backdrop-filter: var(--system-blur);
@@ -527,7 +527,7 @@ body.light-mode {
 }
 
 .hero-title {
-  font-size: 3.2rem;
+  font-size: 2.2rem;
   font-weight: 700;
   margin-bottom: 20px;
   background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-blue) 100%);
@@ -1062,4 +1062,545 @@ body.light-mode ::-webkit-scrollbar-thumb:hover {
 :focus-visible {
   outline: none;
   ring: 2px solid var(--accent-blue);
+}
+/* ============================================
+   FILTER SECTION - iOS/macOS Style
+   Add this to your AuthHomePage.css file
+   ============================================ */
+
+/* Filter Section */
+.filter-section {
+  padding: 24px 0;
+  margin-bottom: 20px;
+  border-bottom: 0.5px solid var(--system-border);
+}
+
+.filter-container {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'SF Pro Text', sans-serif;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.filter-group {
+  position: relative;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--system-background);
+  backdrop-filter: var(--system-blur);
+  -webkit-backdrop-filter: var(--system-blur);
+  border: 0.5px solid var(--system-border);
+  border-radius: 30px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s var(--transition-spring);
+  font-family: 'SF Pro Text', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.filter-btn:hover {
+  background: var(--system-background-strong);
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.filter-btn.active {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.filter-btn .dropdown-arrow {
+  margin-left: 4px;
+  font-size: 9px;
+  transition: transform 0.25s var(--transition-spring);
+}
+
+.filter-btn.active .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+/* People Submenu - iOS Sheet Style */
+.people-submenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  background: var(--system-background-strong);
+  backdrop-filter: var(--system-blur);
+  -webkit-backdrop-filter: var(--system-blur);
+  border: 0.5px solid var(--system-border);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  animation: slideDown 0.25s var(--transition-spring);
+}
+
+.submenu-group {
+  position: relative;
+}
+
+.submenu-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s var(--transition-smooth);
+  text-align: left;
+  font-family: 'SF Pro Text', sans-serif;
+}
+
+.submenu-btn:hover {
+  background: var(--vibrant-light);
+}
+
+.submenu-btn.active {
+  background: var(--vibrant-blue);
+  color: var(--accent-blue);
+}
+
+.submenu-btn svg:first-child {
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+.submenu-btn svg:last-child {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* Nested Submenu for Traders */
+.nested-submenu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  min-width: 140px;
+  background: var(--system-background-strong);
+  backdrop-filter: var(--system-blur);
+  -webkit-backdrop-filter: var(--system-blur);
+  border: 0.5px solid var(--system-border);
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: var(--shadow-lg);
+  animation: slideRight 0.2s var(--transition-spring);
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.nested-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s var(--transition-smooth);
+  text-align: left;
+  text-transform: capitalize;
+  font-family: 'SF Pro Text', sans-serif;
+}
+
+.nested-btn:hover {
+  background: var(--vibrant-light);
+  color: var(--text-primary);
+}
+
+.nested-btn.active {
+  background: var(--vibrant-blue);
+  color: var(--accent-blue);
+}
+
+/* Active Filter Indicator - iOS Tag Style */
+.active-filter-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--vibrant-blue);
+  backdrop-filter: var(--system-blur);
+  -webkit-backdrop-filter: var(--system-blur);
+  border: 0.5px solid rgba(0, 122, 255, 0.3);
+  border-radius: 30px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: 'SF Pro Text', sans-serif;
+  animation: fadeInScale 0.3s var(--transition-spring);
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.subfilter-badge {
+  padding: 2px 8px;
+  background: var(--vibrant-light);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  border: 0.5px solid var(--system-border-light);
+}
+
+.clear-filter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--vibrant-light);
+  border: 0.5px solid var(--system-border-light);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s var(--transition-spring);
+  margin-left: 4px;
+}
+
+.clear-filter:hover {
+  background: var(--accent-red);
+  color: white;
+  transform: rotate(90deg);
+}
+
+/* Content Area */
+.content-area {
+  padding: 20px 0 60px;
+  min-height: 400px;
+}
+
+.content-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  background: var(--system-background);
+  backdrop-filter: var(--system-blur);
+  -webkit-backdrop-filter: var(--system-blur);
+  border: 0.5px solid var(--system-border);
+  border-radius: 20px;
+  padding: 40px;
+}
+
+.placeholder-text {
+  color: var(--text-tertiary);
+  font-size: 1rem;
+  font-weight: 400;
+  font-family: 'SF Pro Text', sans-serif;
+  text-align: center;
+  animation: pulse 2s ease infinite;
+}
+
+/* Wallpaper Category Tabs */
+.wallpaper-categories {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 0.5px solid var(--system-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.wallpaper-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.category-tab {
+  padding: 8px 16px;
+  background: transparent;
+  border: 0.5px solid var(--system-border);
+  border-radius: 30px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s var(--transition-spring);
+  white-space: nowrap;
+  font-family: 'SF Pro Text', sans-serif;
+}
+
+.category-tab:hover {
+  background: var(--vibrant-light);
+  color: var(--text-primary);
+  border-color: var(--accent-blue);
+}
+
+.category-tab.active {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: white;
+}
+
+/* Wallpaper Option Enhancement */
+.wallpaper-option {
+  position: relative;
+  aspect-ratio: 16/9;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.3s var(--transition-spring);
+  border: 2px solid transparent;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.wallpaper-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 8px 6px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.25s var(--transition-smooth);
+  font-family: 'SF Pro Text', sans-serif;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.wallpaper-option:hover .wallpaper-name {
+  opacity: 1;
+}
+
+.wallpaper-option:hover {
+  transform: scale(1.06);
+  box-shadow: var(--shadow-lg);
+}
+
+.wallpaper-option.selected {
+  border-color: var(--accent-blue);
+  transform: scale(1.04);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+}
+
+.wallpaper-option.selected .wallpaper-name {
+  opacity: 1;
+  background: linear-gradient(to top, rgba(0, 122, 255, 0.9), transparent);
+}
+
+/* User Info in Panel Footer */
+.panel-footer {
+  padding: 16px 12px;
+  border-top: 0.5px solid var(--system-border);
+  margin-top: auto;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'SF Pro Text', sans-serif;
+}
+
+.user-status {
+  font-size: 0.7rem;
+  color: var(--accent-green);
+  font-weight: 500;
+  font-family: 'SF Pro Text', sans-serif;
+}
+
+.side-panel.collapsed .user-details {
+  display: none;
+}
+
+.side-panel.collapsed:hover .user-details {
+  display: flex;
+}
+
+/* Responsive Adjustments for Filter Section */
+@media (max-width: 768px) {
+  .filter-section {
+    padding: 16px 0;
+  }
+  
+  .filter-container {
+    gap: 12px;
+    padding: 0 16px;
+  }
+  
+  .filter-label {
+    display: none;
+  }
+  
+  .filter-buttons {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .filter-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+  
+  .filter-btn span {
+    display: none;
+  }
+  
+  .filter-btn.active span {
+    display: inline;
+  }
+  
+  .people-submenu {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    min-width: auto;
+    max-width: none;
+  }
+  
+  .nested-submenu {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    top: auto;
+    bottom: 0;
+    max-height: 50vh;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0;
+    animation: slideUp 0.3s var(--transition-spring);
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .content-placeholder {
+    margin: 0 16px;
+    padding: 30px 20px;
+  }
+  
+  .wallpaper-modal-content {
+    width: 100%;
+    max-width: none;
+    border-radius: 20px 20px 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    animation: slideUp 0.4s var(--transition-spring);
+  }
+}
+
+/* Dark mode optimization for filters */
+body.light-mode .filter-btn {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+body.light-mode .filter-btn:hover {
+  background: white;
+  border-color: var(--accent-blue);
+  color: black;
+}
+
+body.light-mode .people-submenu,
+body.light-mode .nested-submenu {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode .submenu-btn {
+  color: rgba(0, 0, 0, 0.8);
+}
+
+body.light-mode .submenu-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+body.light-mode .nested-btn {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+body.light-mode .nested-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: black;
 }

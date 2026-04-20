@@ -1,5 +1,5 @@
 // src/pages/AuthHomePage.jsx - Premium Edition with macOS/iOS Style
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
@@ -22,8 +22,10 @@ const AuthHomePage = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
-  const [activeActivityTab, setActiveActivityTab] = useState('all');
-  const [expandedActivity, setExpandedActivity] = useState(null);
+  
+  // Filter State
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [peopleSubFilter, setPeopleSubFilter] = useState(null);
   
   // Wallpaper Settings
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
@@ -38,22 +40,157 @@ const AuthHomePage = () => {
   const searchInputRef = useRef(null);
   const searchSuggestionsRef = useRef(null);
 
-  // Predefined wallpapers
-  const wallpapers = [
-    { id: 1, name: 'macOS Default', url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)' },
-    { id: 2, name: 'iOS Sunset', url: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)' },
-    { id: 3, name: 'Abstract Ocean', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 100%)' },
-    { id: 4, name: 'Mountain Peak', url: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.45) 100%)' },
-    { id: 5, name: 'Night City', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 100%)' },
-    { id: 6, name: 'Forest Dreams', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&h=1080&fit=crop', gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)' }
+  // Filter categories
+  const filterCategories = [
+    { id: 'all', label: 'All', icon: 'FaGlobe' },
+    { id: 'videos', label: 'Videos', icon: 'FaVideo' },
+    { id: 'charts', label: 'Charts', icon: 'FaChartBar' },
+    { id: 'academies', label: 'Academies', icon: 'FaGraduationCap' },
+    { id: 'tools', label: 'Tools', icon: 'FaToolbox' },
+    { id: 'people', label: 'People', icon: 'FaUsers', hasSubmenu: true }
   ];
+
+  // People subcategories
+  const peopleSubCategories = {
+    traders: {
+      label: 'Traders',
+      icon: 'FaChartLine',
+      subcategories: ['new', 'advance', 'beginner', 'pro', 'mentor']
+    },
+    developers: { label: 'Developers', icon: 'FaCode' },
+    students: { label: 'Students', icon: 'FaUserGraduate' },
+    friends: { label: 'Friends', icon: 'FaUserFriends' }
+  };
+
+  // Extended wallpapers collection with candlestick charts
+  const wallpapers = [
+    // Nature & Landscapes
+    { 
+      id: 1, 
+      name: 'macOS Default', 
+      url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop', 
+      gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)',
+      category: 'nature'
+    },
+    { 
+      id: 2, 
+      name: 'iOS Sunset', 
+      url: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&h=1080&fit=crop', 
+      gradient: 'linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)',
+      category: 'nature'
+    },
+    { 
+      id: 3, 
+      name: 'Abstract Ocean', 
+      url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&h=1080&fit=crop', 
+      gradient: 'linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 100%)',
+      category: 'nature'
+    },
+    { 
+      id: 4, 
+      name: 'Mountain Peak', 
+      url: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=1920&h=1080&fit=crop', 
+      gradient: 'linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.45) 100%)',
+      category: 'nature'
+    },
+    { 
+      id: 5, 
+      name: 'Night City', 
+      url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&h=1080&fit=crop', 
+      gradient: 'linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 100%)',
+      category: 'city'
+    },
+    { 
+      id: 6, 
+      name: 'Forest Dreams', 
+      url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&h=1080&fit=crop', 
+      gradient: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%)',
+      category: 'nature'
+    },
+    // Candlestick Chart Wallpapers
+    {
+      id: 7,
+      name: 'Bullish Candles',
+      url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1920&h=1080&fit=crop',
+      gradient: 'linear-gradient(135deg, rgba(34, 197, 94, 0.3) 0%, rgba(0, 0, 0, 0.6) 100%)',
+      category: 'trading'
+    },
+    {
+      id: 8,
+      name: 'Dark Chart',
+      url: 'https://images.unsplash.com/photo-1535320903710-d993d3d77d29?w=1920&h=1080&fit=crop',
+      gradient: 'linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(20, 30, 48, 0.7) 100%)',
+      category: 'trading'
+    },
+    {
+      id: 9,
+      name: 'Forex Chart',
+      url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f801?w=1920&h=1080&fit=crop',
+      gradient: 'linear-gradient(135deg, rgba(0, 100, 200, 0.4) 0%, rgba(0, 0, 0, 0.7) 100%)',
+      category: 'trading'
+    },
+    {
+      id: 10,
+      name: 'Crypto Bull Run',
+      url: 'https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=1920&h=1080&fit=crop',
+      gradient: 'linear-gradient(135deg, rgba(247, 147, 26, 0.4) 0%, rgba(0, 0, 0, 0.65) 100%)',
+      category: 'trading'
+    },
+    {
+      id: 11,
+      name: 'Technical Analysis',
+      url: 'https://images.unsplash.com/photo-1642790551116-18e150f248e3?w=1920&h=1080&fit=crop',
+      gradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(0, 0, 0, 0.7) 100%)',
+      category: 'trading'
+    },
+    {
+      id: 12,
+      name: 'Market Data',
+      url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1920&h=1080&fit=crop',
+      gradient: 'linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(0, 0, 0, 0.65) 100%)',
+      category: 'trading'
+    },
+    // Abstract & Minimal
+    {
+      id: 13,
+      name: 'Neon Grid',
+      url: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=1920&h=1080&fit=crop',
+      gradient: 'linear-gradient(135deg, rgba(139, 92, 246, 0.4) 0%, rgba(0, 0, 0, 0.75) 100%)',
+      category: 'abstract'
+    },
+    {
+      id: 14,
+      name: 'Geometric Dark',
+      url: 'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=1920&h=1080&fit=crop',
+      gradient: 'linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(30, 30, 40, 0.8) 100%)',
+      category: 'abstract'
+    },
+    {
+      id: 15,
+      name: 'Finance Abstract',
+      url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&h=1080&fit=crop',
+      gradient: 'linear-gradient(135deg, rgba(0, 150, 255, 0.3) 0%, rgba(0, 0, 0, 0.7) 100%)',
+      category: 'abstract'
+    }
+  ];
+
+  // Wallpaper categories for filtering
+  const wallpaperCategories = [
+    { id: 'all', label: 'All' },
+    { id: 'nature', label: 'Nature' },
+    { id: 'city', label: 'City' },
+    { id: 'trading', label: 'Trading Charts' },
+    { id: 'abstract', label: 'Abstract' }
+  ];
+  
+  const [activeWallpaperCategory, setActiveWallpaperCategory] = useState('all');
 
   // Navigation Items with Icons
   const navigationItems = [
     { id: 'home', label: 'Home', icon: 'FaHome', path: '/' },
-    { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard', badge: 'Live' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard' },
     { id: 'profile', label: 'Profile', icon: 'FaUser', path: '/profile' },
-    { id: 'chat', label: 'Trading Chat', icon: 'FaComments', path: '/chat', badge: '12' },
+    { id: 'chat', label: 'Trading Chat', icon: 'FaComments', path: '/chat' },
     { id: 'education', label: 'Academy', icon: 'FaGraduationCap', path: '/education' },
     { id: 'tools', label: 'Tools Suite', icon: 'FaToolbox', path: '/tools' },
     { id: 'library', label: 'Library', icon: 'FaBookOpen', path: '/education' },
@@ -62,48 +199,29 @@ const AuthHomePage = () => {
     { id: 'settings', label: 'Settings', icon: 'FaCog', path: '/profile/settings' }
   ];
 
-  // Activity Data
-  const activities = useMemo(() => ({
-    news: [
-      { id: 1, type: 'news', title: 'Fed Announces Rate Decision', description: 'Interest rates remain unchanged at 5.25%', time: '2 hours ago', timestamp: Date.now() - 2 * 60 * 60 * 1000, icon: 'FaNewspaper', color: '#3b82f6', link: '/news', priority: 'high' },
-      { id: 2, type: 'news', title: 'Bitcoin Surpasses $50,000', description: 'Cryptocurrency market sees major rally', time: '5 hours ago', timestamp: Date.now() - 5 * 60 * 60 * 1000, icon: 'FaBitcoin', color: '#f59e0b', link: '/news', priority: 'high' },
-      { id: 3, type: 'news', title: 'Oil Prices Drop 5%', description: 'Supply concerns ease as production increases', time: '1 day ago', timestamp: Date.now() - 24 * 60 * 60 * 1000, icon: 'FaOilCan', color: '#10b981', link: '/news', priority: 'medium' }
-    ],
-    trades: [
-      { id: 4, type: 'trade', title: 'AAPL +2.5%', description: 'Apple stock hits new all-time high', time: '1 hour ago', timestamp: Date.now() - 1 * 60 * 60 * 1000, icon: 'FaChartLine', color: '#34c759', link: '/dashboard', priority: 'high' },
-      { id: 5, type: 'trade', title: 'TSLA -1.2%', description: 'Tesla shares dip after earnings report', time: '3 hours ago', timestamp: Date.now() - 3 * 60 * 60 * 1000, icon: 'FaChartLine', color: '#ff3b30', link: '/dashboard', priority: 'medium' },
-      { id: 6, type: 'trade', title: 'Volume Alert: NVDA', description: 'Unusual options activity detected', time: '6 hours ago', timestamp: Date.now() - 6 * 60 * 60 * 1000, icon: 'FaBell', color: '#f59e0b', link: '/dashboard', priority: 'medium' }
-    ],
-    signals: [
-      { id: 7, type: 'signal', title: 'Buy Signal: EUR/USD', description: 'Bullish divergence detected on 4H chart', time: '30 minutes ago', timestamp: Date.now() - 30 * 60 * 1000, icon: 'FaSignal', color: '#34c759', link: '/tools', priority: 'critical' },
-      { id: 8, type: 'signal', title: 'Take Profit: BTC/USD', description: 'Target reached at $52,000', time: '2 hours ago', timestamp: Date.now() - 2 * 60 * 60 * 1000, icon: 'FaDollarSign', color: '#34c759', link: '/tools', priority: 'high' },
-      { id: 9, type: 'signal', title: 'Stop Loss Triggered', description: 'GBP/JPY hits stop loss at 188.50', time: '4 hours ago', timestamp: Date.now() - 4 * 60 * 60 * 1000, icon: 'FaStop', color: '#ff3b30', link: '/tools', priority: 'critical' }
-    ]
-  }), []);
+  // Filter handlers
+  const handleFilterChange = (filterId) => {
+    setActiveFilter(filterId);
+    if (filterId !== 'people') {
+      setPeopleSubFilter(null);
+    }
+  };
 
-  const getAllActivities = useCallback(() => {
-    return [...activities.news, ...activities.trades, ...activities.signals]
-      .sort((a, b) => b.timestamp - a.timestamp);
-  }, [activities]);
+  const handlePeopleSubFilterChange = (category, subcategory = null) => {
+    setPeopleSubFilter({ category, subcategory });
+  };
 
-  const getFilteredActivities = useCallback(() => {
-    if (activeActivityTab === 'all') return getAllActivities();
-    if (activeActivityTab === 'news') return activities.news;
-    if (activeActivityTab === 'trades') return activities.trades;
-    if (activeActivityTab === 'signals') return activities.signals;
-    return getAllActivities();
-  }, [activeActivityTab, activities, getAllActivities]);
+  const filteredWallpapers = useCallback(() => {
+    if (activeWallpaperCategory === 'all') return wallpapers;
+    return wallpapers.filter(w => w.category === activeWallpaperCategory);
+  }, [activeWallpaperCategory]);
 
   useEffect(() => {
     if (searchQuery.length > 1) {
       const filtered = [
         ...navigationItems.filter(item => 
           item.label.toLowerCase().includes(searchQuery.toLowerCase())
-        ),
-        ...getAllActivities().filter(activity => 
-          activity.title.toLowerCase().includes(searchQuery.toLowerCase())
-        ),
-        { id: 'search_all', label: `Search all for "${searchQuery}"`, icon: 'FaSearch', type: 'action' }
+        )
       ];
       setSearchSuggestions(filtered.slice(0, 6));
       setShowSearchSuggestions(true);
@@ -111,7 +229,7 @@ const AuthHomePage = () => {
       setSearchSuggestions([]);
       setShowSearchSuggestions(false);
     }
-  }, [searchQuery, navigationItems, getAllActivities]);
+  }, [searchQuery, navigationItems]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -157,10 +275,6 @@ const AuthHomePage = () => {
   };
 
   const handleNavigation = (item) => {
-    if (item.id === 'search_all') {
-      handleSearch();
-      return;
-    }
     setActiveNavItem(item.id);
     if (item.path) {
       navigate(item.path);
@@ -173,16 +287,6 @@ const AuthHomePage = () => {
       setShowSearchSuggestions(false);
       setIsSearchFocused(false);
     }
-  };
-
-  const handleActivityClick = (activity) => {
-    if (activity.link) {
-      navigate(activity.link);
-    }
-  };
-
-  const toggleExpandActivity = (activityId) => {
-    setExpandedActivity(expandedActivity === activityId ? null : activityId);
   };
 
   const handleWallpaperChange = (wallpaper) => {
@@ -235,14 +339,30 @@ const AuthHomePage = () => {
                 {renderIcon('FaTimes', 20)}
               </button>
             </div>
+            
+            {/* Wallpaper Category Tabs */}
+            <div className="wallpaper-categories">
+              {wallpaperCategories.map(category => (
+                <button
+                  key={category.id}
+                  className={`category-tab ${activeWallpaperCategory === category.id ? 'active' : ''}`}
+                  onClick={() => setActiveWallpaperCategory(category.id)}
+                >
+                  {category.label}
+                </button>
+              ))}
+            </div>
+            
             <div className="wallpaper-grid">
-              {wallpapers.map(wallpaper => (
+              {filteredWallpapers().map(wallpaper => (
                 <div
                   key={wallpaper.id}
                   className={`wallpaper-option ${wallpaperSettings.url === wallpaper.url ? 'selected' : ''}`}
                   style={{ backgroundImage: `url(${wallpaper.url})` }}
                   onClick={() => handleWallpaperChange(wallpaper)}
-                />
+                >
+                  <span className="wallpaper-name">{wallpaper.name}</span>
+                </div>
               ))}
             </div>
             <div className="wallpaper-settings">
@@ -279,65 +399,25 @@ const AuthHomePage = () => {
             >
               <div className="nav-icon">
                 {renderIcon(item.icon, 22)}
-                {item.badge && <span className="nav-badge">{item.badge}</span>}
               </div>
               {!isSidebarCollapsed && <span className="nav-label">{item.label}</span>}
             </div>
           ))}
         </nav>
 
-        {/* Activity Section */}
-        <div className="panel-activity">
-          {!isSidebarCollapsed ? (
-            <>
-              <div className="activity-header">
-                <div className="activity-title">
-                  {renderIcon('FaClock', 14)}
-                  <h4>Recent Activity</h4>
-                </div>
-                <div className="activity-tabs">
-                  <button className={`tab ${activeActivityTab === 'all' ? 'active' : ''}`} onClick={() => setActiveActivityTab('all')}>All</button>
-                  <button className={`tab ${activeActivityTab === 'news' ? 'active' : ''}`} onClick={() => setActiveActivityTab('news')}>News</button>
-                  <button className={`tab ${activeActivityTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveActivityTab('trades')}>Trades</button>
-                  <button className={`tab ${activeActivityTab === 'signals' ? 'active' : ''}`} onClick={() => setActiveActivityTab('signals')}>Signals</button>
-                </div>
+        {!isSidebarCollapsed && (
+          <div className="panel-footer">
+            <div className="user-info">
+              <div className="user-avatar">
+                {renderIcon('FaUserCircle', 32)}
               </div>
-              <div className="activity-list">
-                {getFilteredActivities().slice(0, 6).map((activity) => (
-                  <div key={activity.id} className="activity-item">
-                    <div className="activity-main" onClick={() => handleActivityClick(activity)}>
-                      <div className="activity-icon" style={{ background: activity.color }}>
-                        {renderIcon(activity.icon, 14)}
-                      </div>
-                      <div className="activity-info">
-                        <div className="activity-name">{activity.title}</div>
-                        <div className="activity-time">{activity.time}</div>
-                      </div>
-                      <button 
-                        className="expand-btn"
-                        onClick={(e) => { e.stopPropagation(); toggleExpandActivity(activity.id); }}
-                      >
-                        {renderIcon(expandedActivity === activity.id ? 'FaChevronUp' : 'FaChevronDown', 10)}
-                      </button>
-                    </div>
-                    {expandedActivity === activity.id && (
-                      <div className="activity-details">
-                        <p>{activity.description}</p>
-                        <button className="view-btn">View Details {renderIcon('FaArrowRight', 10)}</button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div className="user-details">
+                <span className="user-name">{user?.name || 'Trader'}</span>
+                <span className="user-status">Online</span>
               </div>
-            </>
-          ) : (
-            <div className="collapsed-indicator">
-              <div className="dot" />
-              <div className="dot" />
-              <div className="dot" />
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
@@ -393,11 +473,129 @@ const AuthHomePage = () => {
                         {renderIcon(suggestion.icon || 'FaSearch', 14)}
                       </div>
                       <div className="suggestion-text">{suggestion.label}</div>
-                      {suggestion.type === 'action' && <div className="suggestion-action">Search</div>}
                     </div>
                   ))}
                 </div>
               )}
+            </div>
+          </Container>
+        </div>
+
+        {/* Filter Buttons Section */}
+        <div className="filter-section">
+          <Container>
+            <div className="filter-container">
+              <div className="filter-label">Filters:</div>
+              <div className="filter-buttons">
+                {filterCategories.map(category => (
+                  <div key={category.id} className="filter-group">
+                    <button
+                      className={`filter-btn ${activeFilter === category.id ? 'active' : ''}`}
+                      onClick={() => handleFilterChange(category.id)}
+                    >
+                      {renderIcon(category.icon, 16)}
+                      <span>{category.label}</span>
+                      {category.hasSubmenu && renderIcon('FaChevronDown', 10, 'dropdown-arrow')}
+                    </button>
+                    
+                    {/* People Submenu */}
+                    {category.id === 'people' && activeFilter === 'people' && (
+                      <div className="people-submenu">
+                        {/* Traders with nested subcategories */}
+                        <div className="submenu-group">
+                          <button
+                            className={`submenu-btn ${peopleSubFilter?.category === 'traders' ? 'active' : ''}`}
+                            onClick={() => handlePeopleSubFilterChange('traders')}
+                          >
+                            {renderIcon(peopleSubCategories.traders.icon, 14)}
+                            <span>{peopleSubCategories.traders.label}</span>
+                            {renderIcon('FaChevronRight', 10)}
+                          </button>
+                          
+                          {peopleSubFilter?.category === 'traders' && (
+                            <div className="nested-submenu">
+                              {peopleSubCategories.traders.subcategories.map(sub => (
+                                <button
+                                  key={sub}
+                                  className={`nested-btn ${peopleSubFilter?.subcategory === sub ? 'active' : ''}`}
+                                  onClick={() => handlePeopleSubFilterChange('traders', sub)}
+                                >
+                                  {sub.charAt(0).toUpperCase() + sub.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Developers */}
+                        <button
+                          className={`submenu-btn ${peopleSubFilter?.category === 'developers' ? 'active' : ''}`}
+                          onClick={() => handlePeopleSubFilterChange('developers')}
+                        >
+                          {renderIcon(peopleSubCategories.developers.icon, 14)}
+                          <span>{peopleSubCategories.developers.label}</span>
+                        </button>
+                        
+                        {/* Students */}
+                        <button
+                          className={`submenu-btn ${peopleSubFilter?.category === 'students' ? 'active' : ''}`}
+                          onClick={() => handlePeopleSubFilterChange('students')}
+                        >
+                          {renderIcon(peopleSubCategories.students.icon, 14)}
+                          <span>{peopleSubCategories.students.label}</span>
+                        </button>
+                        
+                        {/* Friends */}
+                        <button
+                          className={`submenu-btn ${peopleSubFilter?.category === 'friends' ? 'active' : ''}`}
+                          onClick={() => handlePeopleSubFilterChange('friends')}
+                        >
+                          {renderIcon(peopleSubCategories.friends.icon, 14)}
+                          <span>{peopleSubCategories.friends.label}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Active Filter Indicator */}
+              {activeFilter !== 'all' && (
+                <div className="active-filter-indicator">
+                  <span>Active: {filterCategories.find(f => f.id === activeFilter)?.label}</span>
+                  {peopleSubFilter && (
+                    <span className="subfilter-badge">
+                      {peopleSubFilter.category}
+                      {peopleSubFilter.subcategory && ` / ${peopleSubFilter.subcategory}`}
+                    </span>
+                  )}
+                  <button className="clear-filter" onClick={() => {
+                    setActiveFilter('all');
+                    setPeopleSubFilter(null);
+                  }}>
+                    {renderIcon('FaTimes', 12)}
+                  </button>
+                </div>
+              )}
+            </div>
+          </Container>
+        </div>
+
+        {/* Content Area - Will display filtered content based on activeFilter */}
+        <div className="content-area">
+          <Container>
+            <div className="content-placeholder">
+              {/* Content will be populated based on filters */}
+              <p className="placeholder-text">
+                {activeFilter === 'all' && 'Showing all content...'}
+                {activeFilter === 'videos' && 'Videos content will appear here...'}
+                {activeFilter === 'charts' && 'Charts content will appear here...'}
+                {activeFilter === 'academies' && 'Academies content will appear here...'}
+                {activeFilter === 'tools' && 'Tools content will appear here...'}
+                {activeFilter === 'people' && peopleSubFilter && 
+                  `Showing ${peopleSubFilter.category}${peopleSubFilter.subcategory ? ` - ${peopleSubFilter.subcategory}` : ''}...`
+                }
+              </p>
             </div>
           </Container>
         </div>
