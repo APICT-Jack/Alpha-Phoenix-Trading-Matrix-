@@ -10,7 +10,11 @@ import {
   FaBars,
   FaTimes,
   FaUser,
-  FaSignInAlt
+  FaSignInAlt,
+  FaComments,
+  FaBook,
+  FaDollarSign,
+  FaCog
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import AuthModal from '../auth/AuthModal';
@@ -20,11 +24,8 @@ import './Header.css';
 // Constants for API URLs
 const API_URL = import.meta.env.VITE_API_URL || 
                 (import.meta.env.PROD ? `${window.location.origin}/api` : 'http://localhost:5000/api');
-const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
-                 import.meta.env.VITE_BASE_URL || 
-                 (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 
-// Notification service (simplified) with dynamic URL
+// Notification service
 const notificationService = {
   getNotificationCounts: async (token) => {
     try {
@@ -41,7 +42,7 @@ const notificationService = {
   }
 };
 
-// Simplified NotificationsPanel Component
+// NotificationsPanel Component
 const NotificationsPanel = ({ onClose, user }) => {
   const panelRef = useRef(null);
 
@@ -91,6 +92,19 @@ export default function Header() {
   const mobileMenuToggleRef = useRef(null);
   const headerRef = useRef(null);
 
+  // Mobile navigation items for dropdown
+  const mobileNavItems = [
+    { id: 'home', label: 'Home', icon: FaHome, path: '/' },
+    { id: 'dashboard', label: 'Dashboard', icon: FaChartBar, path: '/dashboard' },
+    { id: 'profile', label: 'Profile', icon: FaUser, path: '/profile' },
+    { id: 'chat', label: 'Chat', icon: FaComments, path: '/chat' },
+    { id: 'education', label: 'Academy', icon: FaGraduationCap, path: '/education' },
+    { id: 'tools', label: 'Tools', icon: FaTools, path: '/tools' },
+    { id: 'library', label: 'Library', icon: FaBook, path: '/education' },
+    { id: 'cashier', label: 'Cashier', icon: FaDollarSign, path: '/cashier' },
+    { id: 'settings', label: 'Settings', icon: FaCog, path: '/profile/settings' }
+  ];
+
   // Check if mobile on mount and resize
   useEffect(() => {
     const checkMobile = () => {
@@ -105,20 +119,18 @@ export default function Header() {
     };
   }, []);
 
-  // Handle scroll behavior for mobile - hide/show header on scroll down/up
+  // Handle scroll behavior for mobile
   useEffect(() => {
     if (!isMobile) return;
 
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       
-      // Don't hide header if mobile nav is open
       if (showMobileNav) {
         setShowHeader(true);
         return;
       }
 
-      // Show header when scrolling up, hide when scrolling down
       if (currentScrollY > lastScrollY && currentScrollY > 100) {
         setShowHeader(false);
       } else {
@@ -150,6 +162,12 @@ export default function Header() {
       setActiveNav('dashboard');
     } else if (path === '/profile') {
       setActiveNav('profile');
+    } else if (path === '/chat') {
+      setActiveNav('chat');
+    } else if (path === '/tools') {
+      setActiveNav('tools');
+    } else if (path === '/cashier') {
+      setActiveNav('cashier');
     } else {
       setActiveNav('');
     }
@@ -165,7 +183,6 @@ export default function Header() {
 
       if (showMobileNav && !isMobileNavClick && !isMobileToggleClick) {
         setShowMobileNav(false);
-        // Ensure header is visible when mobile nav closes
         setShowHeader(true);
       }
 
@@ -246,21 +263,21 @@ export default function Header() {
     }
   }, [canShowDashboard]);
 
-  // Navigation handlers
   const handleMobileNavToggle = () => {
     setShowMobileNav(prev => !prev);
     setShowNotifications(false);
-    // Ensure header is visible when toggling mobile nav
     setShowHeader(true);
   };
 
   const handleNavLinkClick = (navItem) => {
-    setActiveNav(navItem);
+    setActiveNav(navItem.id);
     setShowMobileNav(false);
     setShowHeader(true);
+    if (navItem.path) {
+      navigate(navItem.path);
+    }
   };
 
-  // Scroll to section function
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -275,7 +292,6 @@ export default function Header() {
     }
   };
 
-  // Handle home click to scroll to hero section
   const handleHomeClick = (e) => {
     e.preventDefault();
     setActiveNav('home');
@@ -318,7 +334,7 @@ export default function Header() {
   };
 
   const handleCasherClick = () => {
-    navigate('/casher');
+    navigate('/cashier');
   };
 
   const handleProfileClick = () => {
@@ -347,14 +363,12 @@ export default function Header() {
     }
   };
 
-  // Handle mobile login click
   const handleMobileLoginClick = () => {
     setShowAuthModal(true);
     setShowMobileNav(false);
     setShowHeader(true);
   };
 
-  // Format user object for UserAvatar
   const getFormattedUser = () => {
     if (!user) return null;
     
@@ -367,8 +381,6 @@ export default function Header() {
   };
 
   const formattedUser = getFormattedUser();
-
-  // Determine header classes
   const headerClasses = `main-header ${!showHeader && isMobile ? 'header-hidden' : ''} ${showMobileNav ? 'mobile-nav-open' : ''}`;
 
   return (
@@ -376,7 +388,7 @@ export default function Header() {
       <header ref={headerRef} className={headerClasses}>
         <div className="container">
           <div className="header-content">
-            {/* Logo */}
+            {/* Logo - Always visible */}
             <a 
               href="/" 
               className="logo-container"
@@ -395,71 +407,11 @@ export default function Header() {
               </div>
             </a>
             
-            {/* Desktop Navigation */}
-            <nav className="desktop-nav">
-              <ul>
-                <li>
-                  <a 
-                    href="/" 
-                    className={activeNav === 'home' ? 'active' : ''}
-                    onClick={handleHomeClick}
-                  >
-                    <FaHome /> Home
-                  </a>
-                </li>
-                <li>
-                  <Link 
-                    to="/education" 
-                    className={activeNav === 'education' ? 'active' : ''}
-                    onClick={() => handleNavLinkClick('education')}
-                  >
-                    <FaChartBar /> Library
-                  </Link>
-                </li>
-                <li>
-                  <Link 
-                    to="/education" 
-                    className={activeNav === 'education' ? 'active' : ''}
-                    onClick={() => handleNavLinkClick('education')}
-                  >
-                    <FaGraduationCap /> Academy
-                  </Link>
-                </li>
-                <li>
-                  <a 
-                    href="#community" 
-                    className={activeNav === 'community' ? 'active' : ''}
-                    onClick={(e) => handleSectionClick('community', e)}
-                  >
-                    <FaUsers /> Community
-                  </a>
-                </li>
-                <li>
-                  <a 
-                    href="#tools"
-                    onClick={(e) => handleSectionClick('tools', e)}
-                  >
-                    <FaTools /> Tools
-                  </a>
-                </li>
-                
-                {canShowDashboard && (
-                  <li>
-                    <Link 
-                      to="/dashboard" 
-                      className={activeNav === 'dashboard' ? 'active' : ''}
-                      onClick={() => handleNavLinkClick('dashboard')}
-                    >
-                      <FaChartBar /> Dashboard
-                    </Link>
-                  </li>
-                )}
-              </ul>
-            </nav>
+            {/* Desktop Navigation - REMOVED */}
             
-            {/* User Actions */}
+            {/* User Actions - Only Notifications and Avatar */}
             <div className="user-actions">
-              {/* Notifications */}
+              {/* Notifications - Transparent background */}
               {canShowDashboard && (
                 <button 
                   className={`notification-btn ${showNotifications ? 'active' : ''}`}
@@ -477,7 +429,7 @@ export default function Header() {
                 </button>
               )}
               
-              {/* User Avatar with Dropdown - Hidden on mobile */}
+              {/* User Avatar - Desktop only */}
               {!isMobile && (
                 <div className="user-avatar-container">
                   <UserAvatar 
@@ -496,18 +448,6 @@ export default function Header() {
                 </div>
               )}
               
-              {/* Mobile Login Button - Only shown when not logged in on mobile */}
-              {isMobile && !canShowDashboard && (
-                <button 
-                  className="mobile-login-btn"
-                  onClick={() => setShowAuthModal(true)}
-                  aria-label="Login"
-                >
-                  <FaSignInAlt />
-                  <span className="mobile-login-text">Login</span>
-                </button>
-              )}
-              
               {/* Mobile Menu Toggle */}
               <button 
                 ref={mobileMenuToggleRef}
@@ -521,7 +461,7 @@ export default function Header() {
               </button>
             </div>
 
-            {/* Mobile Navigation */}
+            {/* Mobile Navigation Dropdown - Shows all tabs */}
             <nav 
               ref={mobileNavRef}
               className={`mobile-nav ${showMobileNav ? 'active' : ''}`}
@@ -535,73 +475,16 @@ export default function Header() {
                 </div>
                 
                 <ul className="mobile-nav-links">
-                  <li>
-                    <a 
-                      href="/" 
-                      className={activeNav === 'home' ? 'active' : ''}
-                      onClick={handleHomeClick}
-                    >
-                      <FaHome /> Home
-                    </a>
-                  </li>
-                  <li>
-                    <Link 
-                      to="/education" 
-                      className={activeNav === 'education' ? 'active' : ''}
-                      onClick={() => handleNavLinkClick('education')}
-                    >
-                      <FaChartBar /> Library
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      to="/education" 
-                      className={activeNav === 'education' ? 'active' : ''}
-                      onClick={() => handleNavLinkClick('education')}
-                    >
-                      <FaGraduationCap /> Academy
-                    </Link>
-                  </li>
-                  <li>
-                    <a 
-                      href="#community" 
-                      className={activeNav === 'community' ? 'active' : ''}
-                      onClick={(e) => handleSectionClick('community', e)}
-                    >
-                      <FaUsers /> Community
-                    </a>
-                  </li>
-                  <li>
-                    <a 
-                      href="#tools"
-                      onClick={(e) => handleSectionClick('tools', e)}
-                    >
-                      <FaTools /> Tools
-                    </a>
-                  </li>
-                  
-                  {canShowDashboard && (
-                    <>
-                      <li>
-                        <Link 
-                          to="/dashboard" 
-                          className={activeNav === 'dashboard' ? 'active' : ''}
-                          onClick={() => handleNavLinkClick('dashboard')}
-                        >
-                          <FaChartBar /> Dashboard
-                        </Link>
-                      </li>
-                      <li>
-                        <Link 
-                          to="/profile" 
-                          className={activeNav === 'profile' ? 'active' : ''}
-                          onClick={() => handleNavLinkClick('profile')}
-                        >
-                          <FaUser /> Profile
-                        </Link>
-                      </li>
-                    </>
-                  )}
+                  {mobileNavItems.map((item) => (
+                    <li key={item.id}>
+                      <button 
+                        className={activeNav === item.id ? 'active' : ''}
+                        onClick={() => handleNavLinkClick(item)}
+                      >
+                        <item.icon /> {item.label}
+                      </button>
+                    </li>
+                  ))}
                   
                   {/* Login option in mobile nav for non-authenticated users */}
                   {!canShowDashboard && (
