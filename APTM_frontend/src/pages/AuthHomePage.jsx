@@ -1,4 +1,4 @@
-// src/pages/AuthHomePage.jsx - Pure Glass Design
+// src/pages/AuthHomePage.jsx - Pure Glass Design with Sticky Search
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
@@ -14,6 +14,7 @@ const AuthHomePage = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
   // Filter State
   const [activeFilters, setActiveFilters] = useState(['all']);
@@ -40,8 +41,10 @@ const AuthHomePage = () => {
   const peopleMenuRef = useRef(null);
   const traderMenuRef = useRef(null);
   const traderBtnRef = useRef(null);
+  const stickySearchRef = useRef(null);
+  const [isSticky, setIsSticky] = useState(false);
 
-  // Navigation items
+  // Navigation items - hidden on mobile, shown as tabs on desktop
   const navItems = [
     { id: 'home', label: 'Home', icon: 'FaHome', path: '/' },
     { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard' },
@@ -85,6 +88,29 @@ const AuthHomePage = () => {
   ];
 
   const [activeWallpaperCategory, setActiveWallpaperCategory] = useState('all');
+
+  // Handle resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Sticky scroll effect for search bar
+  useEffect(() => {
+    const handleScroll = () => {
+      if (stickySearchRef.current) {
+        const rect = stickySearchRef.current.getBoundingClientRect();
+        const headerHeight = document.querySelector('.main-header')?.offsetHeight || 0;
+        setIsSticky(rect.top <= headerHeight + 10);
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Load wallpaper settings
   useEffect(() => {
@@ -331,144 +357,153 @@ const AuthHomePage = () => {
         </div>
       )}
 
-      {/* Main Container - Centered Everything */}
+      {/* Main Container */}
       <div className="auth-container">
-        {/* Glass Header with Navigation */}
-        <header className="glass-header">
-          <div className="nav-bar">
-            <div className="nav-items">
+        {/* Desktop Navigation Tabs - Hidden on mobile */}
+        {!isMobile && (
+          <div className="desktop-nav-tabs">
+            <div className="nav-items-scroll">
               {navItems.map(item => (
                 <button
                   key={item.id}
-                  className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                  className={`nav-tab ${activeTab === item.id ? 'active' : ''}`}
                   onClick={() => handleNavigation(item)}
                 >
-                  {item.label}
+                  {renderIcon(item.icon, 14)}
+                  <span>{item.label}</span>
                 </button>
               ))}
             </div>
           </div>
-        </header>
+        )}
 
-        {/* Centered Search Section */}
-        <div className="search-section">
-          <div className="search-label">
-            <h1>Alpha Phoenix Trading</h1>
-            <p>Search trading tools, signals, and educational content</p>
-          </div>
-          
-          <div className="search-box" style={{ position: 'relative' }}>
-            <div className="search-icon">{renderIcon('FaSearch', 16)}</div>
-            <input
-              ref={searchInputRef}
-              type="text"
-              className="search-input"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onFocus={() => setIsSearchFocused(true)}
-              onKeyPress={e => e.key === 'Enter' && handleSearch()}
-            />
-            {searchQuery && (
-              <button className="clear-search" onClick={() => setSearchQuery('')}>
-                {renderIcon('FaTimes', 12)}
-              </button>
-            )}
-            <button className="search-button" onClick={handleSearch}>
-              Search
-            </button>
+        {/* Sticky Search and Filter Section */}
+        <div 
+          ref={stickySearchRef} 
+          className={`sticky-search-section ${isSticky ? 'is-sticky' : ''}`}
+        >
+          {/* Centered Search Section */}
+          <div className="search-section">
+            <div className="search-label">
+              <h1>Alpha Phoenix Trading</h1>
+              <p>Search trading tools, signals, and educational content</p>
+            </div>
             
-            {showSuggestions && searchSuggestions.length > 0 && (
-              <div className="search-suggestions" ref={suggestionsRef}>
-                {searchSuggestions.map(item => (
-                  <div key={item.id} className="suggestion-item" onClick={() => handleNavigation(item)}>
-                    <div className="suggestion-icon">{renderIcon(item.icon, 12)}</div>
-                    <div className="suggestion-text">{item.label}</div>
-                    <div className="suggestion-action">Jump to</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Filter Chips */}
-        <div className="filter-section">
-          <div className="filter-chips">
-            {filterOptions.map(filter => (
-              <div key={filter.id} style={{ position: 'relative' }}>
-                <button
-                  className={`filter-chip ${activeFilters.includes(filter.id) ? 'active' : ''} ${filter.hasSubmenu ? 'has-submenu' : ''}`}
-                  onClick={() => handleFilterClick(filter.id)}
-                >
-                  {filter.label}
+            <div className="search-wrapper" style={{ position: 'relative' }}>
+              <div className="search-box">
+                <div className="search-icon">{renderIcon('FaSearch', 16)}</div>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className="search-input"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onKeyPress={e => e.key === 'Enter' && handleSearch()}
+                />
+                {searchQuery && (
+                  <button className="clear-search" onClick={() => setSearchQuery('')}>
+                    {renderIcon('FaTimes', 12)}
+                  </button>
+                )}
+                <button className="search-button" onClick={handleSearch}>
+                  Search
                 </button>
                 
-                {filter.hasSubmenu && showPeopleMenu && (
-                  <div className="people-submenu" ref={peopleMenuRef}>
-                    {/* Traders with nested */}
-                    <div style={{ position: 'relative' }}>
-                      <button 
-                        ref={traderBtnRef}
-                        className={`submenu-item ${peopleFilters.traders.length > 0 ? 'active' : ''}`}
-                        onClick={() => setShowTraderMenu(!showTraderMenu)}
-                      >
-                        <span className="checkbox-indicator">▶</span>
-                        <span>Traders</span>
-                      </button>
-                      {showTraderMenu && (
-                        <div className="nested-submenu" ref={traderMenuRef}>
-                          {['new', 'beginner', 'advance', 'pro', 'mentor'].map(level => (
-                            <button
-                              key={level}
-                              className={`nested-option ${peopleFilters.traders.includes(level) ? 'active' : ''}`}
-                              onClick={() => handlePeopleFilter('traders', level)}
-                            >
-                              {peopleFilters.traders.includes(level) ? '✓' : '○'} {level}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <button 
-                      className={`submenu-item ${peopleFilters.developers ? 'active' : ''}`}
-                      onClick={() => handlePeopleFilter('developers')}
-                    >
-                      <span className="checkbox-indicator">{peopleFilters.developers ? '✓' : '○'}</span>
-                      <span>Developers</span>
-                    </button>
-                    <button 
-                      className={`submenu-item ${peopleFilters.students ? 'active' : ''}`}
-                      onClick={() => handlePeopleFilter('students')}
-                    >
-                      <span className="checkbox-indicator">{peopleFilters.students ? '✓' : '○'}</span>
-                      <span>Students</span>
-                    </button>
-                    <button 
-                      className={`submenu-item ${peopleFilters.friends ? 'active' : ''}`}
-                      onClick={() => handlePeopleFilter('friends')}
-                    >
-                      <span className="checkbox-indicator">{peopleFilters.friends ? '✓' : '○'}</span>
-                      <span>Friends</span>
-                    </button>
+                {showSuggestions && searchSuggestions.length > 0 && (
+                  <div className="search-suggestions" ref={suggestionsRef}>
+                    {searchSuggestions.map(item => (
+                      <div key={item.id} className="suggestion-item" onClick={() => handleNavigation(item)}>
+                        <div className="suggestion-icon">{renderIcon(item.icon, 12)}</div>
+                        <div className="suggestion-text">{item.label}</div>
+                        <div className="suggestion-action">Jump to</div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-            ))}
+            </div>
           </div>
 
-          {/* Active Filters Display */}
-          {getActiveFilterLabel() && (
-            <div className="active-filters-bar">
-              <div className="active-filter-badge">
-                <span>Active: {getActiveFilterLabel()}</span>
-              </div>
-              <button className="clear-filters-btn" onClick={clearAllFilters}>
-                Clear all
-              </button>
+          {/* Filter Chips */}
+          <div className="filter-section">
+            <div className="filter-chips">
+              {filterOptions.map(filter => (
+                <div key={filter.id} style={{ position: 'relative' }}>
+                  <button
+                    className={`filter-chip ${activeFilters.includes(filter.id) ? 'active' : ''} ${filter.hasSubmenu ? 'has-submenu' : ''}`}
+                    onClick={() => handleFilterClick(filter.id)}
+                  >
+                    {filter.label}
+                  </button>
+                  
+                  {filter.hasSubmenu && showPeopleMenu && (
+                    <div className="people-submenu" ref={peopleMenuRef}>
+                      {/* Traders with nested */}
+                      <div style={{ position: 'relative' }}>
+                        <button 
+                          ref={traderBtnRef}
+                          className={`submenu-item ${peopleFilters.traders.length > 0 ? 'active' : ''}`}
+                          onClick={() => setShowTraderMenu(!showTraderMenu)}
+                        >
+                          <span className="checkbox-indicator">▶</span>
+                          <span>Traders</span>
+                        </button>
+                        {showTraderMenu && (
+                          <div className="nested-submenu" ref={traderMenuRef}>
+                            {['new', 'beginner', 'advance', 'pro', 'mentor'].map(level => (
+                              <button
+                                key={level}
+                                className={`nested-option ${peopleFilters.traders.includes(level) ? 'active' : ''}`}
+                                onClick={() => handlePeopleFilter('traders', level)}
+                              >
+                                {peopleFilters.traders.includes(level) ? '✓' : '○'} {level}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <button 
+                        className={`submenu-item ${peopleFilters.developers ? 'active' : ''}`}
+                        onClick={() => handlePeopleFilter('developers')}
+                      >
+                        <span className="checkbox-indicator">{peopleFilters.developers ? '✓' : '○'}</span>
+                        <span>Developers</span>
+                      </button>
+                      <button 
+                        className={`submenu-item ${peopleFilters.students ? 'active' : ''}`}
+                        onClick={() => handlePeopleFilter('students')}
+                      >
+                        <span className="checkbox-indicator">{peopleFilters.students ? '✓' : '○'}</span>
+                        <span>Students</span>
+                      </button>
+                      <button 
+                        className={`submenu-item ${peopleFilters.friends ? 'active' : ''}`}
+                        onClick={() => handlePeopleFilter('friends')}
+                      >
+                        <span className="checkbox-indicator">{peopleFilters.friends ? '✓' : '○'}</span>
+                        <span>Friends</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+
+            {/* Active Filters Display */}
+            {getActiveFilterLabel() && (
+              <div className="active-filters-bar">
+                <div className="active-filter-badge">
+                  <span>Active: {getActiveFilterLabel()}</span>
+                </div>
+                <button className="clear-filters-btn" onClick={clearAllFilters}>
+                  Clear all
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Content Area */}
