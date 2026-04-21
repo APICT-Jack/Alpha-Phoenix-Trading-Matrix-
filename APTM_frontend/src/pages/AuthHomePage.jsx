@@ -1,22 +1,19 @@
-// src/pages/AuthHomePage.jsx - Complete Redesign
+// src/pages/AuthHomePage.jsx - Pure Glass Design
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
 import './AuthHomePage.css';
 
 const AuthHomePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
   
   // State
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   
   // Filter State
   const [activeFilters, setActiveFilters] = useState(['all']);
@@ -42,6 +39,7 @@ const AuthHomePage = () => {
   const suggestionsRef = useRef(null);
   const peopleMenuRef = useRef(null);
   const traderMenuRef = useRef(null);
+  const traderBtnRef = useRef(null);
 
   // Navigation items
   const navItems = [
@@ -72,7 +70,10 @@ const AuthHomePage = () => {
     { id: 3, name: 'Bullish Candles', url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1920&h=1080&fit=crop', category: 'trading' },
     { id: 4, name: 'Market Data', url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1920&h=1080&fit=crop', category: 'trading' },
     { id: 5, name: 'Night City', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&h=1080&fit=crop', category: 'city' },
-    { id: 6, name: 'Neon Grid', url: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=1920&h=1080&fit=crop', category: 'abstract' }
+    { id: 6, name: 'Neon Grid', url: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=1920&h=1080&fit=crop', category: 'abstract' },
+    { id: 7, name: 'Forest Dreams', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&h=1080&fit=crop', category: 'nature' },
+    { id: 8, name: 'Crypto Bull Run', url: 'https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=1920&h=1080&fit=crop', category: 'trading' },
+    { id: 9, name: 'Geometric Dark', url: 'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=1920&h=1080&fit=crop', category: 'abstract' }
   ];
 
   const wallpaperCategories = [
@@ -84,18 +85,6 @@ const AuthHomePage = () => {
   ];
 
   const [activeWallpaperCategory, setActiveWallpaperCategory] = useState('all');
-
-  // Handle resize
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-      if (window.innerWidth > 768) {
-        setIsSidebarOpen(false);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Load wallpaper settings
   useEffect(() => {
@@ -132,10 +121,12 @@ const AuthHomePage = () => {
           searchInputRef.current && !searchInputRef.current.contains(e.target)) {
         setShowSuggestions(false);
       }
-      if (peopleMenuRef.current && !peopleMenuRef.current.contains(e.target)) {
+      if (peopleMenuRef.current && !peopleMenuRef.current.contains(e.target) &&
+          !e.target.closest('.filter-chip.has-submenu')) {
         setShowPeopleMenu(false);
       }
-      if (traderMenuRef.current && !traderMenuRef.current.contains(e.target)) {
+      if (traderMenuRef.current && !traderMenuRef.current.contains(e.target) &&
+          traderBtnRef.current && !traderBtnRef.current.contains(e.target)) {
         setShowTraderMenu(false);
       }
     };
@@ -168,6 +159,8 @@ const AuthHomePage = () => {
   const handleFilterClick = (filterId) => {
     if (filterId === 'all') {
       setActiveFilters(['all']);
+    } else if (filterId === 'people') {
+      setShowPeopleMenu(!showPeopleMenu);
     } else {
       setActiveFilters(prev => {
         const newFilters = prev.filter(f => f !== 'all');
@@ -220,18 +213,18 @@ const AuthHomePage = () => {
     if (item.path) {
       navigate(item.path);
     }
-    setIsSidebarOpen(false);
   };
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       setShowSuggestions(false);
+      setIsSearchFocused(false);
     }
   };
 
   const getActiveFilterLabel = () => {
-    if (activeFilters.includes('all')) return 'All';
+    if (activeFilters.includes('all')) return null;
     const filters = [];
     if (activeFilters.includes('videos')) filters.push('Videos');
     if (activeFilters.includes('charts')) filters.push('Charts');
@@ -254,7 +247,7 @@ const AuthHomePage = () => {
     activeWallpaperCategory === 'all' || w.category === activeWallpaperCategory
   );
 
-  const renderIcon = (name, size = 18) => {
+  const renderIcon = (name, size = 16) => {
     const Icon = Icons[name];
     return Icon ? <Icon size={size} /> : null;
   };
@@ -264,13 +257,13 @@ const AuthHomePage = () => {
       {/* Wallpaper Controls */}
       <div className="wallpaper-controls">
         <button className="wallpaper-btn" onClick={() => setShowWallpaperModal(true)}>
-          {renderIcon('FaImage', 16)}
+          {renderIcon('FaImage', 14)}
         </button>
         <button className="wallpaper-btn" onClick={() => updateWallpaper('brightness', Math.min(1, wallpaperSettings.brightness + 0.1))}>
-          {renderIcon('FaSun', 14)}
+          {renderIcon('FaSun', 12)}
         </button>
         <button className="wallpaper-btn" onClick={() => updateWallpaper('brightness', Math.max(0.3, wallpaperSettings.brightness - 0.1))}>
-          {renderIcon('FaMoon', 14)}
+          {renderIcon('FaMoon', 12)}
         </button>
       </div>
 
@@ -281,7 +274,7 @@ const AuthHomePage = () => {
             <div className="modal-header">
               <h3>Choose Wallpaper</h3>
               <button className="close-modal" onClick={() => setShowWallpaperModal(false)}>
-                {renderIcon('FaTimes', 18)}
+                {renderIcon('FaTimes', 16)}
               </button>
             </div>
             
@@ -338,88 +331,75 @@ const AuthHomePage = () => {
         </div>
       )}
 
-      {/* Integrated Header */}
-      <header className="auth-header">
-        <div className="header-container">
-          <div className="top-bar">
-            {/* Logo */}
-            <div className="logo">
-              <div className="logo-icon">AP</div>
-              <div className="logo-text">Alpha Phoenix<span>Trading</span></div>
+      {/* Main Container - Centered Everything */}
+      <div className="auth-container">
+        {/* Glass Header with Navigation */}
+        <header className="glass-header">
+          <div className="nav-bar">
+            <div className="nav-items">
+              {navItems.map(item => (
+                <button
+                  key={item.id}
+                  className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                  onClick={() => handleNavigation(item)}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
+          </div>
+        </header>
 
-            {/* Centered Search */}
-            <div className="search-wrapper">
-              <div className="search-bar">
-                <div className="search-icon">{renderIcon('FaSearch', 16)}</div>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  className="search-input"
-                  placeholder="Search trading tools, news, signals..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onKeyPress={e => e.key === 'Enter' && handleSearch()}
-                />
-                {searchQuery && (
-                  <button className="clear-search" onClick={() => setSearchQuery('')}>
-                    {renderIcon('FaTimes', 12)}
-                  </button>
-                )}
+        {/* Centered Search Section */}
+        <div className="search-section">
+          <div className="search-label">
+            <h1>Alpha Phoenix Trading</h1>
+            <p>Search trading tools, signals, and educational content</p>
+          </div>
+          
+          <div className="search-box" style={{ position: 'relative' }}>
+            <div className="search-icon">{renderIcon('FaSearch', 16)}</div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="search-input"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onKeyPress={e => e.key === 'Enter' && handleSearch()}
+            />
+            {searchQuery && (
+              <button className="clear-search" onClick={() => setSearchQuery('')}>
+                {renderIcon('FaTimes', 12)}
+              </button>
+            )}
+            <button className="search-button" onClick={handleSearch}>
+              Search
+            </button>
+            
+            {showSuggestions && searchSuggestions.length > 0 && (
+              <div className="search-suggestions" ref={suggestionsRef}>
+                {searchSuggestions.map(item => (
+                  <div key={item.id} className="suggestion-item" onClick={() => handleNavigation(item)}>
+                    <div className="suggestion-icon">{renderIcon(item.icon, 12)}</div>
+                    <div className="suggestion-text">{item.label}</div>
+                    <div className="suggestion-action">Jump to</div>
+                  </div>
+                ))}
               </div>
-              
-              {showSuggestions && searchSuggestions.length > 0 && (
-                <div className="search-suggestions" ref={suggestionsRef}>
-                  {searchSuggestions.map(item => (
-                    <div key={item.id} className="suggestion-item" onClick={() => handleNavigation(item)}>
-                      <div className="suggestion-icon">{renderIcon(item.icon, 14)}</div>
-                      <div className="suggestion-text">{item.label}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="header-actions">
-              <button className="notification-btn">
-                {renderIcon('FaBell', 18)}
-                <span className="notification-badge">3</span>
-              </button>
-              <button className="user-avatar-btn">
-                {user?.name?.[0] || 'U'}
-              </button>
-              <button 
-                className={`mobile-menu-toggle ${isSidebarOpen ? 'active' : ''}`}
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              >
-                <span></span>
-                <span></span>
-                <span></span>
-              </button>
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* Navigation Tabs */}
-          <div className="nav-tabs">
-            {navItems.map(item => (
-              <button
-                key={item.id}
-                className={`nav-tab ${activeTab === item.id ? 'active' : ''}`}
-                onClick={() => handleNavigation(item)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Filter Chips */}
-          <div className="filter-tabs">
+        {/* Filter Chips */}
+        <div className="filter-section">
+          <div className="filter-chips">
             {filterOptions.map(filter => (
               <div key={filter.id} style={{ position: 'relative' }}>
                 <button
                   className={`filter-chip ${activeFilters.includes(filter.id) ? 'active' : ''} ${filter.hasSubmenu ? 'has-submenu' : ''}`}
-                  onClick={() => filter.hasSubmenu ? setShowPeopleMenu(!showPeopleMenu) : handleFilterClick(filter.id)}
+                  onClick={() => handleFilterClick(filter.id)}
                 >
                   {filter.label}
                 </button>
@@ -429,10 +409,11 @@ const AuthHomePage = () => {
                     {/* Traders with nested */}
                     <div style={{ position: 'relative' }}>
                       <button 
+                        ref={traderBtnRef}
                         className={`submenu-item ${peopleFilters.traders.length > 0 ? 'active' : ''}`}
                         onClick={() => setShowTraderMenu(!showTraderMenu)}
                       >
-                        <span className="checkbox-mark">▶</span>
+                        <span className="checkbox-indicator">▶</span>
                         <span>Traders</span>
                       </button>
                       {showTraderMenu && (
@@ -443,8 +424,7 @@ const AuthHomePage = () => {
                               className={`nested-option ${peopleFilters.traders.includes(level) ? 'active' : ''}`}
                               onClick={() => handlePeopleFilter('traders', level)}
                             >
-                              {peopleFilters.traders.includes(level) ? '✓ ' : '○ '}
-                              {level}
+                              {peopleFilters.traders.includes(level) ? '✓' : '○'} {level}
                             </button>
                           ))}
                         </div>
@@ -455,21 +435,21 @@ const AuthHomePage = () => {
                       className={`submenu-item ${peopleFilters.developers ? 'active' : ''}`}
                       onClick={() => handlePeopleFilter('developers')}
                     >
-                      <span className="checkbox-mark">{peopleFilters.developers ? '✓' : '○'}</span>
+                      <span className="checkbox-indicator">{peopleFilters.developers ? '✓' : '○'}</span>
                       <span>Developers</span>
                     </button>
                     <button 
                       className={`submenu-item ${peopleFilters.students ? 'active' : ''}`}
                       onClick={() => handlePeopleFilter('students')}
                     >
-                      <span className="checkbox-mark">{peopleFilters.students ? '✓' : '○'}</span>
+                      <span className="checkbox-indicator">{peopleFilters.students ? '✓' : '○'}</span>
                       <span>Students</span>
                     </button>
                     <button 
                       className={`submenu-item ${peopleFilters.friends ? 'active' : ''}`}
                       onClick={() => handlePeopleFilter('friends')}
                     >
-                      <span className="checkbox-mark">{peopleFilters.friends ? '✓' : '○'}</span>
+                      <span className="checkbox-indicator">{peopleFilters.friends ? '✓' : '○'}</span>
                       <span>Friends</span>
                     </button>
                   </div>
@@ -479,65 +459,30 @@ const AuthHomePage = () => {
           </div>
 
           {/* Active Filters Display */}
-          {!activeFilters.includes('all') && (
-            <div className="active-filters">
+          {getActiveFilterLabel() && (
+            <div className="active-filters-bar">
               <div className="active-filter-badge">
                 <span>Active: {getActiveFilterLabel()}</span>
               </div>
-              <button className="clear-filters" onClick={clearAllFilters}>
+              <button className="clear-filters-btn" onClick={clearAllFilters}>
                 Clear all
               </button>
             </div>
           )}
         </div>
-      </header>
 
-      {/* Mobile Sidebar */}
-      {isMobile && (
-        <>
-          <div className={`nav-sidebar ${isSidebarOpen ? 'open' : ''}`}>
-            <div className="sidebar-header">
-              <h3>Menu</h3>
-              <button className="close-sidebar" onClick={() => setIsSidebarOpen(false)}>
-                {renderIcon('FaTimes', 18)}
-              </button>
-            </div>
-            <div className="sidebar-nav">
-              {navItems.map(item => (
-                <div
-                  key={item.id}
-                  className={`sidebar-nav-item ${activeTab === item.id ? 'active' : ''}`}
-                  onClick={() => handleNavigation(item)}
-                >
-                  <div className="sidebar-nav-icon">{renderIcon(item.icon, 18)}</div>
-                  <div className="sidebar-nav-label">{item.label}</div>
-                </div>
-              ))}
-            </div>
-            <div className="sidebar-footer">
-              <div className="sidebar-avatar">
-                {user?.name?.[0] || 'U'}
-              </div>
-              <div className="sidebar-user-info">
-                <div className="sidebar-user-name">{user?.name || 'Guest'}</div>
-                <div className="sidebar-user-status">Online</div>
-              </div>
-            </div>
+        {/* Content Area */}
+        <div className="content-area">
+          <div className="glass-card">
+            <h2>Welcome to Alpha Phoenix Trading</h2>
+            <p>
+              {getActiveFilterLabel() 
+                ? `Showing filtered content: ${getActiveFilterLabel()}`
+                : 'Discover premium trading tools, educational content, and connect with traders worldwide.'}
+            </p>
           </div>
-          {isSidebarOpen && <div className="mobile-overlay" onClick={() => setIsSidebarOpen(false)} />}
-        </>
-      )}
-
-      {/* Main Content */}
-      <main className="content-area">
-        <div className="content-card">
-          <p>
-            {activeFilters.includes('all') 
-              ? 'Showing all content...' 
-              : `Showing filtered content: ${getActiveFilterLabel()}`}
-          </p>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
