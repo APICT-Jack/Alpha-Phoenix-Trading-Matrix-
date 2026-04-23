@@ -1,4 +1,4 @@
-// src/pages/AuthHomePage.jsx - Pure Glass Design with Sticky Search
+// src/pages/AuthHomePage.jsx - Pure Glass Design with Sticky Search & Navigation
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
@@ -15,6 +15,8 @@ const AuthHomePage = () => {
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [searchPerformed, setSearchPerformed] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
   
   // Filter State
   const [activeFilters, setActiveFilters] = useState(['all']);
@@ -42,7 +44,9 @@ const AuthHomePage = () => {
   const traderMenuRef = useRef(null);
   const traderBtnRef = useRef(null);
   const stickySearchRef = useRef(null);
-  const [isSticky, setIsSticky] = useState(false);
+  const stickyNavRef = useRef(null);
+  const [isSearchSticky, setIsSearchSticky] = useState(false);
+  const [isNavSticky, setIsNavSticky] = useState(false);
 
   // Navigation items - hidden on mobile, shown as tabs on desktop
   const navItems = [
@@ -65,6 +69,26 @@ const AuthHomePage = () => {
     { id: 'tools', label: 'Tools' },
     { id: 'people', label: 'People', hasSubmenu: true }
   ];
+
+  // Mock search results data
+  const mockResults = {
+    videos: [
+      { id: 1, title: 'Introduction to Trading', description: 'Learn the basics of trading', icon: 'FaVideo' },
+      { id: 2, title: 'Advanced Chart Patterns', description: 'Master complex chart patterns', icon: 'FaVideo' }
+    ],
+    charts: [
+      { id: 3, title: 'Bitcoin Price Analysis', description: 'Daily BTC market update', icon: 'FaChartLine' },
+      { id: 4, title: 'Ethereum Technicals', description: 'ETH support and resistance', icon: 'FaChartLine' }
+    ],
+    academies: [
+      { id: 5, title: 'Trading Academy', description: 'Complete trading course', icon: 'FaGraduationCap' },
+      { id: 6, title: 'Crypto Fundamentals', description: 'Learn blockchain basics', icon: 'FaGraduationCap' }
+    ],
+    tools: [
+      { id: 7, title: 'Profit Calculator', description: 'Calculate your trading profits', icon: 'FaCalculator' },
+      { id: 8, title: 'Risk Management Tool', description: 'Manage your portfolio risk', icon: 'FaShieldAlt' }
+    ]
+  };
 
   // Wallpaper collections
   const wallpapers = [
@@ -98,13 +122,20 @@ const AuthHomePage = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Sticky scroll effect for search bar
+  // Sticky scroll effect for navigation and search bar
   useEffect(() => {
     const handleScroll = () => {
+      // Navigation sticky
+      if (stickyNavRef.current) {
+        const navRect = stickyNavRef.current.getBoundingClientRect();
+        setIsNavSticky(navRect.top <= 0);
+      }
+      
+      // Search sticky (after navigation)
       if (stickySearchRef.current) {
-        const rect = stickySearchRef.current.getBoundingClientRect();
-        const headerHeight = document.querySelector('.main-header')?.offsetHeight || 0;
-        setIsSticky(rect.top <= headerHeight + 10);
+        const searchRect = stickySearchRef.current.getBoundingClientRect();
+        const navHeight = stickyNavRef.current?.offsetHeight || 0;
+        setIsSearchSticky(searchRect.top <= navHeight + 10);
       }
     };
     
@@ -128,7 +159,7 @@ const AuthHomePage = () => {
 
   // Search suggestions
   useEffect(() => {
-    if (searchQuery.length > 1) {
+    if (searchQuery.length > 1 && !searchPerformed) {
       const filtered = navItems.filter(item =>
         item.label.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -138,7 +169,7 @@ const AuthHomePage = () => {
       setSearchSuggestions([]);
       setShowSuggestions(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, searchPerformed]);
 
   // Click outside handlers
   useEffect(() => {
@@ -241,11 +272,57 @@ const AuthHomePage = () => {
     }
   };
 
-  const handleSearch = () => {
+  const performSearch = () => {
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      // Simulate search results based on query and filters
+      let results = [];
+      const query = searchQuery.toLowerCase();
+      
+      // Determine which categories to search based on active filters
+      let categoriesToSearch = [];
+      if (activeFilters.includes('all')) {
+        categoriesToSearch = ['videos', 'charts', 'academies', 'tools'];
+      } else {
+        categoriesToSearch = activeFilters.filter(f => f !== 'people');
+      }
+      
+      // Search through mock data
+      categoriesToSearch.forEach(category => {
+        if (mockResults[category]) {
+          const matched = mockResults[category].filter(item =>
+            item.title.toLowerCase().includes(query) ||
+            item.description.toLowerCase().includes(query)
+          );
+          results = [...results, ...matched];
+        }
+      });
+      
+      setSearchResults(results);
+      setSearchPerformed(true);
       setShowSuggestions(false);
       setIsSearchFocused(false);
+      
+      // Navigate to search results route (optional)
+      // navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+    } else if (searchPerformed) {
+      // Clear results if search is empty
+      clearSearch();
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchPerformed(false);
+    setShowSuggestions(false);
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      performSearch();
     }
   };
 
@@ -277,6 +354,9 @@ const AuthHomePage = () => {
     const Icon = Icons[name];
     return Icon ? <Icon size={size} /> : null;
   };
+
+  // Determine if titles should be hidden (after search)
+  const hideTitles = searchPerformed && searchQuery.trim().length > 0;
 
   return (
     <div className="auth-homepage">
@@ -359,32 +439,34 @@ const AuthHomePage = () => {
 
       {/* Main Container */}
       <div className="auth-container">
-        {/* Desktop Navigation Tabs - Hidden on mobile */}
-        {!isMobile && (
-          <div className="desktop-nav-tabs">
-            <div className="nav-items-scroll">
-              {navItems.map(item => (
-                <button
-                  key={item.id}
-                  className={`nav-tab ${activeTab === item.id ? 'active' : ''}`}
-                  onClick={() => handleNavigation(item)}
-                >
-                  {renderIcon(item.icon, 14)}
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
+        {/* Sticky Desktop Navigation Tabs */}
+        <div 
+          ref={stickyNavRef} 
+          className={`desktop-nav-tabs ${isNavSticky ? 'is-sticky' : ''}`}
+        >
+          <div className="nav-items-scroll">
+            {navItems.map(item => (
+              <button
+                key={item.id}
+                className={`nav-tab ${activeTab === item.id ? 'active' : ''}`}
+                onClick={() => handleNavigation(item)}
+              >
+                {renderIcon(item.icon, 14)}
+                <span>{item.label}</span>
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Sticky Search and Filter Section */}
         <div 
           ref={stickySearchRef} 
-          className={`sticky-search-section ${isSticky ? 'is-sticky' : ''}`}
+          className={`sticky-search-section ${isSearchSticky ? 'is-sticky' : ''}`}
         >
           {/* Centered Search Section */}
           <div className="search-section">
-            <div className="search-label">
+            {/* Titles that disappear after search */}
+            <div className={`search-label ${hideTitles ? 'hide-titles' : ''}`}>
               <h1>Alpha Phoenix Trading</h1>
               <p>Search trading tools, signals, and educational content</p>
             </div>
@@ -396,22 +478,22 @@ const AuthHomePage = () => {
                   ref={searchInputRef}
                   type="text"
                   className="search-input"
-                  placeholder="Search..."
+                  placeholder={searchPerformed ? "Search again..." : "Search..."}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onFocus={() => setIsSearchFocused(true)}
-                  onKeyPress={e => e.key === 'Enter' && handleSearch()}
+                  onKeyPress={handleKeyPress}
                 />
                 {searchQuery && (
-                  <button className="clear-search" onClick={() => setSearchQuery('')}>
+                  <button className="clear-search" onClick={clearSearch}>
                     {renderIcon('FaTimes', 12)}
                   </button>
                 )}
-                <button className="search-button" onClick={handleSearch}>
+                <button className="search-button" onClick={performSearch}>
                   Search
                 </button>
                 
-                {showSuggestions && searchSuggestions.length > 0 && (
+                {showSuggestions && searchSuggestions.length > 0 && !searchPerformed && (
                   <div className="search-suggestions" ref={suggestionsRef}>
                     {searchSuggestions.map(item => (
                       <div key={item.id} className="suggestion-item" onClick={() => handleNavigation(item)}>
@@ -426,8 +508,8 @@ const AuthHomePage = () => {
             </div>
           </div>
 
-          {/* Filter Chips */}
-          <div className="filter-section">
+          {/* Filter Chips - Compact mode when titles hidden */}
+          <div className={`filter-section ${hideTitles ? 'compact' : ''}`}>
             <div className="filter-chips">
               {filterOptions.map(filter => (
                 <div key={filter.id} style={{ position: 'relative' }}>
@@ -506,16 +588,52 @@ const AuthHomePage = () => {
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="content-area">
-          <div className="glass-card">
-            <h2>Welcome to Alpha Phoenix Trading</h2>
-            <p>
-              {getActiveFilterLabel() 
-                ? `Showing filtered content: ${getActiveFilterLabel()}`
-                : 'Discover premium trading tools, educational content, and connect with traders worldwide.'}
-            </p>
-          </div>
+        {/* Content Area - Expanded when titles hidden */}
+        <div className={`content-area ${hideTitles ? 'expanded' : ''}`}>
+          {searchPerformed && searchQuery.trim() ? (
+            // Search Results View
+            <div className="results-container">
+              <div className="results-header">
+                <h3>Search Results for "{searchQuery}"</h3>
+                <span className="results-count">{searchResults.length} results found</span>
+              </div>
+              {searchResults.length > 0 ? (
+                <div className="results-grid">
+                  {searchResults.map(result => (
+                    <div key={result.id} className="result-card">
+                      <div className="result-icon">
+                        {renderIcon(result.icon, 24)}
+                      </div>
+                      <h4>{result.title}</h4>
+                      <p>{result.description}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="glass-card">
+                  <h2>No results found</h2>
+                  <p>Try different keywords or check your spelling.</p>
+                  <button 
+                    className="filter-chip" 
+                    onClick={clearSearch}
+                    style={{ marginTop: '20px' }}
+                  >
+                    Clear Search
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            // Default Welcome View
+            <div className="glass-card">
+              <h2>Welcome to Alpha Phoenix Trading</h2>
+              <p>
+                {getActiveFilterLabel() 
+                  ? `Showing filtered content: ${getActiveFilterLabel()}`
+                  : 'Discover premium trading tools, educational content, and connect with traders worldwide.'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

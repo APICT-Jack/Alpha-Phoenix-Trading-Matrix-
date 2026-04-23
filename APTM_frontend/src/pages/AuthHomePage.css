@@ -1,4 +1,4 @@
-/* src/pages/AuthHomePage.css - Updated with Sticky Search */
+/* src/pages/AuthHomePage.css - Updated with Sticky Search & Navigation */
 
 /* ============================================
    ROOT VARIABLES - Component Scoped
@@ -97,12 +97,26 @@ body.light-mode .auth-homepage::after {
 }
 
 /* ============================================
-   DESKTOP NAVIGATION TABS
+   STICKY DESKTOP NAVIGATION TABS
    ============================================ */
 .desktop-nav-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   padding: 20px 0 10px;
   margin-bottom: 20px;
   border-bottom: 1px solid var(--glass-border);
+  background: transparent;
+  transition: all 0.3s ease;
+}
+
+.desktop-nav-tabs.is-sticky {
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur-amount);
+  -webkit-backdrop-filter: var(--blur-amount);
+  margin: 0 -24px;
+  padding: 12px 24px;
+  box-shadow: var(--glass-shadow);
 }
 
 .nav-items-scroll {
@@ -171,9 +185,19 @@ body.light-mode .auth-homepage::after {
   width: 100%;
 }
 
+/* Title Animation - Hidden after search */
 .search-label {
   text-align: center;
   margin-bottom: 24px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.search-label.hide-titles {
+  max-height: 0;
+  margin-bottom: 0;
+  opacity: 0;
+  visibility: hidden;
 }
 
 .search-label h1 {
@@ -328,6 +352,11 @@ body.light-mode .auth-homepage::after {
 /* Filter Section */
 .filter-section {
   margin-bottom: 40px;
+  transition: all 0.3s ease;
+}
+
+.filter-section.compact {
+  margin-bottom: 20px;
 }
 
 .filter-chips {
@@ -513,10 +542,15 @@ body.light-mode .auth-homepage::after {
   color: white;
 }
 
-/* Content Area */
+/* Content Area - Expanded when titles hidden */
 .content-area {
   flex: 1;
   padding-bottom: 60px;
+  transition: all 0.3s ease;
+}
+
+.content-area.expanded {
+  padding-top: 0;
 }
 
 .glass-card {
@@ -541,6 +575,80 @@ body.light-mode .auth-homepage::after {
   font-size: 24px;
   margin-bottom: 16px;
   font-weight: 600;
+}
+
+/* Results Container - New styles for search results */
+.results-container {
+  margin-top: 20px;
+  animation: fadeInUp 0.3s ease;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.results-header h3 {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.results-count {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.result-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur-amount);
+  -webkit-backdrop-filter: var(--blur-amount);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.result-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-blue);
+  box-shadow: var(--glass-shadow);
+}
+
+.result-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(0, 122, 255, 0.15);
+  border-radius: var(--radius-md);
+  display: flex;
+align-items: center;
+  justify-content: center;
+  color: var(--accent-blue);
+  margin-bottom: 16px;
+}
+
+.result-card h4 {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.result-card p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 /* Wallpaper Controls */
@@ -790,13 +898,34 @@ body.light-mode .auth-homepage::after {
     padding: 0 16px;
   }
   
-  /* Hide desktop navigation on mobile */
+  /* Desktop navigation becomes sticky on mobile too */
   .desktop-nav-tabs {
-    display: none;
+    padding: 12px 0;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .desktop-nav-tabs.is-sticky {
+    margin: 0 -16px;
+    padding: 12px 16px;
+  }
+  
+  .nav-items-scroll {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  
+  .nav-tab {
+    white-space: nowrap;
+    padding: 8px 16px;
+    font-size: 13px;
   }
   
   .sticky-search-section {
-    top: 56px;
+    top: 52px;
   }
   
   .sticky-search-section.is-sticky {
@@ -873,6 +1002,10 @@ body.light-mode .auth-homepage::after {
   
   .wallpaper-grid {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+  
+  .results-grid {
+    grid-template-columns: 1fr;
   }
 }
 
