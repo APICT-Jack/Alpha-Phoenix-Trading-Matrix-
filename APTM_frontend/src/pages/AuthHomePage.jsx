@@ -1,24 +1,22 @@
-// src/pages/AuthHomePage.jsx - With Friends Panel and Fixed Sticky Headers
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/pages/AuthHomePage.jsx - Pure Glass Design with Sticky Search & Navigation
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
 import './AuthHomePage.css';
 
 const AuthHomePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // State
   const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  
-  // Friends Panel State
-  const [showFriendsPanel, setShowFriendsPanel] = useState(false);
-  const [friendsActiveTab, setFriendsActiveTab] = useState('followers');
   
   // Filter State
   const [activeFilters, setActiveFilters] = useState(['all']);
@@ -50,7 +48,7 @@ const AuthHomePage = () => {
   const [isSearchSticky, setIsSearchSticky] = useState(false);
   const [isNavSticky, setIsNavSticky] = useState(false);
 
-  // Navigation items - Added Friends tab
+  // Navigation items - hidden on mobile, shown as tabs on desktop
   const navItems = [
     { id: 'home', label: 'Home', icon: 'FaHome', path: '/' },
     { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard' },
@@ -59,8 +57,7 @@ const AuthHomePage = () => {
     { id: 'tools', label: 'Tools', icon: 'FaToolbox', path: '/tools' },
     { id: 'library', label: 'Library', icon: 'FaBook', path: '/library' },
     { id: 'chat', label: 'Chat', icon: 'FaComments', path: '/chat' },
-    { id: 'cashier', label: 'Cashier', icon: 'FaDollarSign', path: '/cashier' },
-    { id: 'friends', label: 'Friends', icon: 'FaUserFriends', path: '/friends', isPanel: true, panelTab: 'followers' }
+    { id: 'cashier', label: 'Cashier', icon: 'FaDollarSign', path: '/cashier' }
   ];
 
   // Filter options
@@ -71,22 +68,6 @@ const AuthHomePage = () => {
     { id: 'academies', label: 'Academies' },
     { id: 'tools', label: 'Tools' },
     { id: 'people', label: 'People', hasSubmenu: true }
-  ];
-
-  // Mock followers data
-  const followersData = [
-    { id: 1, name: 'Alex Thompson', status: 'online', role: 'Pro Trader', avatar: 'AT' },
-    { id: 2, name: 'Sarah Chen', status: 'online', role: 'Developer', avatar: 'SC' },
-    { id: 3, name: 'Mike Johnson', status: 'offline', role: 'Student', avatar: 'MJ' },
-    { id: 4, name: 'Emma Wilson', status: 'online', role: 'Mentor', avatar: 'EW' },
-    { id: 5, name: 'David Kim', status: 'offline', role: 'Trader', avatar: 'DK' }
-  ];
-
-  const followingData = [
-    { id: 1, name: 'James Rodriguez', status: 'online', role: 'Pro Trader', avatar: 'JR' },
-    { id: 2, name: 'Lisa Wang', status: 'online', role: 'Analyst', avatar: 'LW' },
-    { id: 3, name: 'Tom Baker', status: 'offline', role: 'Developer', avatar: 'TB' },
-    { id: 4, name: 'Nina Patel', status: 'online', role: 'Mentor', avatar: 'NP' }
   ];
 
   // Mock search results data
@@ -286,20 +267,18 @@ const AuthHomePage = () => {
 
   const handleNavigation = (item) => {
     setActiveTab(item.id);
-    if (item.isPanel) {
-      // Open the friends panel instead of navigating
-      setShowFriendsPanel(true);
-      setFriendsActiveTab(item.panelTab || 'followers');
-    } else if (item.path) {
+    if (item.path) {
       navigate(item.path);
     }
   };
 
   const performSearch = () => {
     if (searchQuery.trim()) {
+      // Simulate search results based on query and filters
       let results = [];
       const query = searchQuery.toLowerCase();
       
+      // Determine which categories to search based on active filters
       let categoriesToSearch = [];
       if (activeFilters.includes('all')) {
         categoriesToSearch = ['videos', 'charts', 'academies', 'tools'];
@@ -307,6 +286,7 @@ const AuthHomePage = () => {
         categoriesToSearch = activeFilters.filter(f => f !== 'people');
       }
       
+      // Search through mock data
       categoriesToSearch.forEach(category => {
         if (mockResults[category]) {
           const matched = mockResults[category].filter(item =>
@@ -320,7 +300,12 @@ const AuthHomePage = () => {
       setSearchResults(results);
       setSearchPerformed(true);
       setShowSuggestions(false);
+      setIsSearchFocused(false);
+      
+      // Navigate to search results route (optional)
+      // navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     } else if (searchPerformed) {
+      // Clear results if search is empty
       clearSearch();
     }
   };
@@ -370,71 +355,11 @@ const AuthHomePage = () => {
     return Icon ? <Icon size={size} /> : null;
   };
 
+  // Determine if titles should be hidden (after search)
   const hideTitles = searchPerformed && searchQuery.trim().length > 0;
-
-  // Render Friends Panel
-  const renderFriendsPanel = () => {
-    const currentData = friendsActiveTab === 'followers' ? followersData : followingData;
-    
-    return (
-      <div className="friends-panel-overlay" onClick={() => setShowFriendsPanel(false)}>
-        <div className="friends-panel" onClick={e => e.stopPropagation()}>
-          <div className="friends-panel-header">
-            <h3>Trading Network</h3>
-            <button className="close-panel" onClick={() => setShowFriendsPanel(false)}>
-              {renderIcon('FaTimes', 16)}
-            </button>
-          </div>
-          
-          <div className="friends-tabs">
-            <button 
-              className={`friends-tab ${friendsActiveTab === 'followers' ? 'active' : ''}`}
-              onClick={() => setFriendsActiveTab('followers')}
-            >
-              Followers ({followersData.length})
-            </button>
-            <button 
-              className={`friends-tab ${friendsActiveTab === 'following' ? 'active' : ''}`}
-              onClick={() => setFriendsActiveTab('following')}
-            >
-              Following ({followingData.length})
-            </button>
-          </div>
-          
-          <div className="friends-list">
-            {currentData.map(friend => (
-              <div key={friend.id} className="friend-item">
-                <div className="friend-avatar">{friend.avatar}</div>
-                <div className="friend-info">
-                  <div className="friend-name">{friend.name}</div>
-                  <div className="friend-status">
-                    <span className={`status-badge ${friend.status === 'online' ? 'online' : 'offline'}`}></span>
-                    <span>{friend.status === 'online' ? 'Online' : 'Offline'} • {friend.role}</span>
-                  </div>
-                </div>
-                <div className="friend-action">
-                  {friendsActiveTab === 'followers' ? 'Follow Back' : 'Message'}
-                </div>
-              </div>
-            ))}
-            
-            {currentData.length === 0 && (
-              <div className="empty-state">
-                {renderIcon('FaUserFriends', 48)}
-                <p>No {friendsActiveTab} yet</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="auth-homepage">
-      {/* Friends Panel Modal */}
-      {showFriendsPanel && renderFriendsPanel()}
-      
       {/* Wallpaper Controls */}
       <div className="wallpaper-controls">
         <button className="wallpaper-btn" onClick={() => setShowWallpaperModal(true)}>
@@ -540,6 +465,7 @@ const AuthHomePage = () => {
         >
           {/* Centered Search Section */}
           <div className="search-section">
+            {/* Titles that disappear after search */}
             <div className={`search-label ${hideTitles ? 'hide-titles' : ''}`}>
               <h1>Alpha Phoenix Trading</h1>
               <p>Search trading tools, signals, and educational content</p>
@@ -555,6 +481,7 @@ const AuthHomePage = () => {
                   placeholder={searchPerformed ? "Search again..." : "Search..."}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
                   onKeyPress={handleKeyPress}
                 />
                 {searchQuery && (
@@ -581,7 +508,7 @@ const AuthHomePage = () => {
             </div>
           </div>
 
-          {/* Filter Chips */}
+          {/* Filter Chips - Compact mode when titles hidden */}
           <div className={`filter-section ${hideTitles ? 'compact' : ''}`}>
             <div className="filter-chips">
               {filterOptions.map(filter => (
@@ -595,6 +522,7 @@ const AuthHomePage = () => {
                   
                   {filter.hasSubmenu && showPeopleMenu && (
                     <div className="people-submenu" ref={peopleMenuRef}>
+                      {/* Traders with nested */}
                       <div style={{ position: 'relative' }}>
                         <button 
                           ref={traderBtnRef}
@@ -660,9 +588,10 @@ const AuthHomePage = () => {
           </div>
         </div>
 
-        {/* Content Area */}
+        {/* Content Area - Expanded when titles hidden */}
         <div className={`content-area ${hideTitles ? 'expanded' : ''}`}>
           {searchPerformed && searchQuery.trim() ? (
+            // Search Results View
             <div className="results-container">
               <div className="results-header">
                 <h3>Search Results for "{searchQuery}"</h3>
@@ -695,6 +624,7 @@ const AuthHomePage = () => {
               )}
             </div>
           ) : (
+            // Default Welcome View
             <div className="glass-card">
               <h2>Welcome to Alpha Phoenix Trading</h2>
               <p>
