@@ -1,6 +1,7 @@
-// src/pages/AuthHomePage.jsx
+// src/pages/AuthHomePage.jsx - Sticky Search Bar with Real Data Integration
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import * as Icons from 'react-icons/fa';
 import './AuthHomePage.css';
 
@@ -17,7 +18,25 @@ const AuthHomePage = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [activeActivityTab, setActiveActivityTab] = useState('news'); // news, trades, chats, updates
+  const [searching, setSearching] = useState(false);
+  const [activeActivityTab, setActiveActivityTab] = useState('news');
+  
+  // Real data states
+  const [posts, setPosts] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [followSuggestions, setFollowSuggestions] = useState([]);
+  const [activities, setActivities] = useState({
+    news: [],
+    trades: [],
+    chats: [],
+    updates: []
+  });
+  const [loading, setLoading] = useState({
+    posts: false,
+    users: false,
+    activities: false
+  });
   
   // Filter State
   const [activeFilters, setActiveFilters] = useState(['all']);
@@ -44,9 +63,11 @@ const AuthHomePage = () => {
   const peopleMenuRef = useRef(null);
   const traderMenuRef = useRef(null);
   const traderBtnRef = useRef(null);
+  const searchSectionRef = useRef(null);
   const [isBottomNavExpanded, setIsBottomNavExpanded] = useState(false);
+  const [isSearchSticky, setIsSearchSticky] = useState(false);
 
-  // Bottom navigation items - icons only on mobile, labels on desktop
+  // Bottom navigation items
   const bottomNavItems = [
     { id: 'home', label: 'Home', icon: 'FaHome', path: '/' },
     { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard' },
@@ -58,7 +79,7 @@ const AuthHomePage = () => {
     { id: 'cashier', label: 'Cashier', icon: 'FaDollarSign', path: '/cashier' }
   ];
 
-  // Recent activity tabs
+  // Activity tabs
   const activityTabs = [
     { id: 'news', label: 'News', icon: 'FaNewspaper' },
     { id: 'trades', label: 'Trades', icon: 'FaChartLine' },
@@ -75,52 +96,6 @@ const AuthHomePage = () => {
     { id: 'tools', label: 'Tools' },
     { id: 'people', label: 'People', hasSubmenu: true }
   ];
-
-  // Mock search results data - posts and people
-  const mockPosts = [
-    { id: 1, title: 'Introduction to Trading', description: 'Learn the basics of trading', icon: 'FaVideo', type: 'video', author: 'CryptoMaster', likes: 234, comments: 45, timeAgo: '2 hours ago' },
-    { id: 2, title: 'Bitcoin Price Analysis', description: 'Daily BTC market update with key levels', icon: 'FaChartLine', type: 'chart', author: 'BTCWhale', likes: 567, comments: 89, timeAgo: '5 hours ago' },
-    { id: 3, title: 'Trading Academy', description: 'Complete trading course for beginners', icon: 'FaGraduationCap', type: 'academy', author: 'EduTrader', likes: 1234, comments: 234, timeAgo: '1 day ago' },
-    { id: 4, title: 'Profit Calculator Tool', description: 'Calculate your trading profits easily', icon: 'FaCalculator', type: 'tool', author: 'ToolMaster', likes: 89, comments: 12, timeAgo: '3 days ago' },
-    { id: 5, title: 'Ethereum Technicals', description: 'ETH support and resistance analysis', icon: 'FaChartLine', type: 'chart', author: 'ETHSage', likes: 345, comments: 56, timeAgo: '1 day ago' },
-    { id: 6, title: 'Risk Management Guide', description: 'Manage your portfolio risk effectively', icon: 'FaShieldAlt', type: 'tool', author: 'RiskPro', likes: 678, comments: 123, timeAgo: '4 days ago' }
-  ];
-
-  const mockPeople = [
-    { id: 1, name: 'John Trader', username: '@johntrader', avatar: 'JT', type: 'trader', followers: 1234, isFollowing: false },
-    { id: 2, name: 'Sarah Developer', username: '@sarahdev', avatar: 'SD', type: 'developer', followers: 5678, isFollowing: true },
-    { id: 3, name: 'Mike Student', username: '@mikestudent', avatar: 'MS', type: 'student', followers: 234, isFollowing: false },
-    { id: 4, name: 'Emily Mentor', username: '@ementor', avatar: 'EM', type: 'mentor', followers: 3456, isFollowing: false },
-    { id: 5, name: 'Alex Trader Pro', username: '@alextrader', avatar: 'AT', type: 'trader', followers: 7890, isFollowing: true }
-  ];
-
-  // Mock activity data for each tab
-  const activityData = {
-    news: [
-      { id: 1, title: 'Bitcoin breaks $60k resistance', time: '10 min ago', type: 'news', source: 'CryptoNews' },
-      { id: 2, title: 'New trading pairs listed on major exchange', time: '1 hour ago', type: 'news', source: 'ExchangeUpdate' },
-      { id: 3, title: 'Regulatory updates for crypto traders', time: '3 hours ago', type: 'news', source: 'RegulatoryWatch' },
-      { id: 4, title: 'Market sentiment turns bullish', time: '5 hours ago', type: 'news', source: 'SentimentAnalysis' }
-    ],
-    trades: [
-      { id: 1, user: 'CryptoKing', action: 'bought', amount: '2.5 BTC', price: '$58,234', time: '2 min ago' },
-      { id: 2, user: 'WhaleTrader', action: 'sold', amount: '100 ETH', price: '$3,456', time: '15 min ago' },
-      { id: 3, user: 'ScalperPro', action: 'bought', amount: '5000 USDT', price: '$1.00', time: '1 hour ago' },
-      { id: 4, user: 'LongTermHold', action: 'staked', amount: '1000 SOL', time: '3 hours ago' }
-    ],
-    chats: [
-      { id: 1, user: 'SarahDev', message: 'Anyone know about the new DeFi protocol?', time: '5 min ago', unread: true },
-      { id: 2, user: 'MikeTrader', message: 'Check out this chart pattern on BTC', time: '20 min ago', unread: false },
-      { id: 3, user: 'EmilyMentor', message: 'Weekly trading session starting soon', time: '1 hour ago', unread: false },
-      { id: 4, user: 'AlexPro', message: 'Great analysis on ETH!', time: '2 hours ago', unread: false }
-    ],
-    updates: [
-      { id: 1, type: 'follow', user: 'CryptoSage', action: 'started following you', time: '10 min ago', avatar: 'CS' },
-      { id: 2, type: 'like', user: 'TraderJoe', action: 'liked your post', time: '30 min ago', avatar: 'TJ' },
-      { id: 3, type: 'comment', user: 'NewbieTrader', action: 'commented on your analysis', time: '2 hours ago', avatar: 'NT' },
-      { id: 4, type: 'achievement', user: 'System', action: 'You reached 100 followers!', time: '1 day ago', avatar: '🎉' }
-    ]
-  };
 
   // Wallpaper collections
   const wallpapers = [
@@ -144,6 +119,229 @@ const AuthHomePage = () => {
 
   const [activeWallpaperCategory, setActiveWallpaperCategory] = useState('all');
 
+  // API calls
+  const api = axios.create({
+    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+
+  // Fetch real posts from backend
+  const fetchPosts = useCallback(async () => {
+    setLoading(prev => ({ ...prev, posts: true }));
+    try {
+      const response = await api.get('/posts/feed');
+      if (response.data.success) {
+        setPosts(response.data.posts || []);
+      }
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, posts: false }));
+    }
+  }, []);
+
+  // Fetch users for people search
+  const fetchUsers = useCallback(async (searchTerm = '') => {
+    try {
+      const response = await api.get('/users/all', {
+        params: { search: searchTerm, limit: 20 }
+      });
+      if (response.data.success) {
+        setUsers(response.data.users || []);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  }, []);
+
+  // Fetch friend suggestions
+  const fetchFriendSuggestions = useCallback(async () => {
+    try {
+      const response = await api.get('/users/suggestions', { params: { limit: 10 } });
+      if (response.data.success) {
+        setFollowSuggestions(response.data.users || []);
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    }
+  }, []);
+
+  // Fetch conversations for chat activity
+  const fetchConversations = useCallback(async () => {
+    try {
+      const response = await api.get('/chat/conversations');
+      if (response.data.success) {
+        setConversations(response.data.conversations || []);
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    }
+  }, []);
+
+  // Search function - searches posts and users
+  const performSearch = useCallback(async () => {
+    if (!searchQuery.trim()) {
+      if (searchPerformed) clearSearch();
+      return;
+    }
+
+    setSearching(true);
+    const results = [];
+
+    try {
+      // Search posts if filter includes posts categories
+      let searchPosts = true;
+      let searchPeople = false;
+
+      if (!activeFilters.includes('all')) {
+        searchPosts = activeFilters.some(f => ['videos', 'charts', 'academies', 'tools'].includes(f));
+        searchPeople = activeFilters.includes('people');
+      }
+
+      // Fetch posts with search query
+      if (searchPosts) {
+        try {
+          const postsResponse = await api.get('/posts/feed', {
+            params: { search: searchQuery, limit: 20 }
+          });
+          if (postsResponse.data.success && postsResponse.data.posts) {
+            results.push(...postsResponse.data.posts.map(p => ({ ...p, resultType: 'post' })));
+          }
+        } catch (error) {
+          console.error('Error searching posts:', error);
+        }
+      }
+
+      // Fetch users
+      if (searchPeople && searchQuery.length >= 2) {
+        try {
+          const usersResponse = await api.get('/users/advanced-search', {
+            params: { q: searchQuery, limit: 20 }
+          });
+          if (usersResponse.data.success && usersResponse.data.users) {
+            results.push(...usersResponse.data.users.map(u => ({ ...u, resultType: 'person' })));
+          }
+        } catch (error) {
+          console.error('Error searching users:', error);
+        }
+      }
+
+      setSearchResults(results);
+      setSearchPerformed(true);
+      setShowSuggestions(false);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setSearching(false);
+    }
+  }, [searchQuery, activeFilters, searchPerformed]);
+
+  // Search suggestions
+  useEffect(() => {
+    const getSuggestions = async () => {
+      if (searchQuery.length > 1 && !searchPerformed) {
+        const suggestions = [];
+        
+        // Get post suggestions
+        if (posts.length > 0) {
+          const matchedPosts = posts.filter(post =>
+            post.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            post.userId?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+          ).slice(0, 3);
+          suggestions.push(...matchedPosts.map(p => ({ ...p, resultType: 'post', displayName: p.content?.substring(0, 50) })));
+        }
+        
+        // Get user suggestions
+        if (users.length > 0) {
+          const matchedUsers = users.filter(user =>
+            user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.username?.toLowerCase().includes(searchQuery.toLowerCase())
+          ).slice(0, 3);
+          suggestions.push(...matchedUsers.map(u => ({ ...u, resultType: 'person' })));
+        }
+        
+        setSearchSuggestions(suggestions.slice(0, 5));
+        setShowSuggestions(true);
+      } else {
+        setSearchSuggestions([]);
+        setShowSuggestions(false);
+      }
+    };
+    
+    getSuggestions();
+  }, [searchQuery, searchPerformed, posts, users]);
+
+  // Initialize real data
+  useEffect(() => {
+    fetchPosts();
+    fetchUsers();
+    fetchFriendSuggestions();
+    fetchConversations();
+  }, [fetchPosts, fetchUsers, fetchFriendSuggestions, fetchConversations]);
+
+  // Build activity data from real sources
+  useEffect(() => {
+    // Transform posts into news/trades activities
+    const newsActivities = posts.slice(0, 5).map(post => ({
+      id: post._id,
+      title: post.content?.substring(0, 100) || 'New post',
+      time: new Date(post.createdAt).toLocaleTimeString(),
+      source: post.userId?.name || 'User'
+    }));
+
+    // Trade activities from posts with charts
+    const tradeActivities = posts
+      .filter(post => post.media?.some(m => m.type === 'chart'))
+      .slice(0, 5)
+      .map(post => ({
+        id: post._id,
+        user: post.userId?.name || 'Trader',
+        action: 'shared',
+        symbol: post.media?.find(m => m.type === 'chart')?.chartData?.symbol || 'BTC',
+        time: new Date(post.createdAt).toLocaleTimeString()
+      }));
+
+    // Chat activities from conversations
+    const chatActivities = conversations.slice(0, 5).map(conv => ({
+      id: conv.id,
+      user: conv.userName,
+      message: conv.lastMessage || 'New message',
+      time: new Date(conv.lastMessageTime).toLocaleTimeString(),
+      unread: conv.unreadCount > 0
+    }));
+
+    // Update activities from follows and suggestions
+    const updateActivities = followSuggestions.slice(0, 5).map(user => ({
+      id: user.id,
+      type: 'follow',
+      user: user.name,
+      action: 'joined the community',
+      time: new Date().toLocaleTimeString()
+    }));
+
+    setActivities({
+      news: newsActivities,
+      trades: tradeActivities,
+      chats: chatActivities,
+      updates: updateActivities
+    });
+  }, [posts, conversations, followSuggestions]);
+
+  // Sticky scroll effect for search bar
+  useEffect(() => {
+    const handleScroll = () => {
+      if (searchSectionRef.current) {
+        const rect = searchSectionRef.current.getBoundingClientRect();
+        setIsSearchSticky(rect.top <= 0);
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // Handle resize
   useEffect(() => {
     const handleResize = () => {
@@ -166,21 +364,6 @@ const AuthHomePage = () => {
       applyWallpaper(wallpaperSettings);
     }
   }, []);
-
-  // Search suggestions
-  useEffect(() => {
-    if (searchQuery.length > 1 && !searchPerformed) {
-      const filtered = [...mockPosts, ...mockPeople].filter(item => {
-        const title = item.title || item.name || '';
-        return title.toLowerCase().includes(searchQuery.toLowerCase());
-      });
-      setSearchSuggestions(filtered.slice(0, 5));
-      setShowSuggestions(true);
-    } else {
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, [searchQuery, searchPerformed]);
 
   // Click outside handlers
   useEffect(() => {
@@ -283,49 +466,6 @@ const AuthHomePage = () => {
     }
   };
 
-  const performSearch = () => {
-    if (searchQuery.trim()) {
-      // Search through posts and people
-      let results = [];
-      const query = searchQuery.toLowerCase();
-      
-      // Determine which categories to search based on active filters
-      let categoriesToSearch = [];
-      if (activeFilters.includes('all')) {
-        categoriesToSearch = ['posts', 'people'];
-      } else {
-        if (activeFilters.includes('people')) categoriesToSearch.push('people');
-        if (activeFilters.some(f => ['videos', 'charts', 'academies', 'tools'].includes(f))) categoriesToSearch.push('posts');
-      }
-      
-      // Search posts
-      if (categoriesToSearch.includes('posts')) {
-        const matchedPosts = mockPosts.filter(post =>
-          post.title.toLowerCase().includes(query) ||
-          post.description.toLowerCase().includes(query) ||
-          post.author.toLowerCase().includes(query)
-        );
-        results = [...results, ...matchedPosts.map(p => ({ ...p, resultType: 'post' }))];
-      }
-      
-      // Search people
-      if (categoriesToSearch.includes('people')) {
-        const matchedPeople = mockPeople.filter(person =>
-          person.name.toLowerCase().includes(query) ||
-          person.username.toLowerCase().includes(query)
-        );
-        results = [...results, ...matchedPeople.map(p => ({ ...p, resultType: 'person' }))];
-      }
-      
-      setSearchResults(results);
-      setSearchPerformed(true);
-      setShowSuggestions(false);
-      setIsSearchFocused(false);
-    } else if (searchPerformed) {
-      clearSearch();
-    }
-  };
-
   const clearSearch = () => {
     setSearchQuery('');
     setSearchResults([]);
@@ -339,6 +479,24 @@ const AuthHomePage = () => {
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       performSearch();
+    }
+  };
+
+  const handleFollowToggle = async (userId, currentStatus) => {
+    try {
+      if (currentStatus) {
+        await api.post(`/follow/unfollow/${userId}`);
+      } else {
+        await api.post(`/follow/follow/${userId}`);
+      }
+      // Refresh suggestions
+      fetchFriendSuggestions();
+      // Update local state
+      setFollowSuggestions(prev => 
+        prev.map(u => u.id === userId ? { ...u, isFollowing: !currentStatus } : u)
+      );
+    } catch (error) {
+      console.error('Error toggling follow:', error);
     }
   };
 
@@ -362,15 +520,6 @@ const AuthHomePage = () => {
     return filters.join(' + ');
   };
 
-  const handleFollowToggle = (personId) => {
-    // Toggle follow status
-    const updatedPeople = mockPeople.map(p => 
-      p.id === personId ? { ...p, isFollowing: !p.isFollowing } : p
-    );
-    // Update mockPeople array
-    mockPeople.splice(0, mockPeople.length, ...updatedPeople);
-  };
-
   const filteredWallpapers = wallpapers.filter(w => 
     activeWallpaperCategory === 'all' || w.category === activeWallpaperCategory
   );
@@ -380,7 +529,6 @@ const AuthHomePage = () => {
     return Icon ? <Icon size={size} /> : null;
   };
 
-  // Determine if titles should be hidden (after search)
   const hideTitles = searchPerformed && searchQuery.trim().length > 0;
 
   return (
@@ -464,11 +612,13 @@ const AuthHomePage = () => {
 
       {/* Main Container */}
       <div className="auth-container">
-        {/* Search and Filter Section */}
-        <div className="search-filter-section">
+        {/* Sticky Search and Filter Section */}
+        <div 
+          ref={searchSectionRef}
+          className={`search-filter-section ${isSearchSticky ? 'is-sticky' : ''}`}
+        >
           {/* Centered Search Section */}
           <div className="search-section">
-            {/* Titles that disappear after search */}
             <div className={`search-label ${hideTitles ? 'hide-titles' : ''}`}>
               <h1>Alpha Phoenix Trading</h1>
               <p>Search trading tools, signals, and educational content</p>
@@ -492,21 +642,27 @@ const AuthHomePage = () => {
                     {renderIcon('FaTimes', 12)}
                   </button>
                 )}
-                <button className="search-button" onClick={performSearch}>
-                  Search
+                <button className="search-button" onClick={performSearch} disabled={searching}>
+                  {searching ? '...' : 'Search'}
                 </button>
                 
                 {showSuggestions && searchSuggestions.length > 0 && !searchPerformed && (
                   <div className="search-suggestions" ref={suggestionsRef}>
                     {searchSuggestions.map((item, idx) => (
-                      <div key={idx} className="suggestion-item">
+                      <div key={idx} className="suggestion-item" onClick={() => {
+                        if (item.resultType === 'person') {
+                          navigate(`/profile/${item.id || item._id}`);
+                        } else {
+                          navigate(`/post/${item._id}`);
+                        }
+                      }}>
                         <div className="suggestion-icon">
                           {item.resultType === 'person' 
-                            ? <div className="suggestion-avatar">{item.avatar}</div>
-                            : renderIcon(item.icon, 12)}
+                            ? <div className="suggestion-avatar">{item.avatarInitial || item.name?.[0]}</div>
+                            : renderIcon('FaFileAlt', 12)}
                         </div>
                         <div className="suggestion-text">
-                          {item.title || item.name}
+                          {item.resultType === 'person' ? item.name : item.displayName || 'Post'}
                           {item.username && <span className="suggestion-username">{item.username}</span>}
                         </div>
                         <div className="suggestion-action">
@@ -585,7 +741,6 @@ const AuthHomePage = () => {
               ))}
             </div>
 
-            {/* Active Filters Display */}
             {getActiveFilterLabel() && (
               <div className="active-filters-bar">
                 <div className="active-filter-badge">
@@ -609,49 +764,69 @@ const AuthHomePage = () => {
                   <h3>Search Results for "{searchQuery}"</h3>
                   <span className="results-count">{searchResults.length} results found</span>
                 </div>
-                {searchResults.length > 0 ? (
+                {searching ? (
+                  <div className="glass-card">
+                    <p>Searching...</p>
+                  </div>
+                ) : searchResults.length > 0 ? (
                   <div className="results-list">
                     {searchResults.map(result => (
-                      <div key={result.id} className="result-card">
+                      <div key={result.id || result._id} className="result-card" onClick={() => {
+                        if (result.resultType === 'person') {
+                          navigate(`/profile/${result.id || result._id}`);
+                        } else {
+                          navigate(`/post/${result._id}`);
+                        }
+                      }}>
                         {result.resultType === 'person' ? (
-                          // Person result card
                           <>
                             <div className="result-card-header">
-                              <div className="person-avatar-large">{result.avatar}</div>
+                              <div className="person-avatar-large">
+                                {result.avatarInitial || result.name?.[0] || 'U'}
+                              </div>
                               <div className="person-info">
                                 <h4>{result.name}</h4>
-                                <div className="person-username">{result.username}</div>
-                                <div className="person-stats">{result.followers} followers</div>
+                                <div className="person-username">@{result.username}</div>
+                                <div className="person-stats">{result.followersCount || 0} followers</div>
                               </div>
                               <button 
                                 className={`follow-btn ${result.isFollowing ? 'following' : ''}`}
-                                onClick={() => handleFollowToggle(result.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFollowToggle(result.id || result._id, result.isFollowing);
+                                }}
                               >
                                 {result.isFollowing ? 'Following' : 'Follow'}
                               </button>
                             </div>
                             <div className="person-badge">
-                              <span className={`badge ${result.type}`}>{result.type}</span>
+                              <span className={`badge ${result.tradingExperience || 'beginner'}`}>
+                                {result.tradingExperience || 'Trader'}
+                              </span>
                             </div>
                           </>
                         ) : (
-                          // Post result card
                           <>
                             <div className="result-icon">
-                              {renderIcon(result.icon, 24)}
+                              {result.media?.[0]?.type === 'chart' ? renderIcon('FaChartLine', 24) :
+                               result.media?.[0]?.type === 'image' ? renderIcon('FaImage', 24) :
+                               renderIcon('FaFileAlt', 24)}
                             </div>
-                            <h4>{result.title}</h4>
-                            <p>{result.description}</p>
+                            <h4>{result.content?.substring(0, 100)}</h4>
+                            <p>{result.content?.substring(0, 150)}...</p>
                             <div className="result-meta">
-                              <span className="result-author">By {result.author}</span>
+                              <span className="result-author">By {result.userId?.name || 'User'}</span>
                               <div className="result-stats">
-                                <span><Icons.FaHeart size={12} /> {result.likes}</span>
-                                <span><Icons.FaComment size={12} /> {result.comments}</span>
-                                <span>{result.timeAgo}</span>
+                                <span><Icons.FaHeart size={12} /> {result.likes?.length || 0}</span>
+                                <span><Icons.FaComment size={12} /> {result.comments?.length || 0}</span>
+                                <span>{new Date(result.createdAt).toLocaleDateString()}</span>
                               </div>
                             </div>
                             <div className="result-type-badge">
-                              <span className={`type-badge ${result.type}`}>{result.type}</span>
+                              <span className={`type-badge ${result.media?.[0]?.type || 'post'}`}>
+                                {result.media?.[0]?.type === 'chart' ? 'Chart' :
+                                 result.media?.[0]?.type === 'image' ? 'Image' : 'Post'}
+                              </span>
                             </div>
                           </>
                         )}
@@ -669,7 +844,6 @@ const AuthHomePage = () => {
                 )}
               </div>
             ) : (
-              // Default content when no search
               <div className="glass-card welcome-card">
                 <h2>Welcome to Alpha Phoenix Trading</h2>
                 <p>
@@ -678,14 +852,18 @@ const AuthHomePage = () => {
                     : 'Discover premium trading tools, educational content, and connect with traders worldwide.'}
                 </p>
                 <div className="featured-posts">
-                  <h3>Trending Posts</h3>
+                  <h3>Recent Posts</h3>
                   <div className="featured-list">
-                    {mockPosts.slice(0, 3).map(post => (
-                      <div key={post.id} className="featured-item">
-                        <div className="featured-icon">{renderIcon(post.icon, 20)}</div>
+                    {loading.posts ? (
+                      <p>Loading posts...</p>
+                    ) : posts.slice(0, 5).map(post => (
+                      <div key={post._id} className="featured-item" onClick={() => navigate(`/post/${post._id}`)}>
+                        <div className="featured-icon">
+                          {post.media?.[0]?.type === 'chart' ? renderIcon('FaChartLine', 20) : renderIcon('FaFileAlt', 20)}
+                        </div>
                         <div className="featured-content">
-                          <h4>{post.title}</h4>
-                          <p>{post.description}</p>
+                          <h4>{post.userId?.name || 'User'}</h4>
+                          <p>{post.content?.substring(0, 80)}...</p>
                         </div>
                       </div>
                     ))}
@@ -711,77 +889,79 @@ const AuthHomePage = () => {
             </div>
             
             <div className="activity-list">
-              {activityData[activeActivityTab].map(activity => (
-                <div key={activity.id} className="activity-item">
-                  {activeActivityTab === 'news' && (
-                    <>
-                      <div className="activity-icon news-icon">
-                        {renderIcon('FaNewspaper', 14)}
-                      </div>
-                      <div className="activity-content">
-                        <div className="activity-title">{activity.title}</div>
-                        <div className="activity-meta">
-                          <span className="activity-source">{activity.source}</span>
-                          <span className="activity-time">{activity.time}</span>
+              {activities[activeActivityTab]?.length > 0 ? (
+                activities[activeActivityTab].map(activity => (
+                  <div key={activity.id} className="activity-item">
+                    {activeActivityTab === 'news' && (
+                      <>
+                        <div className="activity-icon news-icon">
+                          {renderIcon('FaNewspaper', 14)}
                         </div>
-                      </div>
-                    </>
-                  )}
-                  {activeActivityTab === 'trades' && (
-                    <>
-                      <div className="activity-icon trade-icon">
-                        {renderIcon('FaChartLine', 14)}
-                      </div>
-                      <div className="activity-content">
-                        <div className="activity-title">
-                          <span className="trade-user">{activity.user}</span>
-                          <span className={`trade-action ${activity.action}`}>{activity.action}</span>
-                          {activity.amount && <span className="trade-amount">{activity.amount}</span>}
-                          {activity.price && <span className="trade-price">@{activity.price}</span>}
+                        <div className="activity-content">
+                          <div className="activity-title">{activity.title}</div>
+                          <div className="activity-meta">
+                            <span className="activity-source">{activity.source}</span>
+                            <span className="activity-time">{activity.time}</span>
+                          </div>
                         </div>
-                        <div className="activity-time">{activity.time}</div>
-                      </div>
-                    </>
-                  )}
-                  {activeActivityTab === 'chats' && (
-                    <>
-                      <div className="activity-icon chat-icon">
-                        {renderIcon('FaComments', 14)}
-                      </div>
-                      <div className="activity-content">
-                        <div className="activity-title">
-                          <span className="chat-user">{activity.user}</span>
-                          {activity.unread && <span className="unread-badge">New</span>}
+                      </>
+                    )}
+                    {activeActivityTab === 'trades' && (
+                      <>
+                        <div className="activity-icon trade-icon">
+                          {renderIcon('FaChartLine', 14)}
                         </div>
-                        <div className="activity-message">{activity.message}</div>
-                        <div className="activity-time">{activity.time}</div>
-                      </div>
-                    </>
-                  )}
-                  {activeActivityTab === 'updates' && (
-                    <>
-                      <div className="activity-icon update-icon">
-                        {activity.type === 'achievement' ? '🎉' : 
-                         activity.type === 'follow' ? renderIcon('FaUserPlus', 12) :
-                         activity.type === 'like' ? renderIcon('FaHeart', 12) :
-                         renderIcon('FaComment', 12)}
-                      </div>
-                      <div className="activity-content">
-                        <div className="activity-title">
-                          <span className="update-user">{activity.user}</span>
-                          <span className="update-action">{activity.action}</span>
+                        <div className="activity-content">
+                          <div className="activity-title">
+                            <span className="trade-user">{activity.user}</span>
+                            <span className={`trade-action ${activity.action}`}>{activity.action}</span>
+                            {activity.symbol && <span className="trade-amount">{activity.symbol}</span>}
+                          </div>
+                          <div className="activity-time">{activity.time}</div>
                         </div>
-                        <div className="activity-time">{activity.time}</div>
-                      </div>
-                    </>
-                  )}
+                      </>
+                    )}
+                    {activeActivityTab === 'chats' && (
+                      <>
+                        <div className="activity-icon chat-icon">
+                          {renderIcon('FaComments', 14)}
+                        </div>
+                        <div className="activity-content">
+                          <div className="activity-title">
+                            <span className="chat-user">{activity.user}</span>
+                            {activity.unread && <span className="unread-badge">New</span>}
+                          </div>
+                          <div className="activity-message">{activity.message}</div>
+                          <div className="activity-time">{activity.time}</div>
+                        </div>
+                      </>
+                    )}
+                    {activeActivityTab === 'updates' && (
+                      <>
+                        <div className="activity-icon update-icon">
+                          {activity.type === 'achievement' ? '🎉' : renderIcon('FaUserPlus', 12)}
+                        </div>
+                        <div className="activity-content">
+                          <div className="activity-title">
+                            <span className="update-user">{activity.user}</span>
+                            <span className="update-action">{activity.action}</span>
+                          </div>
+                          <div className="activity-time">{activity.time}</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="glass-card" style={{ padding: '30px', textAlign: 'center' }}>
+                  <p>No recent activity</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
 
-        {/* Bottom Navigation Bar - Minimizable */}
+        {/* Bottom Navigation Bar */}
         <div className={`bottom-nav ${isBottomNavExpanded ? 'expanded' : 'collapsed'}`}>
           <button 
             className="nav-toggle-btn"
