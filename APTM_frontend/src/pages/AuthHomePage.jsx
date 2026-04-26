@@ -1,4 +1,4 @@
-// src/pages/AuthHomePage.jsx - Pure Glass Design with Sticky Search & Navigation
+// src/pages/AuthHomePage.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as Icons from 'react-icons/fa';
@@ -9,7 +9,7 @@ const AuthHomePage = () => {
   const location = useLocation();
   
   // State
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeBottomNav, setActiveBottomNav] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
@@ -17,6 +17,7 @@ const AuthHomePage = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [activeActivityTab, setActiveActivityTab] = useState('news'); // news, trades, chats, updates
   
   // Filter State
   const [activeFilters, setActiveFilters] = useState(['all']);
@@ -43,13 +44,10 @@ const AuthHomePage = () => {
   const peopleMenuRef = useRef(null);
   const traderMenuRef = useRef(null);
   const traderBtnRef = useRef(null);
-  const stickySearchRef = useRef(null);
-  const stickyNavRef = useRef(null);
-  const [isSearchSticky, setIsSearchSticky] = useState(false);
-  const [isNavSticky, setIsNavSticky] = useState(false);
+  const [isBottomNavExpanded, setIsBottomNavExpanded] = useState(false);
 
-  // Navigation items - hidden on mobile, shown as tabs on desktop
-  const navItems = [
+  // Bottom navigation items - icons only on mobile, labels on desktop
+  const bottomNavItems = [
     { id: 'home', label: 'Home', icon: 'FaHome', path: '/' },
     { id: 'dashboard', label: 'Dashboard', icon: 'FaTachometerAlt', path: '/dashboard' },
     { id: 'profile', label: 'Profile', icon: 'FaUser', path: '/profile' },
@@ -58,6 +56,14 @@ const AuthHomePage = () => {
     { id: 'library', label: 'Library', icon: 'FaBook', path: '/library' },
     { id: 'chat', label: 'Chat', icon: 'FaComments', path: '/chat' },
     { id: 'cashier', label: 'Cashier', icon: 'FaDollarSign', path: '/cashier' }
+  ];
+
+  // Recent activity tabs
+  const activityTabs = [
+    { id: 'news', label: 'News', icon: 'FaNewspaper' },
+    { id: 'trades', label: 'Trades', icon: 'FaChartLine' },
+    { id: 'chats', label: 'Chats', icon: 'FaComments' },
+    { id: 'updates', label: 'Updates', icon: 'FaBell' }
   ];
 
   // Filter options
@@ -70,23 +76,49 @@ const AuthHomePage = () => {
     { id: 'people', label: 'People', hasSubmenu: true }
   ];
 
-  // Mock search results data
-  const mockResults = {
-    videos: [
-      { id: 1, title: 'Introduction to Trading', description: 'Learn the basics of trading', icon: 'FaVideo' },
-      { id: 2, title: 'Advanced Chart Patterns', description: 'Master complex chart patterns', icon: 'FaVideo' }
+  // Mock search results data - posts and people
+  const mockPosts = [
+    { id: 1, title: 'Introduction to Trading', description: 'Learn the basics of trading', icon: 'FaVideo', type: 'video', author: 'CryptoMaster', likes: 234, comments: 45, timeAgo: '2 hours ago' },
+    { id: 2, title: 'Bitcoin Price Analysis', description: 'Daily BTC market update with key levels', icon: 'FaChartLine', type: 'chart', author: 'BTCWhale', likes: 567, comments: 89, timeAgo: '5 hours ago' },
+    { id: 3, title: 'Trading Academy', description: 'Complete trading course for beginners', icon: 'FaGraduationCap', type: 'academy', author: 'EduTrader', likes: 1234, comments: 234, timeAgo: '1 day ago' },
+    { id: 4, title: 'Profit Calculator Tool', description: 'Calculate your trading profits easily', icon: 'FaCalculator', type: 'tool', author: 'ToolMaster', likes: 89, comments: 12, timeAgo: '3 days ago' },
+    { id: 5, title: 'Ethereum Technicals', description: 'ETH support and resistance analysis', icon: 'FaChartLine', type: 'chart', author: 'ETHSage', likes: 345, comments: 56, timeAgo: '1 day ago' },
+    { id: 6, title: 'Risk Management Guide', description: 'Manage your portfolio risk effectively', icon: 'FaShieldAlt', type: 'tool', author: 'RiskPro', likes: 678, comments: 123, timeAgo: '4 days ago' }
+  ];
+
+  const mockPeople = [
+    { id: 1, name: 'John Trader', username: '@johntrader', avatar: 'JT', type: 'trader', followers: 1234, isFollowing: false },
+    { id: 2, name: 'Sarah Developer', username: '@sarahdev', avatar: 'SD', type: 'developer', followers: 5678, isFollowing: true },
+    { id: 3, name: 'Mike Student', username: '@mikestudent', avatar: 'MS', type: 'student', followers: 234, isFollowing: false },
+    { id: 4, name: 'Emily Mentor', username: '@ementor', avatar: 'EM', type: 'mentor', followers: 3456, isFollowing: false },
+    { id: 5, name: 'Alex Trader Pro', username: '@alextrader', avatar: 'AT', type: 'trader', followers: 7890, isFollowing: true }
+  ];
+
+  // Mock activity data for each tab
+  const activityData = {
+    news: [
+      { id: 1, title: 'Bitcoin breaks $60k resistance', time: '10 min ago', type: 'news', source: 'CryptoNews' },
+      { id: 2, title: 'New trading pairs listed on major exchange', time: '1 hour ago', type: 'news', source: 'ExchangeUpdate' },
+      { id: 3, title: 'Regulatory updates for crypto traders', time: '3 hours ago', type: 'news', source: 'RegulatoryWatch' },
+      { id: 4, title: 'Market sentiment turns bullish', time: '5 hours ago', type: 'news', source: 'SentimentAnalysis' }
     ],
-    charts: [
-      { id: 3, title: 'Bitcoin Price Analysis', description: 'Daily BTC market update', icon: 'FaChartLine' },
-      { id: 4, title: 'Ethereum Technicals', description: 'ETH support and resistance', icon: 'FaChartLine' }
+    trades: [
+      { id: 1, user: 'CryptoKing', action: 'bought', amount: '2.5 BTC', price: '$58,234', time: '2 min ago' },
+      { id: 2, user: 'WhaleTrader', action: 'sold', amount: '100 ETH', price: '$3,456', time: '15 min ago' },
+      { id: 3, user: 'ScalperPro', action: 'bought', amount: '5000 USDT', price: '$1.00', time: '1 hour ago' },
+      { id: 4, user: 'LongTermHold', action: 'staked', amount: '1000 SOL', time: '3 hours ago' }
     ],
-    academies: [
-      { id: 5, title: 'Trading Academy', description: 'Complete trading course', icon: 'FaGraduationCap' },
-      { id: 6, title: 'Crypto Fundamentals', description: 'Learn blockchain basics', icon: 'FaGraduationCap' }
+    chats: [
+      { id: 1, user: 'SarahDev', message: 'Anyone know about the new DeFi protocol?', time: '5 min ago', unread: true },
+      { id: 2, user: 'MikeTrader', message: 'Check out this chart pattern on BTC', time: '20 min ago', unread: false },
+      { id: 3, user: 'EmilyMentor', message: 'Weekly trading session starting soon', time: '1 hour ago', unread: false },
+      { id: 4, user: 'AlexPro', message: 'Great analysis on ETH!', time: '2 hours ago', unread: false }
     ],
-    tools: [
-      { id: 7, title: 'Profit Calculator', description: 'Calculate your trading profits', icon: 'FaCalculator' },
-      { id: 8, title: 'Risk Management Tool', description: 'Manage your portfolio risk', icon: 'FaShieldAlt' }
+    updates: [
+      { id: 1, type: 'follow', user: 'CryptoSage', action: 'started following you', time: '10 min ago', avatar: 'CS' },
+      { id: 2, type: 'like', user: 'TraderJoe', action: 'liked your post', time: '30 min ago', avatar: 'TJ' },
+      { id: 3, type: 'comment', user: 'NewbieTrader', action: 'commented on your analysis', time: '2 hours ago', avatar: 'NT' },
+      { id: 4, type: 'achievement', user: 'System', action: 'You reached 100 followers!', time: '1 day ago', avatar: '🎉' }
     ]
   };
 
@@ -99,8 +131,7 @@ const AuthHomePage = () => {
     { id: 5, name: 'Night City', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&h=1080&fit=crop', category: 'city' },
     { id: 6, name: 'Neon Grid', url: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=1920&h=1080&fit=crop', category: 'abstract' },
     { id: 7, name: 'Forest Dreams', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&h=1080&fit=crop', category: 'nature' },
-    { id: 8, name: 'Crypto Bull Run', url: 'https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=1920&h=1080&fit=crop', category: 'trading' },
-    { id: 9, name: 'Geometric Dark', url: 'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=1920&h=1080&fit=crop', category: 'abstract' }
+    { id: 8, name: 'Crypto Bull Run', url: 'https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=1920&h=1080&fit=crop', category: 'trading' }
   ];
 
   const wallpaperCategories = [
@@ -122,27 +153,6 @@ const AuthHomePage = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Sticky scroll effect for navigation and search bar
-  useEffect(() => {
-    const handleScroll = () => {
-      // Navigation sticky
-      if (stickyNavRef.current) {
-        const navRect = stickyNavRef.current.getBoundingClientRect();
-        setIsNavSticky(navRect.top <= 0);
-      }
-      
-      // Search sticky (after navigation)
-      if (stickySearchRef.current) {
-        const searchRect = stickySearchRef.current.getBoundingClientRect();
-        const navHeight = stickyNavRef.current?.offsetHeight || 0;
-        setIsSearchSticky(searchRect.top <= navHeight + 10);
-      }
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   // Load wallpaper settings
   useEffect(() => {
     const saved = localStorage.getItem('wallpaper_settings');
@@ -160,9 +170,10 @@ const AuthHomePage = () => {
   // Search suggestions
   useEffect(() => {
     if (searchQuery.length > 1 && !searchPerformed) {
-      const filtered = navItems.filter(item =>
-        item.label.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const filtered = [...mockPosts, ...mockPeople].filter(item => {
+        const title = item.title || item.name || '';
+        return title.toLowerCase().includes(searchQuery.toLowerCase());
+      });
       setSearchSuggestions(filtered.slice(0, 5));
       setShowSuggestions(true);
     } else {
@@ -266,7 +277,7 @@ const AuthHomePage = () => {
   };
 
   const handleNavigation = (item) => {
-    setActiveTab(item.id);
+    setActiveBottomNav(item.id);
     if (item.path) {
       navigate(item.path);
     }
@@ -274,38 +285,43 @@ const AuthHomePage = () => {
 
   const performSearch = () => {
     if (searchQuery.trim()) {
-      // Simulate search results based on query and filters
+      // Search through posts and people
       let results = [];
       const query = searchQuery.toLowerCase();
       
       // Determine which categories to search based on active filters
       let categoriesToSearch = [];
       if (activeFilters.includes('all')) {
-        categoriesToSearch = ['videos', 'charts', 'academies', 'tools'];
+        categoriesToSearch = ['posts', 'people'];
       } else {
-        categoriesToSearch = activeFilters.filter(f => f !== 'people');
+        if (activeFilters.includes('people')) categoriesToSearch.push('people');
+        if (activeFilters.some(f => ['videos', 'charts', 'academies', 'tools'].includes(f))) categoriesToSearch.push('posts');
       }
       
-      // Search through mock data
-      categoriesToSearch.forEach(category => {
-        if (mockResults[category]) {
-          const matched = mockResults[category].filter(item =>
-            item.title.toLowerCase().includes(query) ||
-            item.description.toLowerCase().includes(query)
-          );
-          results = [...results, ...matched];
-        }
-      });
+      // Search posts
+      if (categoriesToSearch.includes('posts')) {
+        const matchedPosts = mockPosts.filter(post =>
+          post.title.toLowerCase().includes(query) ||
+          post.description.toLowerCase().includes(query) ||
+          post.author.toLowerCase().includes(query)
+        );
+        results = [...results, ...matchedPosts.map(p => ({ ...p, resultType: 'post' }))];
+      }
+      
+      // Search people
+      if (categoriesToSearch.includes('people')) {
+        const matchedPeople = mockPeople.filter(person =>
+          person.name.toLowerCase().includes(query) ||
+          person.username.toLowerCase().includes(query)
+        );
+        results = [...results, ...matchedPeople.map(p => ({ ...p, resultType: 'person' }))];
+      }
       
       setSearchResults(results);
       setSearchPerformed(true);
       setShowSuggestions(false);
       setIsSearchFocused(false);
-      
-      // Navigate to search results route (optional)
-      // navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     } else if (searchPerformed) {
-      // Clear results if search is empty
       clearSearch();
     }
   };
@@ -344,6 +360,15 @@ const AuthHomePage = () => {
       filters.push(peopleStr);
     }
     return filters.join(' + ');
+  };
+
+  const handleFollowToggle = (personId) => {
+    // Toggle follow status
+    const updatedPeople = mockPeople.map(p => 
+      p.id === personId ? { ...p, isFollowing: !p.isFollowing } : p
+    );
+    // Update mockPeople array
+    mockPeople.splice(0, mockPeople.length, ...updatedPeople);
   };
 
   const filteredWallpapers = wallpapers.filter(w => 
@@ -439,30 +464,8 @@ const AuthHomePage = () => {
 
       {/* Main Container */}
       <div className="auth-container">
-        {/* Sticky Desktop Navigation Tabs */}
-        <div 
-          ref={stickyNavRef} 
-          className={`desktop-nav-tabs ${isNavSticky ? 'is-sticky' : ''}`}
-        >
-          <div className="nav-items-scroll">
-            {navItems.map(item => (
-              <button
-                key={item.id}
-                className={`nav-tab ${activeTab === item.id ? 'active' : ''}`}
-                onClick={() => handleNavigation(item)}
-              >
-                {renderIcon(item.icon, 14)}
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Sticky Search and Filter Section */}
-        <div 
-          ref={stickySearchRef} 
-          className={`sticky-search-section ${isSearchSticky ? 'is-sticky' : ''}`}
-        >
+        {/* Search and Filter Section */}
+        <div className="search-filter-section">
           {/* Centered Search Section */}
           <div className="search-section">
             {/* Titles that disappear after search */}
@@ -478,7 +481,7 @@ const AuthHomePage = () => {
                   ref={searchInputRef}
                   type="text"
                   className="search-input"
-                  placeholder={searchPerformed ? "Search again..." : "Search..."}
+                  placeholder={searchPerformed ? "Search again..." : "Search posts or people..."}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onFocus={() => setIsSearchFocused(true)}
@@ -495,11 +498,20 @@ const AuthHomePage = () => {
                 
                 {showSuggestions && searchSuggestions.length > 0 && !searchPerformed && (
                   <div className="search-suggestions" ref={suggestionsRef}>
-                    {searchSuggestions.map(item => (
-                      <div key={item.id} className="suggestion-item" onClick={() => handleNavigation(item)}>
-                        <div className="suggestion-icon">{renderIcon(item.icon, 12)}</div>
-                        <div className="suggestion-text">{item.label}</div>
-                        <div className="suggestion-action">Jump to</div>
+                    {searchSuggestions.map((item, idx) => (
+                      <div key={idx} className="suggestion-item">
+                        <div className="suggestion-icon">
+                          {item.resultType === 'person' 
+                            ? <div className="suggestion-avatar">{item.avatar}</div>
+                            : renderIcon(item.icon, 12)}
+                        </div>
+                        <div className="suggestion-text">
+                          {item.title || item.name}
+                          {item.username && <span className="suggestion-username">{item.username}</span>}
+                        </div>
+                        <div className="suggestion-action">
+                          {item.resultType === 'person' ? 'View profile' : 'View post'}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -508,8 +520,8 @@ const AuthHomePage = () => {
             </div>
           </div>
 
-          {/* Filter Chips - Compact mode when titles hidden */}
-          <div className={`filter-section ${hideTitles ? 'compact' : ''}`}>
+          {/* Filter Chips */}
+          <div className="filter-section">
             <div className="filter-chips">
               {filterOptions.map(filter => (
                 <div key={filter.id} style={{ position: 'relative' }}>
@@ -522,7 +534,6 @@ const AuthHomePage = () => {
                   
                   {filter.hasSubmenu && showPeopleMenu && (
                     <div className="people-submenu" ref={peopleMenuRef}>
-                      {/* Traders with nested */}
                       <div style={{ position: 'relative' }}>
                         <button 
                           ref={traderBtnRef}
@@ -588,52 +599,208 @@ const AuthHomePage = () => {
           </div>
         </div>
 
-        {/* Content Area - Expanded when titles hidden */}
-        <div className={`content-area ${hideTitles ? 'expanded' : ''}`}>
-          {searchPerformed && searchQuery.trim() ? (
-            // Search Results View
-            <div className="results-container">
-              <div className="results-header">
-                <h3>Search Results for "{searchQuery}"</h3>
-                <span className="results-count">{searchResults.length} results found</span>
-              </div>
-              {searchResults.length > 0 ? (
-                <div className="results-grid">
-                  {searchResults.map(result => (
-                    <div key={result.id} className="result-card">
-                      <div className="result-icon">
-                        {renderIcon(result.icon, 24)}
+        {/* Two-Column Content Area */}
+        <div className={`two-column-layout ${hideTitles ? 'expanded' : ''}`}>
+          {/* Left Column - Search Results */}
+          <div className="search-results-column">
+            {searchPerformed && searchQuery.trim() ? (
+              <div className="results-container">
+                <div className="results-header">
+                  <h3>Search Results for "{searchQuery}"</h3>
+                  <span className="results-count">{searchResults.length} results found</span>
+                </div>
+                {searchResults.length > 0 ? (
+                  <div className="results-list">
+                    {searchResults.map(result => (
+                      <div key={result.id} className="result-card">
+                        {result.resultType === 'person' ? (
+                          // Person result card
+                          <>
+                            <div className="result-card-header">
+                              <div className="person-avatar-large">{result.avatar}</div>
+                              <div className="person-info">
+                                <h4>{result.name}</h4>
+                                <div className="person-username">{result.username}</div>
+                                <div className="person-stats">{result.followers} followers</div>
+                              </div>
+                              <button 
+                                className={`follow-btn ${result.isFollowing ? 'following' : ''}`}
+                                onClick={() => handleFollowToggle(result.id)}
+                              >
+                                {result.isFollowing ? 'Following' : 'Follow'}
+                              </button>
+                            </div>
+                            <div className="person-badge">
+                              <span className={`badge ${result.type}`}>{result.type}</span>
+                            </div>
+                          </>
+                        ) : (
+                          // Post result card
+                          <>
+                            <div className="result-icon">
+                              {renderIcon(result.icon, 24)}
+                            </div>
+                            <h4>{result.title}</h4>
+                            <p>{result.description}</p>
+                            <div className="result-meta">
+                              <span className="result-author">By {result.author}</span>
+                              <div className="result-stats">
+                                <span><Icons.FaHeart size={12} /> {result.likes}</span>
+                                <span><Icons.FaComment size={12} /> {result.comments}</span>
+                                <span>{result.timeAgo}</span>
+                              </div>
+                            </div>
+                            <div className="result-type-badge">
+                              <span className={`type-badge ${result.type}`}>{result.type}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <h4>{result.title}</h4>
-                      <p>{result.description}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="glass-card">
+                    <h2>No results found</h2>
+                    <p>Try different keywords or check your spelling.</p>
+                    <button className="filter-chip" onClick={clearSearch} style={{ marginTop: '20px' }}>
+                      Clear Search
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Default content when no search
+              <div className="glass-card welcome-card">
+                <h2>Welcome to Alpha Phoenix Trading</h2>
+                <p>
+                  {getActiveFilterLabel() 
+                    ? `Showing filtered content: ${getActiveFilterLabel()}`
+                    : 'Discover premium trading tools, educational content, and connect with traders worldwide.'}
+                </p>
+                <div className="featured-posts">
+                  <h3>Trending Posts</h3>
+                  <div className="featured-list">
+                    {mockPosts.slice(0, 3).map(post => (
+                      <div key={post.id} className="featured-item">
+                        <div className="featured-icon">{renderIcon(post.icon, 20)}</div>
+                        <div className="featured-content">
+                          <h4>{post.title}</h4>
+                          <p>{post.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <div className="glass-card">
-                  <h2>No results found</h2>
-                  <p>Try different keywords or check your spelling.</p>
-                  <button 
-                    className="filter-chip" 
-                    onClick={clearSearch}
-                    style={{ marginTop: '20px' }}
-                  >
-                    Clear Search
-                  </button>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Recent Activity */}
+          <div className="activity-column">
+            <div className="activity-tabs">
+              {activityTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  className={`activity-tab ${activeActivityTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveActivityTab(tab.id)}
+                >
+                  {renderIcon(tab.icon, 14)}
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+            
+            <div className="activity-list">
+              {activityData[activeActivityTab].map(activity => (
+                <div key={activity.id} className="activity-item">
+                  {activeActivityTab === 'news' && (
+                    <>
+                      <div className="activity-icon news-icon">
+                        {renderIcon('FaNewspaper', 14)}
+                      </div>
+                      <div className="activity-content">
+                        <div className="activity-title">{activity.title}</div>
+                        <div className="activity-meta">
+                          <span className="activity-source">{activity.source}</span>
+                          <span className="activity-time">{activity.time}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {activeActivityTab === 'trades' && (
+                    <>
+                      <div className="activity-icon trade-icon">
+                        {renderIcon('FaChartLine', 14)}
+                      </div>
+                      <div className="activity-content">
+                        <div className="activity-title">
+                          <span className="trade-user">{activity.user}</span>
+                          <span className={`trade-action ${activity.action}`}>{activity.action}</span>
+                          {activity.amount && <span className="trade-amount">{activity.amount}</span>}
+                          {activity.price && <span className="trade-price">@{activity.price}</span>}
+                        </div>
+                        <div className="activity-time">{activity.time}</div>
+                      </div>
+                    </>
+                  )}
+                  {activeActivityTab === 'chats' && (
+                    <>
+                      <div className="activity-icon chat-icon">
+                        {renderIcon('FaComments', 14)}
+                      </div>
+                      <div className="activity-content">
+                        <div className="activity-title">
+                          <span className="chat-user">{activity.user}</span>
+                          {activity.unread && <span className="unread-badge">New</span>}
+                        </div>
+                        <div className="activity-message">{activity.message}</div>
+                        <div className="activity-time">{activity.time}</div>
+                      </div>
+                    </>
+                  )}
+                  {activeActivityTab === 'updates' && (
+                    <>
+                      <div className="activity-icon update-icon">
+                        {activity.type === 'achievement' ? '🎉' : 
+                         activity.type === 'follow' ? renderIcon('FaUserPlus', 12) :
+                         activity.type === 'like' ? renderIcon('FaHeart', 12) :
+                         renderIcon('FaComment', 12)}
+                      </div>
+                      <div className="activity-content">
+                        <div className="activity-title">
+                          <span className="update-user">{activity.user}</span>
+                          <span className="update-action">{activity.action}</span>
+                        </div>
+                        <div className="activity-time">{activity.time}</div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
-          ) : (
-            // Default Welcome View
-            <div className="glass-card">
-              <h2>Welcome to Alpha Phoenix Trading</h2>
-              <p>
-                {getActiveFilterLabel() 
-                  ? `Showing filtered content: ${getActiveFilterLabel()}`
-                  : 'Discover premium trading tools, educational content, and connect with traders worldwide.'}
-              </p>
-            </div>
-          )}
+          </div>
+        </div>
+
+        {/* Bottom Navigation Bar - Minimizable */}
+        <div className={`bottom-nav ${isBottomNavExpanded ? 'expanded' : 'collapsed'}`}>
+          <button 
+            className="nav-toggle-btn"
+            onClick={() => setIsBottomNavExpanded(!isBottomNavExpanded)}
+          >
+            {isBottomNavExpanded ? renderIcon('FaChevronDown', 12) : renderIcon('FaChevronUp', 12)}
+          </button>
+          <div className="nav-items">
+            {bottomNavItems.map(item => (
+              <button
+                key={item.id}
+                className={`nav-item ${activeBottomNav === item.id ? 'active' : ''}`}
+                onClick={() => handleNavigation(item)}
+              >
+                <div className="nav-icon">{renderIcon(item.icon, isMobile ? 20 : 18)}</div>
+                {!isMobile && <span className="nav-label">{item.label}</span>}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
