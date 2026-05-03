@@ -61,14 +61,83 @@ const AuthHomePage = () => {
   const [activeBottomNav, setActiveBottomNav] = useState('home');
   
   // Wallpaper State
-  const [showWallpaperModal, setShowWallpaperModal] = useState(false);
-  const [wallpaperSettings, setWallpaperSettings] = useState(() => {
-    const saved = localStorage.getItem('wallpaper_settings');
-    return saved ? JSON.parse(saved) : {
-      url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop',
-      brightness: 0.5, blur: 0, opacity: 1
-    };
+ // Replace the entire wallpaper-related code in AuthHomePage.jsx:
+
+// ============ WALLPAPER STATE ============
+const [wallpaperSettings, setWallpaperSettings] = useState(() => {
+  const saved = localStorage.getItem('wallpaper_settings');
+  return saved ? JSON.parse(saved) : {
+    url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop',
+    brightness: 0.5,
+    blur: 0,
+    opacity: 1
+  };
+});
+
+// ============ WALLPAPER FUNCTIONS ============
+const applyWallpaper = useCallback((settings) => {
+  const root = document.querySelector('.auth-homepage');
+  if (!root) return;
+  
+  // Apply each property directly
+  root.style.setProperty('--wallpaper-url', `url(${settings.url})`);
+  root.style.setProperty('--wallpaper-brightness', settings.brightness);
+  root.style.setProperty('--wallpaper-blur', `${settings.blur}px`);
+  root.style.setProperty('--wallpaper-opacity', settings.opacity);
+  
+  console.log('🎨 Wallpaper applied:', settings.url);
+}, []);
+
+const updateWallpaper = (key, value) => {
+  setWallpaperSettings(prev => {
+    const updated = { ...prev, [key]: value };
+    // Apply immediately
+    const root = document.querySelector('.auth-homepage');
+    if (root) {
+      if (key === 'url') {
+        root.style.setProperty('--wallpaper-url', `url(${value})`);
+      } else if (key === 'brightness') {
+        root.style.setProperty('--wallpaper-brightness', value);
+      } else if (key === 'blur') {
+        root.style.setProperty('--wallpaper-blur', `${value}px`);
+      } else if (key === 'opacity') {
+        root.style.setProperty('--wallpaper-opacity', value);
+      }
+    }
+    // Save to localStorage
+    localStorage.setItem('wallpaper_settings', JSON.stringify(updated));
+    return updated;
   });
+};
+
+const handleWallpaperSelect = (wallpaper) => {
+  updateWallpaper('url', wallpaper.url);
+  setShowWallpaperModal(false);
+};
+
+// Apply wallpaper on mount and when settings change
+useEffect(() => {
+  applyWallpaper(wallpaperSettings);
+}, [wallpaperSettings, applyWallpaper]);
+
+// Also apply immediately on mount
+useEffect(() => {
+  const saved = localStorage.getItem('wallpaper_settings');
+  if (saved) {
+    try {
+      const settings = JSON.parse(saved);
+      const root = document.querySelector('.auth-homepage');
+      if (root) {
+        root.style.setProperty('--wallpaper-url', `url(${settings.url})`);
+        root.style.setProperty('--wallpaper-brightness', settings.brightness);
+        root.style.setProperty('--wallpaper-blur', `${settings.blur}px`);
+        root.style.setProperty('--wallpaper-opacity', settings.opacity);
+      }
+    } catch (e) {
+      console.error('Failed to load wallpaper settings:', e);
+    }
+  }
+}, []); // Empty dependency array - runs once on mount
   const [activeWallpaperCategory, setActiveWallpaperCategory] = useState('all');
   
   // Refs
@@ -677,49 +746,90 @@ const AuthHomePage = () => {
       </div>
 
       {/* Wallpaper Modal */}
-      {showWallpaperModal && (
-        <div className="wallpaper-modal" onClick={() => setShowWallpaperModal(false)}>
-          <div className="wallpaper-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Choose Wallpaper</h3>
-              <button className="close-modal" onClick={() => setShowWallpaperModal(false)}>{renderIcon('FaTimes', 16)}</button>
-            </div>
-            <div className="wallpaper-categories">
-              {['all', 'nature', 'trading', 'city', 'abstract'].map(cat => (
-                <button key={cat} className={`category-chip ${activeWallpaperCategory === cat ? 'active' : ''}`} onClick={() => setActiveWallpaperCategory(cat)}>
-                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                </button>
-              ))}
-            </div>
-            <div className="wallpaper-grid">
-              {[
-                { id: 1, name: 'Ocean', url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop', category: 'nature' },
-                { id: 2, name: 'Mountain', url: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=1920&h=1080&fit=crop', category: 'nature' },
-                { id: 3, name: 'Candles', url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1920&h=1080&fit=crop', category: 'trading' },
-                { id: 4, name: 'Market', url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1920&h=1080&fit=crop', category: 'trading' },
-                { id: 5, name: 'City Night', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&h=1080&fit=crop', category: 'city' },
-                { id: 6, name: 'Neon', url: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=1920&h=1080&fit=crop', category: 'abstract' },
-              ].filter(w => activeWallpaperCategory === 'all' || w.category === activeWallpaperCategory).map(w => (
-                <div key={w.id} className={`wallpaper-option ${wallpaperSettings.url === w.url ? 'selected' : ''}`}
-                  style={{ backgroundImage: `url(${w.url})` }}
-                  onClick={() => { updateWallpaper('url', w.url); setShowWallpaperModal(false); }}>
-                  <span className="wallpaper-name">{w.name}</span>
-                </div>
-              ))}
-            </div>
-            <div className="wallpaper-settings">
-              <div className="setting">
-                <label>Brightness</label>
-                <input type="range" min="0.3" max="1" step="0.01" value={wallpaperSettings.brightness} onChange={e => updateWallpaper('brightness', parseFloat(e.target.value))} />
-              </div>
-              <div className="setting">
-                <label>Blur</label>
-                <input type="range" min="0" max="20" step="1" value={wallpaperSettings.blur} onChange={e => updateWallpaper('blur', parseInt(e.target.value))} />
-              </div>
-            </div>
+{showWallpaperModal && (
+  <div className="wallpaper-modal" onClick={() => setShowWallpaperModal(false)}>
+    <div className="wallpaper-modal-content" onClick={e => e.stopPropagation()}>
+      <div className="modal-header">
+        <h3>Choose Wallpaper</h3>
+        <button className="close-modal" onClick={() => setShowWallpaperModal(false)}>
+          {renderIcon('FaTimes', 16)}
+        </button>
+      </div>
+      
+      <div className="wallpaper-categories">
+        {[
+          { id: 'all', label: 'All' },
+          { id: 'nature', label: 'Nature' },
+          { id: 'trading', label: 'Trading' },
+          { id: 'city', label: 'City' },
+          { id: 'abstract', label: 'Abstract' }
+        ].map(cat => (
+          <button
+            key={cat.id}
+            className={`category-chip ${activeWallpaperCategory === cat.id ? 'active' : ''}`}
+            onClick={() => setActiveWallpaperCategory(cat.id)}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+      
+      <div className="wallpaper-grid">
+        {[
+          { id: 1, name: 'Abstract Ocean', url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop', category: 'nature' },
+          { id: 2, name: 'Mountain Peak', url: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=1920&h=1080&fit=crop', category: 'nature' },
+          { id: 3, name: 'Forest Dreams', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&h=1080&fit=crop', category: 'nature' },
+          { id: 4, name: 'Trading Charts', url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1920&h=1080&fit=crop', category: 'trading' },
+          { id: 5, name: 'Market Data', url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1920&h=1080&fit=crop', category: 'trading' },
+          { id: 6, name: 'Crypto Bull', url: 'https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=1920&h=1080&fit=crop', category: 'trading' },
+          { id: 7, name: 'Night City', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&h=1080&fit=crop', category: 'city' },
+          { id: 8, name: 'Tokyo Streets', url: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920&h=1080&fit=crop', category: 'city' },
+          { id: 9, name: 'Neon Grid', url: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=1920&h=1080&fit=crop', category: 'abstract' },
+          { id: 10, name: 'Digital Waves', url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1920&h=1080&fit=crop', category: 'abstract' },
+        ].filter(w => activeWallpaperCategory === 'all' || w.category === activeWallpaperCategory).map(w => (
+          <div
+            key={w.id}
+            className={`wallpaper-option ${wallpaperSettings.url === w.url ? 'selected' : ''}`}
+            style={{ backgroundImage: `url(${w.url})` }}
+            onClick={() => handleWallpaperSelect(w)}
+          >
+            <span className="wallpaper-name">{w.name}</span>
+            {wallpaperSettings.url === w.url && (
+              <span className="wallpaper-check">✓</span>
+            )}
           </div>
+        ))}
+      </div>
+      
+      <div className="wallpaper-settings">
+        <div className="setting">
+          <label>Brightness</label>
+          <input
+            type="range"
+            min="0.2"
+            max="1"
+            step="0.01"
+            value={wallpaperSettings.brightness}
+            onChange={e => updateWallpaper('brightness', parseFloat(e.target.value))}
+          />
+          <span className="setting-value">{Math.round(wallpaperSettings.brightness * 100)}%</span>
         </div>
-      )}
+        <div className="setting">
+          <label>Blur</label>
+          <input
+            type="range"
+            min="0"
+            max="15"
+            step="1"
+            value={wallpaperSettings.blur}
+            onChange={e => updateWallpaper('blur', parseInt(e.target.value))}
+          />
+          <span className="setting-value">{wallpaperSettings.blur}px</span>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Sticky Header Area */}
       <header className="sticky-header">
