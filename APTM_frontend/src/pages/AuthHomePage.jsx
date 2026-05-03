@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { userStatusService } from '../services/userStatusService';
 import PostComponent from '../components/profile/PostComponent';
 import ConnectionPanel from '../components/navigation/ConnectionPanel';
-import AvatarWithFallback from '../components/AvatarWithFallback';
+import AvatarWithFallback from '../components//profile/AvatarWithFallback';
 import * as Icons from 'react-icons/fa';
 import './AuthHomePage.css';
 
