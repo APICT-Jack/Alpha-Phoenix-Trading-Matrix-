@@ -1,76 +1,5 @@
-/* src/pages/AuthHomePage.css - Complete Fixed Version */
-/* ============================================
-   CRITICAL: Override any parent styles that break sticky
-   ============================================ */
+/* src/pages/AuthHomePage.css - Instagram-Style Mobile Layout */
 
-/* The .app container might have overflow settings that break sticky */
-.app {
-  overflow: visible !important;
-  overflow-x: hidden !important;
-}
-
-/* AuthHomePage needs its own stacking context */
-.auth-homepage {
-  /* These ensure sticky works */
-  overflow-x: hidden;
-  overflow-y: visible;
-  /* Create new stacking context */
-  position: relative;
-  z-index: 1;
-}
-
-/* ============================================
-   STICKY HEADER - MUST WORK
-   ============================================ */
-.sticky-header {
-  position: -webkit-sticky; /* Safari */
-  position: sticky;
-  top: 0 !important;
-  z-index: 100 !important;
-  
-  /* Background must be opaque enough */
-  background: rgba(10, 10, 10, 0.95) !important;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  
-  /* Ensure it's above other content */
-  border-bottom: 1px solid var(--glass-border);
-  padding: 8px 12px 6px;
-  
-  /* Debug: add a subtle border to see if it's working */
-  /* box-shadow: 0 4px 20px rgba(255, 0, 0, 0.3) !important; */
-}
-
-/* Ensure parent containers don't break sticky */
-.auth-homepage,
-.auth-container,
-.app,
-#root,
-body {
-  overflow-x: hidden;
-}
-
-/* Override any overflow: hidden on html/body that breaks sticky */
-html {
-  overflow-y: visible !important;
-}
-
-body {
-  overflow-y: visible !important;
-  overflow-x: hidden !important;
-}
-
-/* ============================================
-   STICKY SIDEBAR (Desktop)
-   ============================================ */
-.sidebar-column {
-  position: -webkit-sticky;
-  position: sticky;
-  top: 100px;
-  align-self: flex-start;
-  max-height: calc(100vh - 120px);
-  overflow-y: auto;
-}
 /* ============================================
    CSS VARIABLES
    ============================================ */
@@ -131,7 +60,7 @@ body.light-mode .auth-homepage {
 }
 
 /* ============================================
-   WALLPAPER BACKGROUND
+   WALLPAPER
    ============================================ */
 .auth-homepage::before {
   content: '';
@@ -162,21 +91,21 @@ body.light-mode .auth-homepage::after {
 }
 
 /* ============================================
-   STICKY HEADER - FIXED TO TOP
+   STICKY HEADER
    ============================================ */
 .sticky-header {
   position: sticky;
   top: 0;
   z-index: 100;
   padding: 8px 12px 6px;
-  background: rgba(10, 10, 10, 0.9);
+  background: rgba(10, 10, 10, 0.85);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--glass-border);
 }
 
 body.light-mode .sticky-header {
-  background: rgba(245, 245, 247, 0.9);
+  background: rgba(245, 245, 247, 0.85);
 }
 
 /* Search */
@@ -446,38 +375,29 @@ body.light-mode .sticky-header {
 }
 
 /* ============================================
-   MAIN CONTENT AREA - DESKTOP LAYOUT
+   MAIN CONTENT
    ============================================ */
 .main-content-area {
   display: flex;
-  gap: 20px;
-  padding: 12px 16px;
-  max-width: 1100px;
+  gap: 0;
+  padding: 8px 0;
+  max-width: 100%;
   margin: 0 auto;
-  align-items: flex-start;
 }
 
 .feed-column {
   flex: 1;
   min-width: 0;
-  max-width: 600px;
-  margin: 0 auto;
+  width: 100%;
 }
 
-/* Sidebar - Sticky on desktop */
+/* Sidebar - Hidden on mobile */
 .sidebar-column {
   display: none;
-  width: 320px;
-  flex-shrink: 0;
-  position: sticky;
-  top: 120px;
-  align-self: flex-start;
-  max-height: calc(100vh - 140px);
-  overflow-y: auto;
 }
 
 /* ============================================
-   FEED & POSTS
+   FEED
    ============================================ */
 .posts-list {
   display: flex;
@@ -507,7 +427,7 @@ body.light-mode .sticky-header {
    SEARCH RESULTS
    ============================================ */
 .search-results-container {
-  padding: 0;
+  padding: 0 8px;
 }
 
 .results-header {
@@ -515,7 +435,7 @@ body.light-mode .sticky-header {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
-  padding: 4px 0;
+  padding: 4px;
 }
 
 .results-header h3 {
@@ -539,13 +459,14 @@ body.light-mode .sticky-header {
 
 .search-tabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 10px;
+  gap: 3px;
+  margin-bottom: 8px;
   overflow-x: auto;
+  padding: 0 4px;
 }
 
 .search-tab {
-  padding: 5px 12px;
+  padding: 4px 10px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-full);
@@ -682,327 +603,7 @@ body.light-mode .sticky-header {
 }
 
 /* ============================================
-   SIDEBAR PANELS (Desktop)
-   ============================================ */
-.activity-panel,
-.trending-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: 12px;
-  margin-bottom: 12px;
-}
-
-.panel-header {
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--glass-border);
-}
-
-.panel-header h3 {
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-/* ============================================
-   ACTIVITY TABS - HORIZONTAL
-   ============================================ */
-.activity-tabs {
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--glass-border);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.activity-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.activity-tab {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  background: none;
-  border: none;
-  border-radius: var(--radius-full);
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  font-family: inherit;
-  transition: all 0.15s;
-}
-
-.activity-tab:hover {
-  color: var(--text-primary);
-  background: rgba(255,255,255,0.05);
-}
-
-.activity-tab.active {
-  background: var(--accent);
-  color: white;
-}
-
-/* Activity List */
-.activity-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  max-height: 350px;
-  overflow-y: auto;
-}
-
-.activity-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 4px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.1s;
-}
-
-.activity-item:hover {
-  background: rgba(255,255,255,0.05);
-}
-
-.activity-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.activity-dot.post { background: var(--accent); }
-.activity-dot.chat { background: var(--green); }
-.activity-dot.trade { background: var(--orange); }
-.activity-dot.follow_suggestion { background: var(--purple); }
-
-.activity-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.activity-title {
-  font-size: 12px;
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.activity-user {
-  font-weight: 600;
-}
-
-.activity-action {
-  color: var(--text-secondary);
-}
-
-.activity-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 1px;
-  font-size: 10px;
-  color: var(--text-tertiary);
-}
-
-.unread-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.unread-badge {
-  font-size: 9px;
-  padding: 1px 5px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: white;
-}
-
-.activity-likes {
-  font-size: 10px;
-}
-
-.activity-members {
-  font-size: 10px;
-}
-
-.activity-arrow {
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-}
-
-.no-activity {
-  text-align: center;
-  padding: 20px;
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-/* ============================================
-   CHAT ROOMS LIST (Sidebar)
-   ============================================ */
-.chat-rooms-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.chat-room-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 4px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.1s;
-}
-
-.chat-room-item:hover {
-  background: rgba(255,255,255,0.05);
-}
-
-.room-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--accent-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.room-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.room-name {
-  font-size: 12px;
-  font-weight: 500;
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.room-meta {
-  font-size: 10px;
-  color: var(--text-tertiary);
-}
-
-.room-unread {
-  background: var(--accent);
-  color: white;
-  font-size: 10px;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 5px;
-  flex-shrink: 0;
-}
-
-/* ============================================
-   FOLLOW LIST (Sidebar)
-   ============================================ */
-.follow-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.follow-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 4px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.1s;
-}
-
-.follow-item:hover {
-  background: rgba(255,255,255,0.05);
-}
-
-.follow-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--purple));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 600;
-  color: white;
-  flex-shrink: 0;
-}
-
-.follow-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.follow-name {
-  font-size: 12px;
-  font-weight: 500;
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.follow-username {
-  font-size: 10px;
-  color: var(--text-tertiary);
-}
-
-.follow-sm-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: none;
-  color: white;
-  font-size: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.15s;
-}
-
-.follow-sm-btn.following {
-  background: transparent;
-  border: 1px solid var(--glass-border);
-  color: var(--text-tertiary);
-  font-size: 10px;
-}
-
-/* ============================================
-   MOBILE ACTIVITY PANEL (Bottom Sheet)
+   MOBILE ACTIVITY PANEL
    ============================================ */
 .mobile-overlay {
   position: fixed;
@@ -1026,7 +627,7 @@ body.light-mode .sticky-header {
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 12px 16px;
-  padding-bottom: calc(16px + var(--bottom-nav-height) + var(--safe-bottom));
+  padding-bottom: calc(16px + var(--safe-bottom));
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1069,39 +670,30 @@ body.light-mode .sticky-header {
   justify-content: center;
 }
 
-/* Mobile activity tabs - horizontal */
 .mobile-activity-tabs {
   display: flex;
-  flex-direction: row;
   gap: 4px;
   margin-bottom: 10px;
-  padding-bottom: 8px;
   border-bottom: 1px solid var(--glass-border);
-  overflow-x: auto;
-  scrollbar-width: none;
+  padding-bottom: 8px;
 }
 
-.mobile-activity-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.mobile-activity-tabs .activity-tab {
+.activity-tab {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 12px;
+  padding: 5px 10px;
   background: none;
   border: none;
   border-radius: var(--radius-full);
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   white-space: nowrap;
-  flex-shrink: 0;
   font-family: inherit;
 }
 
-.mobile-activity-tabs .activity-tab.active {
+.activity-tab.active {
   background: var(--accent);
   color: white;
 }
@@ -1110,12 +702,93 @@ body.light-mode .sticky-header {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.activity-item:active {
+  background: rgba(255,255,255,0.05);
+}
+
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.activity-dot.post { background: var(--accent); }
+.activity-dot.chat { background: var(--green); }
+.activity-dot.trade { background: var(--orange); }
+.activity-dot.follow_suggestion { background: var(--purple); }
+
+.activity-content {
   flex: 1;
-  overflow-y: auto;
+  min-width: 0;
+}
+
+.activity-title {
+  font-size: 13px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.activity-user {
+  font-weight: 600;
+}
+
+.activity-action {
+  color: var(--text-secondary);
+}
+
+.activity-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.unread-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.activity-likes {
+  color: var(--red);
+  font-size: 10px;
+}
+
+.activity-members {
+  font-size: 10px;
+}
+
+.activity-arrow {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.no-activity {
+  text-align: center;
+  padding: 30px;
+  color: var(--text-tertiary);
+  font-size: 13px;
 }
 
 /* ============================================
-   BOTTOM NAVIGATION - FIXED
+   BOTTOM NAVIGATION - INSTAGRAM STYLE
    ============================================ */
 .bottom-nav {
   position: fixed;
@@ -1139,7 +812,7 @@ body.light-mode .bottom-nav {
   justify-content: space-around;
   align-items: center;
   height: var(--bottom-nav-height);
-  padding: 0 8px;
+  padding: 0 4px;
   max-width: 500px;
   margin: 0 auto;
 }
@@ -1155,15 +828,14 @@ body.light-mode .bottom-nav {
   color: var(--text-tertiary);
   cursor: pointer;
   padding: 4px 0;
-  flex: 1;
-  max-width: 70px;
+  width: 60px;
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
-  transition: color 0.15s, transform 0.1s;
+  transition: color 0.15s;
 }
 
 .nav-item:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 
 .nav-icon {
@@ -1221,6 +893,7 @@ body.light-mode .bottom-nav {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 12px;
 }
 
 .wallpaper-modal {
@@ -1402,13 +1075,18 @@ body.light-mode .bottom-nav {
   to { opacity: 1; }
 }
 
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
 /* ============================================
-   TABLET & DESKTOP - 768px+
+   TABLET & DESKTOP
    ============================================ */
 @media (min-width: 768px) {
   .sticky-header {
@@ -1436,18 +1114,17 @@ body.light-mode .bottom-nav {
   .main-content-area {
     padding: 12px 20px;
     gap: 20px;
-    justify-content: center;
+    max-width: 1000px;
   }
 
   .feed-column {
     max-width: 600px;
-    margin: 0;
   }
 
   .sidebar-column {
     display: block;
-    position: sticky;
-    top: 120px;
+    flex: 1;
+    max-width: 320px;
   }
 
   .mobile-activity-panel,
@@ -1460,9 +1137,6 @@ body.light-mode .bottom-nav {
   }
 }
 
-/* ============================================
-   DESKTOP - 1024px+
-   ============================================ */
 @media (min-width: 1024px) {
   .sticky-header {
     padding: 16px 24px 10px;
@@ -1475,6 +1149,7 @@ body.light-mode .bottom-nav {
   .main-content-area {
     padding: 16px 24px;
     gap: 24px;
+    justify-content: center;
   }
 
   .feed-column {
@@ -1482,7 +1157,7 @@ body.light-mode .bottom-nav {
   }
 
   .sidebar-column {
-    width: 340px;
+    max-width: 340px;
   }
 
   .bottom-nav {
@@ -1501,6 +1176,203 @@ body.light-mode .bottom-nav {
   .wallpaper-grid {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+/* ============================================
+   SIDEBAR COMPONENTS (Desktop only)
+   ============================================ */
+.activity-panel,
+.trending-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.panel-header {
+  margin-bottom: 8px;
+}
+
+.panel-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.activity-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.activity-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.unread-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+}
+
+/* Chat Rooms List */
+.chat-rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-room-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.chat-room-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.room-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.room-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.room-name {
+  font-size: 12px;
+  font-weight: 500;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.room-meta {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.room-unread {
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
+/* Follow List */
+.follow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.follow-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.follow-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.follow-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+}
+
+.follow-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.follow-name {
+  font-size: 12px;
+  font-weight: 500;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.follow-username {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.follow-sm-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.follow-sm-btn.following {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-tertiary);
+  font-size: 10px;
 }
 
 /* ============================================
