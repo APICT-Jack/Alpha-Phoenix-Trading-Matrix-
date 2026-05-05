@@ -1,28 +1,41 @@
 // src/pages/auth-home/components/SearchSection.jsx
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
+import { useSearch } from '../hooks/useSearch';
 import * as Icons from 'react-icons/fa';
 import './SearchSection.css';
 
 const SearchSection = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState({ posts: [], users: [], hashtags: [] });
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searchSuggestions, setSearchSuggestions] = useState([]);
-  const [searchPerformed, setSearchPerformed] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [searchTab, setSearchTab] = useState('all');
+  const { user: currentUser } = useAuth();
   const [activeFilters, setActiveFilters] = useState(['all']);
   const [showPeopleMenu, setShowPeopleMenu] = useState(false);
   const [showTraderMenu, setShowTraderMenu] = useState(false);
   const [peopleFilters, setPeopleFilters] = useState({ traders: [], developers: false, students: false, friends: false });
+  const [isScrolled, setIsScrolled] = useState(false);
   
-  const searchInputRef = useRef(null);
-  const suggestionsRef = useRef(null);
   const peopleMenuRef = useRef(null);
   const traderMenuRef = useRef(null);
   const traderBtnRef = useRef(null);
+  const headerRef = useRef(null);
+
+  const {
+    searchQuery,
+    searchResults,
+    showSuggestions,
+    searchSuggestions,
+    searchPerformed,
+    searching,
+    searchTab,
+    searchInputRef,
+    suggestionsRef,
+    setSearchQuery,
+    setSearchTab,
+    performSearch,
+    clearSearch,
+    getFilteredSearchResults
+  } = useSearch();
 
   const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
   const API_BASE = `${API_URL}/api`;
@@ -32,60 +45,27 @@ const SearchSection = () => {
     'Content-Type': 'application/json'
   });
 
-  const apiFetch = useCallback(async (endpoint, options = {}) => {
+  const apiFetch = async (endpoint, options = {}) => {
     const url = `${API_BASE}${endpoint}`;
     const config = { headers: getAuthHeaders(), ...options };
     const response = await fetch(url, config);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
-  }, []);
+  };
 
-  const performSearch = useCallback(async () => {
-    if (!searchQuery.trim()) {
-      if (searchPerformed) {
-        setSearchPerformed(false);
-        setSearchResults({ posts: [], users: [], hashtags: [] });
-      }
-      return;
-    }
-    setSearching(true);
-    setSearchPerformed(true);
-    setShowSuggestions(false);
+  const handleFollowToggle = async (userId, currentStatus, e) => {
+    if (e) e.stopPropagation();
     try {
-      const [postsRes, usersRes] = await Promise.all([
-        apiFetch(`/posts/feed?search=${encodeURIComponent(searchQuery.trim())}&limit=20`).catch(() => ({ success: true, posts: [] })),
-        apiFetch(`/users/advanced-search?q=${encodeURIComponent(searchQuery.trim())}&limit=20`).catch(() => ({ success: true, users: [] }))
-      ]);
-      let hashtags = [];
-      try {
-        const hashtagRes = await apiFetch(`/posts/hashtags/${searchQuery.trim().replace('#', '')}`);
-        if (hashtagRes.success) hashtags = hashtagRes.posts || [];
-      } catch (error) {}
-      setSearchResults({ posts: postsRes.posts || [], users: usersRes.users || [], hashtags });
+      const endpoint = currentStatus ? '/follow/unfollow' : '/follow/follow';
+      await apiFetch(`${endpoint}/${userId}`, { method: 'POST' });
+      // Update the search results users list
+      const updatedUsers = searchResults.users.map(u => 
+        (u.id || u._id) === userId ? { ...u, isFollowing: !currentStatus } : u
+      );
+      setSearchResults(prev => ({ ...prev, users: updatedUsers }));
     } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setSearching(false);
+      console.error('Error toggling follow:', error);
     }
-  }, [searchQuery, searchPerformed, apiFetch]);
-
-  const fetchSearchSuggestions = useCallback(async (query) => {
-    if (query.length < 2) { setSearchSuggestions([]); setShowSuggestions(false); return; }
-    try {
-      const data = await apiFetch(`/users/search?q=${encodeURIComponent(query)}&limit=5`);
-      if (data.success && data.users) {
-        setSearchSuggestions(data.users.map(user => ({ ...user, resultType: 'user' })));
-        setShowSuggestions(data.users.length > 0);
-      }
-    } catch (error) { setSearchSuggestions([]); setShowSuggestions(false); }
-  }, [apiFetch]);
-
-  const clearSearch = () => {
-    setSearchQuery('');
-    setSearchResults({ posts: [], users: [], hashtags: [] });
-    setSearchPerformed(false);
-    setShowSuggestions(false);
-    searchInputRef.current?.focus();
   };
 
   const handleFilterClick = (filterId) => {
@@ -101,31 +81,18 @@ const SearchSection = () => {
     });
   };
 
-  const renderIcon = (name, size = 16) => {
-    const Icon = Icons[name];
-    return Icon ? <Icon size={size} /> : null;
-  };
+  // Handle scroll for sticky header effects
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  const getFilteredSearchResults = () => {
-    let results = [];
-    if (searchTab === 'all' || searchTab === 'posts') results = [...results, ...searchResults.posts.map(p => ({ ...p, resultType: 'post' }))];
-    if (searchTab === 'all' || searchTab === 'people') results = [...results, ...searchResults.users.map(u => ({ ...u, resultType: 'user' }))];
-    if (searchTab === 'all' || searchTab === 'hashtags') results = [...results, ...searchResults.hashtags.map(h => ({ ...h, resultType: 'hashtag' }))];
-    return results;
-  };
-
-  // Debounced search suggestions
-  React.useEffect(() => {
-    if (searchPerformed) return;
-    const timer = setTimeout(() => fetchSearchSuggestions(searchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, searchPerformed, fetchSearchSuggestions]);
-
-  React.useEffect(() => {
+  // Click outside for people menu
+  useEffect(() => {
     const handleClickOutside = (e) => {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target) && 
-          searchInputRef.current && !searchInputRef.current.contains(e.target)) 
-        setShowSuggestions(false);
       if (peopleMenuRef.current && !peopleMenuRef.current.contains(e.target) && 
           !e.target.closest('.filter-chip.has-submenu')) 
         setShowPeopleMenu(false);
@@ -137,129 +104,261 @@ const SearchSection = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const renderIcon = (name, size = 16) => {
+    const Icon = Icons[name];
+    return Icon ? <Icon size={size} /> : null;
+  };
+
+  // Filter chips data
+  const filterChips = [
+    { id: 'all', label: 'All', icon: 'FaHome' },
+    { id: 'videos', label: 'Videos', icon: 'FaVideo' },
+    { id: 'charts', label: 'Charts', icon: 'FaChartLine' },
+    { id: 'academies', label: 'Learn', icon: 'FaGraduationCap' },
+    { id: 'tools', label: 'Tools', icon: 'FaTools' },
+    { id: 'people', label: 'People', icon: 'FaUsers', hasSubmenu: true }
+  ];
+
+  const filteredResults = getFilteredSearchResults();
+
   return (
-    <div className="search-section">
-      <div className={`search-label ${searchPerformed && searchQuery.trim() ? 'hide-titles' : ''}`}>
-        <h1>Alpha Phoenix Trading</h1>
-        <p>Discover trading content and connect with traders</p>
-      </div>
-      
-      <div className="search-wrapper">
-        <div className="search-box">
-          <div className="search-icon">{renderIcon('FaSearch', 16)}</div>
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="search-input"
-            placeholder="Search posts, users, or hashtags..."
-            value={searchQuery}
-            onChange={e => {
-              setSearchQuery(e.target.value);
-              if (searchPerformed && !e.target.value.trim()) setSearchPerformed(false);
-            }}
-            onKeyPress={e => { if (e.key === 'Enter') performSearch(); }}
-          />
-          {searchQuery && (
-            <button className="clear-search" onClick={clearSearch}>{renderIcon('FaTimes', 12)}</button>
-          )}
-          <button className="search-button" onClick={performSearch} disabled={searching}>
-            {searching ? <Icons.FaSpinner className="spinner-button" /> : 'Search'}
-          </button>
+    <div className={`search-section ${isScrolled ? 'scrolled' : ''}`} ref={headerRef}>
+      {/* Hero Title - Hidden when search is performed */}
+      <div className={`search-hero ${searchPerformed && searchQuery.trim() ? 'hidden' : ''}`}>
+        <div className="search-hero-content">
+          <h1 className="search-hero-title">
+            Alpha Phoenix
+            <span className="search-hero-accent"> Trading</span>
+          </h1>
+          <p className="search-hero-subtitle">
+            Discover trading content and connect with traders
+          </p>
         </div>
-        
-        {showSuggestions && searchSuggestions.length > 0 && (
-          <div className="search-suggestions" ref={suggestionsRef}>
-            {searchSuggestions.map((item, idx) => (
-              <div key={item.id || item._id || idx} className="suggestion-item" onClick={() => {
-                setShowSuggestions(false);
-                navigate(`/profile/${item.id || item._id}`);
-              }}>
-                <div className="suggestion-avatar">{item.name?.charAt(0)?.toUpperCase() || 'U'}</div>
-                <div className="suggestion-text">
-                  <span className="suggestion-name">{item.name}</span>
-                  <span className="suggestion-username">@{item.username}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Filter Chips */}
-      {!searchPerformed && (
-        <div className="filter-section">
-          <div className="filter-chips">
-            {[
-              { id: 'all', label: 'All' },
-              { id: 'videos', label: 'Videos' },
-              { id: 'charts', label: 'Charts' },
-              { id: 'academies', label: 'Academies' },
-              { id: 'tools', label: 'Tools' },
-              { id: 'people', label: 'People', hasSubmenu: true }
-            ].map(filter => (
-              <div key={filter.id} className="filter-chip-wrapper">
-                <button
-                  className={`filter-chip ${activeFilters.includes(filter.id) ? 'active' : ''} ${filter.hasSubmenu ? 'has-submenu' : ''}`}
-                  onClick={() => handleFilterClick(filter.id)}
-                >
-                  {filter.label}
-                  {filter.hasSubmenu && <span className="dropdown-arrow">▼</span>}
-                </button>
-                {filter.hasSubmenu && showPeopleMenu && (
-                  <div className="people-submenu" ref={peopleMenuRef}>
-                    <div className="submenu-section">
-                      <button ref={traderBtnRef} className="submenu-item" onClick={() => setShowTraderMenu(!showTraderMenu)}>
-                        <span className="checkbox-indicator">▶</span> Traders
+      {/* macOS/iOS Style Search Bar */}
+      <div className="search-container">
+        <div className={`search-bar-wrapper ${searchPerformed && searchQuery.trim() ? 'compact' : ''}`}>
+          <div className="search-bar">
+            <div className="search-icon-wrapper">
+              {renderIcon('FaSearch', 16)}
+            </div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="search-input"
+              placeholder="Search posts, users, or hashtags..."
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                if (searchPerformed && !e.target.value.trim()) {
+                  clearSearch();
+                }
+              }}
+              onKeyPress={e => { if (e.key === 'Enter') performSearch(); }}
+            />
+            {searchQuery && (
+              <button className="search-clear-btn" onClick={clearSearch}>
+                {renderIcon('FaTimes', 12)}
+              </button>
+            )}
+            <button className="search-submit-btn" onClick={performSearch} disabled={searching}>
+              {searching ? <Icons.FaSpinner className="spinner-button" /> : 'Go'}
+            </button>
+          </div>
+
+          {/* Search Suggestions - iOS Style */}
+          {showSuggestions && searchSuggestions.length > 0 && (
+            <div className="search-suggestions-glass" ref={suggestionsRef}>
+              <div className="suggestions-header">
+                <span className="suggestions-title">Recent searches</span>
+                <button className="suggestions-clear" onClick={clearSearch}>Clear</button>
+              </div>
+              {searchSuggestions.map((item, idx) => (
+                <div key={item.id || item._id || idx} className="suggestion-item-glass" onClick={() => {
+                  setShowSuggestions(false);
+                  navigate(`/profile/${item.id || item._id}`);
+                }}>
+                  <div className="suggestion-avatar-glass">
+                    {item.avatar ? (
+                      <img src={item.avatar} alt={item.name} />
+                    ) : (
+                      <span>{item.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                    )}
+                  </div>
+                  <div className="suggestion-info">
+                    <span className="suggestion-name-glass">{item.name}</span>
+                    <span className="suggestion-username-glass">@{item.username}</span>
+                  </div>
+                  {currentUser && (item.id || item._id) !== currentUser.id && (
+                    <button 
+                      className="suggestion-follow-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFollowToggle(item.id || item._id, item.isFollowing, e);
+                      }}
+                    >
+                      {item.isFollowing ? 'Following' : 'Follow'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Filter Chips - iOS Style Scrollable */}
+        {!searchPerformed && (
+          <div className="filter-chips-container">
+            <div className="filter-chips-scroll">
+              {filterChips.map(filter => (
+                <div key={filter.id} className="filter-chip-wrapper">
+                  <button
+                    className={`filter-chip-glass ${activeFilters.includes(filter.id) ? 'active' : ''}`}
+                    onClick={() => handleFilterClick(filter.id)}
+                  >
+                    <span className="filter-chip-icon">{renderIcon(filter.icon, 10)}</span>
+                    <span className="filter-chip-label">{filter.label}</span>
+                    {filter.hasSubmenu && <span className="filter-chip-arrow">⌵</span>}
+                  </button>
+                  
+                  {filter.hasSubmenu && showPeopleMenu && (
+                    <div className="people-submenu-glass" ref={peopleMenuRef}>
+                      <div className="submenu-header">
+                        <span>Filter by trader level</span>
+                      </div>
+                      <button ref={traderBtnRef} className="submenu-trigger" onClick={() => setShowTraderMenu(!showTraderMenu)}>
+                        <span>📊 Trader Level</span>
+                        <span className="submenu-arrow">{showTraderMenu ? '▲' : '▼'}</span>
                       </button>
                       {showTraderMenu && (
-                        <div className="nested-submenu" ref={traderMenuRef}>
+                        <div className="submenu-options" ref={traderMenuRef}>
                           {['beginner', 'intermediate', 'advanced', 'expert', 'mentor'].map(level => (
-                            <button key={level} className="nested-option"
+                            <button 
+                              key={level} 
+                              className={`submenu-option ${peopleFilters.traders.includes(level) ? 'selected' : ''}`}
                               onClick={() => setPeopleFilters(prev => ({
                                 ...prev,
-                                traders: prev.traders.includes(level) ? prev.traders.filter(s => s !== level) : [...prev.traders, level]
-                              }))}>
-                              {peopleFilters.traders.includes(level) ? '✓' : '○'} {level}
+                                traders: prev.traders.includes(level) 
+                                  ? prev.traders.filter(s => s !== level) 
+                                  : [...prev.traders, level]
+                              }))}
+                            >
+                              <span className="option-check">{peopleFilters.traders.includes(level) ? '✓' : '○'}</span>
+                              <span className="option-label">{level.charAt(0).toUpperCase() + level.slice(1)}</span>
                             </button>
                           ))}
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Search Results */}
+      {/* Search Results - iOS Style */}
       {searchPerformed && searchQuery.trim() && (
-        <div className="search-results-container">
-          <div className="results-header">
-            <h3>Results for "{searchQuery}"</h3>
-            <button className="clear-results-btn" onClick={clearSearch}>
+        <div className="search-results-glass">
+          <div className="results-header-glass">
+            <div className="results-title-section">
+              <h3>Results for "{searchQuery}"</h3>
+              <span className="results-count">{filteredResults.length} items</span>
+            </div>
+            <button className="clear-results-glass" onClick={clearSearch}>
               {renderIcon('FaTimes', 12)} Clear
             </button>
           </div>
-          <div className="search-tabs">
+          
+          <div className="search-tabs-glass">
             {['all', 'posts', 'people'].map(tab => (
-              <button key={tab} className={`search-tab ${searchTab === tab ? 'active' : ''}`} onClick={() => setSearchTab(tab)}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              <button 
+                key={tab} 
+                className={`search-tab-glass ${searchTab === tab ? 'active' : ''}`} 
+                onClick={() => setSearchTab(tab)}
+              >
+                {tab === 'all' && renderIcon('FaGlobe', 10)}
+                {tab === 'posts' && renderIcon('FaFileAlt', 10)}
+                {tab === 'people' && renderIcon('FaUsers', 10)}
+                <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+                {searchTab === tab && filteredResults.length > 0 && (
+                  <span className="tab-count">{filteredResults.length}</span>
+                )}
               </button>
             ))}
           </div>
+
           {searching ? (
-            <div className="loading-state"><Icons.FaSpinner className="spinner" /><p>Searching...</p></div>
-          ) : getFilteredSearchResults().length > 0 ? (
+            <div className="loading-state-glass">
+              <Icons.FaSpinner className="spinner" />
+              <p>Searching...</p>
+            </div>
+          ) : filteredResults.length > 0 ? (
             <div className="search-results-list">
-              {/* Results will be rendered by FeedSection with search mode */}
+              {filteredResults.map((result, idx) => {
+                if (result.resultType === 'user') {
+                  const userId = result.id || result._id;
+                  return (
+                    <div key={userId || idx} className="result-card-glass" onClick={() => navigate(`/profile/${userId}`)}>
+                      <div className="result-card-content">
+                        <div className="result-avatar">
+                          {result.avatar ? (
+                            <img src={result.avatar} alt={result.name} />
+                          ) : (
+                            <span>{result.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                          )}
+                          {result.isOnline && <span className="online-dot" />}
+                        </div>
+                        <div className="result-info">
+                          <div className="result-name-row">
+                            <h4>{result.name}</h4>
+                            {result.isVerified && <span className="verified-badge">✓</span>}
+                          </div>
+                          <span className="result-username">@{result.username}</span>
+                          <span className="result-stats">{result.followersCount || 0} followers</span>
+                          {result.bio && <p className="result-bio">{result.bio}</p>}
+                        </div>
+                        {currentUser && userId !== currentUser.id && (
+                          <button 
+                            className={`follow-btn-glass ${result.isFollowing ? 'following' : ''}`} 
+                            onClick={(e) => handleFollowToggle(userId, result.isFollowing, e)}
+                          >
+                            {result.isFollowing ? 'Following' : 'Follow'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+                // Post result
+                return (
+                  <div key={result._id || idx} className="result-card-glass post-result" onClick={() => navigate(`/post/${result._id}`)}>
+                    <div className="post-result-content">
+                      <div className="post-result-avatar">
+                        {renderIcon('FaFileAlt', 20)}
+                      </div>
+                      <div className="post-result-info">
+                        <div className="post-result-title">
+                          <span className="post-result-type">Post</span>
+                          <span className="post-result-time">
+                            {new Date(result.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="post-result-preview">{result.content?.substring(0, 100)}...</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            <div className="no-results">
-              <Icons.FaSearch size={48} />
+            <div className="no-results-glass">
+              <div className="no-results-icon">{renderIcon('FaSearch', 48)}</div>
               <h3>No results found</h3>
-              <p>Try different keywords</p>
+              <p>Try different keywords or check your spelling</p>
+              <button className="suggest-search-btn" onClick={clearSearch}>Clear search</button>
             </div>
           )}
         </div>
