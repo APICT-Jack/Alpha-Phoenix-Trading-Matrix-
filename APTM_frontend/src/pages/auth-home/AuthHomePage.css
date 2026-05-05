@@ -1,4 +1,4 @@
-/* src/pages/auth-home/AuthHomePage.css - Fixed Version */
+/* src/pages/auth-home/AuthHomePage.css - Fixed Centering */
 
 /* ============================================
    GLOBAL OVERRIDES FOR STICKY POSITIONING
@@ -112,7 +112,7 @@ body.light-mode .auth-homepage::after {
 }
 
 /* ============================================
-   STICKY HEADER - FIXED FOR GLASS EFFECT
+   STICKY HEADER - FIXED FOR GLASS EFFECT & CENTERING
    ============================================ */
 .sticky-header {
   position: sticky;
@@ -124,6 +124,16 @@ body.light-mode .auth-homepage::after {
   padding: 0;
   margin: 0;
   border-bottom: none;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Container for the search section - centers everything */
+.sticky-header > div {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 /* Glass container inside sticky header */
@@ -135,6 +145,7 @@ body.light-mode .auth-homepage::after {
   border: 0.5px solid rgba(255, 255, 255, 0.1);
   margin: 8px 12px;
   transition: all 0.3s ease;
+  width: auto;
 }
 
 /* When scrolled, make glass more opaque */
@@ -152,6 +163,27 @@ body.light-mode .sticky-header .search-glass-container {
 
 body.light-mode .sticky-header.scrolled .search-glass-container {
   background: rgba(245, 245, 247, 0.95);
+}
+
+/* ============================================
+   SEARCH SECTION CENTERING - CRITICAL FIX
+   ============================================ */
+.search-section-sticky {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* Center the search bar and results */
+.search-section-sticky .search-glass-container {
+  margin: 0;
+}
+
+.search-section-sticky .search-results-glass {
+  max-width: 720px;
+  margin: 16px auto 0;
+  padding: 0;
 }
 
 /* ============================================
@@ -577,6 +609,10 @@ body.light-mode .wallpaper-modal-content {
     margin: 12px 20px;
   }
   
+  .search-section-sticky {
+    max-width: 680px;
+  }
+  
   .main-content-area {
     padding: 12px 20px;
     gap: 20px;
@@ -605,6 +641,10 @@ body.light-mode .wallpaper-modal-content {
 @media (min-width: 1024px) {
   .sticky-header .search-glass-container {
     margin: 16px 24px;
+  }
+  
+  .search-section-sticky {
+    max-width: 720px;
   }
   
   .main-content-area {

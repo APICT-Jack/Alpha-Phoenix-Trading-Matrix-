@@ -629,3 +629,26 @@ body.light-mode .search-suggestions-glass {
     max-width: 720px;
   }
 }
+/* Add to SearchSection.css - Ensure centering */
+
+/* Override any full-width issues */
+.search-section-sticky {
+  width: 100%;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+}
+
+/* Ensure search glass container is centered */
+.search-section-sticky .search-glass-container {
+  width: 100%;
+  margin: 0;
+}
+
+/* Center search results */
+.search-section-sticky .search-results-glass {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
