@@ -1,190 +1,175 @@
-/* src/pages/auth-home/components/SearchSection.css - macOS/iOS Style */
+/* src/pages/auth-home/components/SearchSection.css */
 
 /* ============================================
-   SEARCH SECTION CONTAINER
+   STICKY SEARCH SECTION - CRITICAL FIX
    ============================================ */
-.search-section {
+.search-section-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   width: 100%;
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: transparent;
+  padding: 8px 12px;
+  margin: -8px -12px 0 -12px;
+  width: calc(100% + 24px);
 }
 
-.search-section.scrolled {
-  /* Background becomes more opaque on scroll */
-  background: rgba(var(--color-card-rgb, 30, 30, 40), 0.98);
+/* Glass container that becomes opaque on scroll */
+.search-glass-container {
+  max-width: 680px;
+  margin: 0 auto;
+  background: rgba(30, 30, 35, 0.75);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 8px 12px;
+  transition: all 0.3s ease;
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Light mode */
+body.light-mode .search-glass-container {
+  background: rgba(245, 245, 247, 0.85);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Scroll effect - handled by parent sticky-header */
+.sticky-header.scrolled .search-glass-container {
+  background: rgba(30, 30, 35, 0.95);
+  backdrop-filter: blur(30px);
 }
 
 /* ============================================
-   HERO TITLE - macOS Style
+   HERO TITLE - Fades out when searching
    ============================================ */
 .search-hero {
   text-align: center;
-  padding: 20px 0 16px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+  max-height: 100px;
   opacity: 1;
-  transform: translateY(0);
-  max-height: 120px;
+  overflow: hidden;
 }
 
 .search-hero.hidden {
-  opacity: 0;
-  transform: translateY(-20px);
   max-height: 0;
-  padding: 0;
-  margin: 0;
-  pointer-events: none;
-}
-
-.search-hero-content {
-  animation: fadeInUp 0.6s ease-out;
+  margin-bottom: 0;
+  opacity: 0;
 }
 
 .search-hero-title {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
   margin: 0 0 4px;
-  background: linear-gradient(135deg, var(--color-text) 0%, var(--color-primary) 100%);
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-primary) 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  letter-spacing: -0.5px;
 }
 
 .search-hero-accent {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--accent, #ff7a00) 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #ff7a00 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .search-hero-subtitle {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
   margin: 0;
-  font-weight: 400;
 }
 
 /* ============================================
    SEARCH BAR - iOS/macOS Style
    ============================================ */
-.search-container {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 0 12px;
-}
-
-.search-bar-wrapper {
-  transition: all 0.3s ease;
-}
-
-.search-bar-wrapper.compact {
-  transform: scale(0.98);
-}
-
-.search-bar {
+.search-bar-glass {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(120, 120, 128, 0.12);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(120, 120, 128, 0.15);
   border-radius: 14px;
   padding: 6px 12px;
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.search-bar:focus-within {
-  background: rgba(120, 120, 128, 0.18);
-  border-color: rgba(var(--color-primary-rgb, 41, 121, 255), 0.5);
-  box-shadow: 0 0 0 4px rgba(41, 121, 255, 0.1);
+.search-bar-glass:focus-within {
+  background: rgba(120, 120, 128, 0.25);
+  box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.2);
 }
 
-/* Light mode styles */
-body.light-mode .search-bar {
-  background: rgba(60, 60, 67, 0.08);
-  border-color: rgba(60, 60, 67, 0.15);
+body.light-mode .search-bar-glass {
+  background: rgba(60, 60, 67, 0.1);
 }
 
-body.light-mode .search-bar:focus-within {
-  background: rgba(60, 60, 67, 0.12);
-}
-
-.search-icon-wrapper {
+.search-icon-glass {
+  color: var(--text-tertiary);
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--text-tertiary);
-  flex-shrink: 0;
 }
 
-.search-input {
+.search-input-glass {
   flex: 1;
   background: none;
   border: none;
   outline: none;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 400;
   color: var(--text-primary);
   padding: 8px 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
 }
 
-.search-input::placeholder {
+.search-input-glass::placeholder {
   color: var(--text-tertiary);
-  font-size: 17px;
-  font-weight: 400;
+  font-size: 16px;
 }
 
-.search-clear-btn {
-  width: 28px;
-  height: 28px;
+.search-clear-glass {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: rgba(120, 120, 128, 0.2);
+  background: rgba(120, 120, 128, 0.3);
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
   transition: all 0.2s ease;
 }
 
-.search-clear-btn:hover {
-  background: rgba(120, 120, 128, 0.3);
+.search-clear-glass:hover {
+  background: rgba(120, 120, 128, 0.5);
   transform: scale(1.05);
 }
 
-.search-submit-btn {
+.search-submit-glass {
   padding: 6px 16px;
   border-radius: 30px;
   background: var(--color-primary);
   border: none;
   color: white;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   white-space: nowrap;
-  flex-shrink: 0;
-  font-family: inherit;
   transition: all 0.2s ease;
 }
 
-.search-submit-btn:hover:not(:disabled) {
+.search-submit-glass:hover:not(:disabled) {
   background: var(--color-primary-hover);
   transform: scale(0.98);
 }
 
-.search-submit-btn:disabled {
+.search-submit-glass:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
 
 /* ============================================
-   SEARCH SUGGESTIONS - iOS Style
+   SEARCH SUGGESTIONS
    ============================================ */
 .search-suggestions-glass {
   position: absolute;
@@ -193,43 +178,15 @@ body.light-mode .search-bar:focus-within {
   right: 0;
   background: rgba(30, 30, 35, 0.98);
   backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
   border-radius: 14px;
   border: 0.5px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   z-index: 1000;
   overflow: hidden;
-  animation: slideDown 0.2s ease;
 }
 
 body.light-mode .search-suggestions-glass {
   background: rgba(245, 245, 247, 0.98);
-  border-color: rgba(60, 60, 67, 0.1);
-}
-
-.suggestions-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
-}
-
-.suggestions-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.suggestions-clear {
-  background: none;
-  border: none;
-  color: var(--color-primary);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
 }
 
 .suggestion-item-glass {
@@ -249,7 +206,7 @@ body.light-mode .search-suggestions-glass {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--purple, #AF52DE));
+  background: linear-gradient(135deg, var(--color-primary), #AF52DE);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,16 +214,9 @@ body.light-mode .search-suggestions-glass {
   font-weight: 600;
   color: white;
   flex-shrink: 0;
-  overflow: hidden;
 }
 
-.suggestion-avatar-glass img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.suggestion-info {
+.suggestion-info-glass {
   flex: 1;
 }
 
@@ -274,46 +224,29 @@ body.light-mode .search-suggestions-glass {
   font-size: 15px;
   font-weight: 500;
   display: block;
-  color: var(--text-primary);
 }
 
 .suggestion-username-glass {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-tertiary);
 }
 
-.suggestion-follow-btn {
-  padding: 4px 12px;
-  border-radius: 20px;
-  background: var(--color-primary);
-  border: none;
-  color: white;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
 /* ============================================
-   FILTER CHIPS - iOS Style Scrollable
+   FILTER CHIPS - Responsive (icons only on mobile)
    ============================================ */
-.filter-chips-container {
-  margin-top: 16px;
+.filter-chips-glass {
+  display: flex;
+  gap: 6px;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  margin-top: 10px;
   padding-bottom: 4px;
 }
 
-.filter-chips-container::-webkit-scrollbar {
+.filter-chips-glass::-webkit-scrollbar {
   display: none;
-}
-
-.filter-chips-scroll {
-  display: flex;
-  gap: 8px;
-  padding: 0 4px;
-  min-width: min-content;
 }
 
 .filter-chip-wrapper {
@@ -324,10 +257,9 @@ body.light-mode .search-suggestions-glass {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 6px 12px;
   background: rgba(120, 120, 128, 0.12);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: 0.5px solid rgba(255, 255, 255, 0.1);
   border-radius: 30px;
   font-size: 13px;
@@ -344,41 +276,65 @@ body.light-mode .search-suggestions-glass {
   color: white;
 }
 
-.filter-chip-icon {
+.filter-icon {
   display: inline-flex;
   align-items: center;
 }
 
-.filter-chip-label {
+.filter-label {
   font-size: 13px;
 }
 
-.filter-chip-arrow {
-  font-size: 10px;
+.filter-arrow {
+  font-size: 8px;
   margin-left: 4px;
-  opacity: 0.7;
 }
 
-/* Filter chip on mobile - smaller size */
+/* Mobile: Hide labels, show only icons */
 @media (max-width: 768px) {
   .filter-chip-glass {
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 8px 12px;
   }
-  .filter-chip-icon {
-    font-size: 10px;
+  
+  .filter-label {
+    display: none;
   }
-  .filter-chip-label {
-    font-size: 12px;
+  
+  .filter-icon {
+    margin: 0;
+  }
+  
+  .filter-chip-glass {
+    gap: 0;
+  }
+  
+  .filter-arrow {
+    display: none;
   }
 }
 
-/* People Submenu - iOS Style */
+/* Desktop: Show both icon and label */
+@media (min-width: 769px) {
+  .filter-chip-glass {
+    padding: 6px 16px;
+    gap: 8px;
+  }
+  
+  .filter-label {
+    display: inline-block;
+  }
+  
+  .filter-icon {
+    margin-right: 0;
+  }
+}
+
+/* People Submenu */
 .people-submenu-glass {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  min-width: 200px;
+  min-width: 180px;
   background: rgba(30, 30, 35, 0.98);
   backdrop-filter: blur(40px);
   border: 0.5px solid rgba(255, 255, 255, 0.1);
@@ -386,19 +342,9 @@ body.light-mode .search-suggestions-glass {
   padding: 8px;
   z-index: 102;
   animation: fadeIn 0.15s ease;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
-.submenu-header {
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.submenu-trigger {
+.submenu-trigger-glass {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -410,25 +356,17 @@ body.light-mode .search-suggestions-glass {
   color: var(--text-primary);
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.15s ease;
 }
 
-.submenu-trigger:hover {
+.submenu-trigger-glass:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.submenu-arrow {
-  font-size: 10px;
-  color: var(--text-tertiary);
-}
-
-.submenu-options {
+.submenu-options-glass {
   margin-top: 4px;
-  padding-left: 8px;
-  border-left: 2px solid rgba(255, 255, 255, 0.1);
 }
 
-.submenu-option {
+.submenu-option-glass {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -440,15 +378,14 @@ body.light-mode .search-suggestions-glass {
   color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  text-transform: capitalize;
 }
 
-.submenu-option:hover {
+.submenu-option-glass:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
 }
 
-.submenu-option.selected {
+.submenu-option-glass.selected {
   color: var(--color-primary);
 }
 
@@ -457,18 +394,11 @@ body.light-mode .search-suggestions-glass {
   font-size: 12px;
 }
 
-.option-label {
-  flex: 1;
-  text-align: left;
-  text-transform: capitalize;
-}
-
 /* ============================================
-   SEARCH RESULTS - iOS Style
+   SEARCH RESULTS
    ============================================ */
 .search-results-glass {
-  margin-top: 20px;
-  padding: 0 12px;
+  margin-top: 16px;
   animation: fadeIn 0.3s ease;
 }
 
@@ -477,64 +407,54 @@ body.light-mode .search-suggestions-glass {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
-  padding: 8px 0;
+  padding-bottom: 8px;
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
 }
 
-.results-title-section h3 {
-  font-size: 20px;
+.results-header-glass h3 {
+  font-size: 16px;
   font-weight: 600;
   margin: 0 0 4px;
 }
 
 .results-count {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-tertiary);
 }
 
 .clear-results-glass {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: 4px;
+  padding: 6px 12px;
   background: rgba(120, 120, 128, 0.12);
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 30px;
+  border: none;
+  border-radius: 20px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.clear-results-glass:hover {
-  background: rgba(120, 120, 128, 0.2);
-}
-
-/* Search Tabs - iOS Style */
 .search-tabs-glass {
   display: flex;
   gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   background: rgba(120, 120, 128, 0.08);
   padding: 4px;
-  border-radius: 40px;
+  border-radius: 30px;
   width: fit-content;
 }
 
 .search-tab-glass {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 20px;
+  padding: 6px 16px;
   background: none;
   border: none;
-  border-radius: 30px;
+  border-radius: 25px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  position: relative;
 }
 
 .search-tab-glass.active {
@@ -542,25 +462,19 @@ body.light-mode .search-suggestions-glass {
   color: white;
 }
 
-.tab-count {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 2px 6px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  margin-left: 6px;
-}
-
-/* Result Cards - iOS Style */
+/* Result Cards */
 .result-card-glass {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background: rgba(120, 120, 128, 0.08);
   backdrop-filter: blur(10px);
   border: 0.5px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  margin-bottom: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  overflow: hidden;
 }
 
 .result-card-glass:hover {
@@ -568,126 +482,55 @@ body.light-mode .search-suggestions-glass {
   transform: translateY(-1px);
 }
 
-.result-card-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 14px;
-}
-
-.result-avatar {
-  width: 48px;
-  height: 48px;
+.result-avatar-glass {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--purple, #AF52DE));
+  background: linear-gradient(135deg, var(--color-primary), #AF52DE);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: white;
   flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
 }
 
-.result-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.online-dot {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 10px;
-  height: 10px;
-  background: #34C759;
-  border-radius: 50%;
-  border: 2px solid var(--color-card);
-}
-
-.result-info {
+.result-info-glass {
   flex: 1;
-  min-width: 0;
 }
 
-.result-name-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.result-name-row h4 {
+.result-info-glass h4 {
   font-size: 15px;
   font-weight: 600;
-  margin: 0;
+  margin: 0 0 2px;
 }
 
-.verified-badge {
-  color: var(--color-primary);
+.result-username-glass {
   font-size: 12px;
-}
-
-.result-username {
-  font-size: 13px;
   color: var(--text-tertiary);
-  display: block;
-  margin-bottom: 2px;
 }
 
-.result-stats {
-  font-size: 12px;
+.result-stats-glass {
+  font-size: 11px;
   color: var(--text-secondary);
 }
 
-.result-bio {
-  font-size: 13px;
-  color: var(--text-tertiary);
-  margin: 8px 0 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.follow-btn-glass {
-  padding: 6px 16px;
-  border-radius: 30px;
-  background: var(--color-primary);
-  border: none;
-  color: white;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.follow-btn-glass.following {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--text-secondary);
-}
-
-/* Post Result Card */
-.post-result {
+/* Post Results */
+.post-result-glass {
   composes: result-card-glass;
 }
 
 .post-result-content {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px;
+  gap: 12px;
+  width: 100%;
 }
 
-.post-result-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+.post-result-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: rgba(120, 120, 128, 0.15);
   display: flex;
   align-items: center;
@@ -699,18 +542,14 @@ body.light-mode .search-suggestions-glass {
   flex: 1;
 }
 
-.post-result-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.post-result-type {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-primary);
-  text-transform: uppercase;
+.post-result-preview {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .post-result-time {
@@ -718,154 +557,75 @@ body.light-mode .search-suggestions-glass {
   color: var(--text-tertiary);
 }
 
-.post-result-preview {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Loading State */
+/* Loading & No Results */
 .loading-state-glass {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
+  padding: 40px;
   text-align: center;
   gap: 12px;
-  color: var(--text-secondary);
 }
 
-/* No Results State */
 .no-results-glass {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
   text-align: center;
-  gap: 12px;
-}
-
-.no-results-icon {
-  opacity: 0.5;
-  margin-bottom: 8px;
-}
-
-.no-results-glass h3 {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.no-results-glass p {
-  font-size: 14px;
+  padding: 40px;
   color: var(--text-tertiary);
-  margin: 0;
 }
 
 .suggest-search-btn {
-  margin-top: 8px;
+  margin-top: 12px;
   padding: 8px 20px;
   background: rgba(120, 120, 128, 0.12);
   border: none;
   border-radius: 30px;
   color: var(--text-primary);
-  font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.suggest-search-btn:hover {
-  background: rgba(120, 120, 128, 0.2);
-}
-
-/* ============================================
-   ANIMATIONS
-   ============================================ */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* Animations */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* ============================================
-   RESPONSIVE BREAKPOINTS
-   ============================================ */
+/* Responsive */
 @media (min-width: 768px) {
+  .search-section-sticky {
+    padding: 12px 20px;
+    width: calc(100% + 40px);
+    margin: -12px -20px 0 -20px;
+  }
+  
+  .search-glass-container {
+    padding: 12px 16px;
+  }
+  
   .search-hero-title {
-    font-size: 36px;
+    font-size: 24px;
   }
   
   .search-hero-subtitle {
-    font-size: 15px;
+    font-size: 13px;
   }
   
-  .search-bar {
-    padding: 8px 16px;
-  }
-  
-  .search-input {
-    font-size: 18px;
-  }
-  
-  .search-input::placeholder {
-    font-size: 18px;
+  .search-input-glass {
+    font-size: 17px;
   }
   
   .filter-chip-glass {
     padding: 8px 16px;
-    font-size: 14px;
   }
 }
 
 @media (min-width: 1024px) {
-  .search-hero-title {
-    font-size: 42px;
+  .search-section-sticky {
+    padding: 16px 24px;
+    width: calc(100% + 48px);
+    margin: -16px -24px 0 -24px;
   }
   
-  .search-container {
+  .search-glass-container {
     max-width: 720px;
-  }
-}
-
-/* Reduced Motion Preference */
-@media (prefers-reduced-motion: reduce) {
-  .search-hero,
-  .search-bar,
-  .search-suggestions-glass,
-  .filter-chip-glass,
-  .result-card-glass {
-    animation: none;
-    transition: none;
   }
 }

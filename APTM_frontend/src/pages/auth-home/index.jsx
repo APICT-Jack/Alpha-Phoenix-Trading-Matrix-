@@ -59,7 +59,21 @@ const AuthHomePage = () => {
       }
     };
   }, [currentUser]);
-
+ useEffect(() => {
+  const handleScroll = () => {
+    const header = document.querySelector('.sticky-header');
+    if (header) {
+      if (window.scrollY > 10) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    }
+  };
+  
+  window.addEventListener('scroll', handleScroll);
+  return () => window.removeEventListener('scroll', handleScroll);
+}, []);
   const renderIcon = (name, size = 16) => {
     const Icon = Icons[name];
     return Icon ? <Icon size={size} /> : null;

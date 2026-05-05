@@ -640,3 +640,18 @@ body.light-mode .auth-homepage::after {
     transition-duration: 0.01ms !important;
   }
 }
+/* Add to AuthHomePage.css */
+
+/* Sticky header scroll effect */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.sticky-header.scrolled {
+  background: rgba(var(--color-card-rgb, 30, 30, 40), 0.95) !important;
+  backdrop-filter: blur(30px) saturate(200%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
