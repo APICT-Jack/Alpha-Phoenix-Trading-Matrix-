@@ -11,25 +11,26 @@ import Footer from './components/layout/Footer';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { EducationProvider } from './context/EducationContext';
-import { ConnectionPanelProvider } from './context/ConnectionPanelContext'; // Import the provider
-import ConnectionPanelOverlay from './components/ConnectionPanelOverlay'; // Import the overlay
+import { ConnectionPanelProvider } from './context/ConnectionPanelContext';
+import ConnectionPanelOverlay from './components/ConnectionPanelOverlay';
 import Header from './components/layout/Header';
 import SignupForm from './components/auth/SignupForm';
 import LoginForm from './components/auth/LoginForm';
-import Dashboard from './components/Dashboard'; 
-import UserProfileSettings from './components/profile/UserProfileSettings'; 
+import Dashboard from './components/Dashboard';
+import UserProfileSettings from './components/profile/UserProfileSettings';
 import UserProfileView from './components/profile/UserProfileView';
-import ProtectedRoute from './components/ProtectedRoute'; 
+import ProtectedRoute from './components/ProtectedRoute';
 import EducationPage from './pages/Education/EducationPage';
 import AcademyDetailPage from './pages/Education/AcademyDetailPage';
 import Chat from './components/chat/Chat';
-import AuthHomePage from './pages/AuthHomePage';
+// Import the new modular AuthHomePage
+import AuthHomePage from './pages/auth-home'; // Now points to the index.jsx in auth-home folder
 
 // Fallback component for missing pages
 const PageNotFound = () => (
   <div style={{ padding: '2rem', textAlign: 'center' }}>
     <h2>Page Not Found</h2>
-    <p>The page you're looking for doesn't exist.(solikhanda kungekudala)</p>
+    <p>The page you're looking for doesn't exist. (solikhanda kungekudala)</p>
   </div>
 );
 
@@ -43,7 +44,6 @@ const ConditionalHeader = () => {
   const isChatRoute = location.pathname.startsWith('/chat');
   
   // Show header on ALL routes except education, auth, profile, dashboard, and chat pages
-  // This includes the home page for both logged in and logged out users
   return !(isEducationRoute || isAuthRoute || isProfileRoute || isDashboardRoute || isChatRoute) ? <Header /> : null;
 };
 
@@ -97,7 +97,7 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <EducationProvider>
-            <ConnectionPanelProvider> {/* Add ConnectionPanelProvider here */}
+            <ConnectionPanelProvider>
               <Router>
                 {/* Conditional Header - Shows on home for both logged in and logged out */}
                 <ConditionalHeader />
@@ -127,6 +127,77 @@ function App() {
                     <ProtectedRoute>
                       <FullWidthLayout>
                         <Dashboard />
+                      </FullWidthLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  {/* Post routes - Add these for PostComponent navigation */}
+                  <Route path="/post/:postId" element={
+                    <ProtectedRoute>
+                      <FullWidthLayout>
+                        <div className="post-detail-container" style={{
+                          maxWidth: '600px',
+                          margin: '2rem auto',
+                          padding: '0 1rem'
+                        }}>
+                          {/* PostDetail component would go here - for now redirect to feed */}
+                          <div style={{ textAlign: 'center', padding: '2rem' }}>
+                            <h3>Post Detail View</h3>
+                            <p>This feature is coming soon. Check your feed for posts!</p>
+                            <button 
+                              onClick={() => window.location.href = '/'}
+                              style={{
+                                marginTop: '1rem',
+                                padding: '0.5rem 1rem',
+                                background: 'var(--color-primary)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Back to Home
+                            </button>
+                          </div>
+                        </div>
+                      </FullWidthLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  {/* Create post route */}
+                  <Route path="/create-post" element={
+                    <ProtectedRoute>
+                      <FullWidthLayout>
+                        <div className="create-post-container" style={{
+                          maxWidth: '600px',
+                          margin: '2rem auto',
+                          padding: '0 1rem'
+                        }}>
+                          {/* CreatePost component would go here */}
+                          <div style={{ 
+                            background: 'var(--color-card)',
+                            borderRadius: '16px',
+                            padding: '1.5rem',
+                            textAlign: 'center'
+                          }}>
+                            <h3>Create New Post</h3>
+                            <p>Post creation feature coming soon!</p>
+                            <button 
+                              onClick={() => window.location.href = '/'}
+                              style={{
+                                marginTop: '1rem',
+                                padding: '0.5rem 1rem',
+                                background: 'var(--color-primary)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Back to Feed
+                            </button>
+                          </div>
+                        </div>
                       </FullWidthLayout>
                     </ProtectedRoute>
                   } />

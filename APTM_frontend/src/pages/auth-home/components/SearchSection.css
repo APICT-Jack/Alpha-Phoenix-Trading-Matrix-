@@ -1,0 +1,340 @@
+/* src/pages/auth-home/components/SearchSection.css */
+.search-section {
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.search-label {
+  text-align: center;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+  max-height: 60px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.search-label.hide-titles {
+  max-height: 0;
+  margin-bottom: 0;
+  opacity: 0;
+}
+
+.search-label h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 2px;
+  letter-spacing: -0.3px;
+}
+
+.search-label p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.search-wrapper {
+  position: relative;
+  z-index: 101;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: 2px 2px 2px 12px;
+  transition: border-color 0.2s;
+}
+
+.search-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+}
+
+.search-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 8px 0;
+  font-family: inherit;
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.clear-search {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.search-button {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  border: none;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+.search-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--color-card);
+  backdrop-filter: blur(30px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.suggestion-item:hover {
+  background: var(--color-card-hover);
+}
+
+.suggestion-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+}
+
+.suggestion-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion-name {
+  font-size: 13px;
+  font-weight: 500;
+  display: block;
+}
+
+.suggestion-username {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.filter-section {
+  padding-top: 6px;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0 2px;
+}
+
+.filter-chip-wrapper {
+  position: relative;
+}
+
+.filter-chip {
+  padding: 5px 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.filter-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.filter-chip.has-submenu {
+  padding-right: 22px;
+}
+
+.dropdown-arrow {
+  font-size: 7px;
+  margin-left: 3px;
+  opacity: 0.7;
+}
+
+.people-submenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 160px;
+  background: var(--color-card);
+  backdrop-filter: blur(30px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  z-index: 102;
+  animation: fadeIn 0.15s ease;
+}
+
+.submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.submenu-item:hover {
+  background: var(--color-card-hover);
+}
+
+.nested-submenu {
+  margin-left: 8px;
+  padding: 2px 0;
+}
+
+.nested-option {
+  width: 100%;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  text-transform: capitalize;
+  font-family: inherit;
+  text-align: left;
+}
+
+.nested-option:hover {
+  background: var(--color-card-hover);
+  color: var(--text-primary);
+}
+
+.search-results-container {
+  padding: 12px 0;
+}
+
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 4px 0;
+}
+
+.results-header h3 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.clear-results-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 10px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.search-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+
+.search-tab {
+  padding: 5px 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.search-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+@media (min-width: 768px) {
+  .search-label h1 {
+    font-size: 28px;
+  }
+  .search-label p {
+    font-size: 13px;
+  }
+  .search-input {
+    font-size: 15px;
+    padding: 10px 0;
+  }
+  .search-button {
+    padding: 8px 18px;
+    font-size: 13px;
+  }
+}
