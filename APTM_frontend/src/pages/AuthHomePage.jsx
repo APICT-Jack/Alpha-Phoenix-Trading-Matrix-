@@ -313,6 +313,33 @@ const AuthHomePage = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+  // Add this inside your AuthHomePage component after other useEffects
+
+// Listen for theme changes to update component
+useEffect(() => {
+  const updateThemeVariables = () => {
+    const root = document.querySelector('.auth-homepage');
+    if (root) {
+      // Force a re-render by updating a state or just let CSS handle it
+      root.style.setProperty('--current-theme', darkMode ? 'dark' : 'light');
+    }
+  };
+  
+  updateThemeVariables();
+  
+  // Also watch for body class changes
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.attributeName === 'class') {
+        updateThemeVariables();
+      }
+    });
+  });
+  
+  observer.observe(document.body, { attributes: true });
+  
+  return () => observer.disconnect();
+}, [darkMode]);
 
   // ============ HANDLERS ============
   const handleFilterClick = (filterId) => {

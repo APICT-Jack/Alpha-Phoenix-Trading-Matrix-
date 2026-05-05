@@ -1,4 +1,5 @@
-/* src/pages/AuthHomePage.css - Complete Fixed Version */
+/* src/pages/AuthHomePage.css - Fixed for theme compatibility */
+
 /* ============================================
    CRITICAL: Override any parent styles that break sticky
    ============================================ */
@@ -23,22 +24,19 @@
    STICKY HEADER - MUST WORK
    ============================================ */
 .sticky-header {
-  position: -webkit-sticky; /* Safari */
+  position: -webkit-sticky;
   position: sticky;
   top: 0 !important;
   z-index: 100 !important;
   
-  /* Background must be opaque enough */
-  background: rgba(10, 10, 10, 0.95) !important;
+  /* Use theme variables instead of hardcoded colors */
+  background: var(--color-card) !important;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   
   /* Ensure it's above other content */
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--color-border);
   padding: 8px 12px 6px;
-  
-  /* Debug: add a subtle border to see if it's working */
-  /* box-shadow: 0 4px 20px rgba(255, 0, 0, 0.3) !important; */
 }
 
 /* Ensure parent containers don't break sticky */
@@ -71,26 +69,27 @@ body {
   max-height: calc(100vh - 120px);
   overflow-y: auto;
 }
+
 /* ============================================
-   CSS VARIABLES
+   CSS VARIABLES - Use theme variables
    ============================================ */
 .auth-homepage {
   --wallpaper-brightness: 0.5;
   --wallpaper-blur: 0px;
   --wallpaper-opacity: 1;
   
-  --glass-bg: rgba(255, 255, 255, 0.06);
-  --glass-bg-strong: rgba(255, 255, 255, 0.12);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --glass-bg: var(--color-card);
+  --glass-bg-strong: var(--color-card-hover);
+  --glass-border: var(--color-border);
+  --glass-shadow: var(--shadow-md);
   
-  --text-primary: rgba(255, 255, 255, 0.95);
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-tertiary: rgba(255, 255, 255, 0.45);
+  --text-primary: var(--color-text);
+  --text-secondary: var(--color-text-secondary);
+  --text-tertiary: var(--color-text-tertiary);
   
-  --accent: #007AFF;
-  --accent-hover: #0051D5;
-  --accent-bg: rgba(0, 122, 255, 0.15);
+  --accent: var(--color-primary);
+  --accent-hover: var(--color-primary-hover);
+  --accent-bg: rgba(41, 121, 255, 0.15);
   --green: #34C759;
   --red: #FF3B30;
   --orange: #FF9F0A;
@@ -113,23 +112,16 @@ body {
   -webkit-font-smoothing: antialiased;
   padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom));
   color: var(--text-primary);
-  background-color: #1a1a2e;
-  background-image: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background-color: var(--color-bg);
   overflow-x: hidden;
 }
 
-body.light-mode .auth-homepage {
-  --glass-bg: rgba(0, 0, 0, 0.04);
-  --glass-bg-strong: rgba(0, 0, 0, 0.06);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --text-primary: rgba(0, 0, 0, 0.9);
-  --text-secondary: rgba(0, 0, 0, 0.6);
-  --text-tertiary: rgba(0, 0, 0, 0.4);
-  background-color: #f5f5f7;
-  background-image: linear-gradient(135deg, #f5f5f7 0%, #e8e8ed 50%, #d5d5dc 100%);
+/* Remove hardcoded background gradients - let theme handle it */
+.auth-homepage {
+  background-color: var(--color-bg);
 }
 
+/* Remove the old light-mode override since theme handles it */
 /* ============================================
    WALLPAPER BACKGROUND
    ============================================ */
@@ -155,10 +147,12 @@ body.light-mode .auth-homepage {
   background: rgba(0, 0, 0, 0.35);
   z-index: -1;
   pointer-events: none;
+  transition: background 0.3s ease;
 }
 
+/* Light mode overlay adjustment */
 body.light-mode .auth-homepage::after {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* ============================================
@@ -169,14 +163,10 @@ body.light-mode .auth-homepage::after {
   top: 0;
   z-index: 100;
   padding: 8px 12px 6px;
-  background: rgba(10, 10, 10, 0.9);
+  background: var(--color-card);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid var(--glass-border);
-}
-
-body.light-mode .sticky-header {
-  background: rgba(245, 245, 247, 0.9);
+  border-bottom: 1px solid var(--color-border);
 }
 
 /* Search */
@@ -293,10 +283,10 @@ body.light-mode .sticky-header {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: rgba(20, 20, 20, 0.98);
+  background: var(--color-card);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
   z-index: 1000;
@@ -309,14 +299,18 @@ body.light-mode .sticky-header {
   gap: 10px;
   padding: 10px 12px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.suggestion-item:hover {
+  background: var(--color-card-hover);
 }
 
 .suggestion-avatar {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--purple));
+  background: var(--gradient-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -372,6 +366,7 @@ body.light-mode .sticky-header {
   cursor: pointer;
   white-space: nowrap;
   font-family: inherit;
+  transition: all 0.2s ease;
 }
 
 .filter-chip.active {
@@ -395,10 +390,10 @@ body.light-mode .sticky-header {
   top: calc(100% + 4px);
   left: 0;
   min-width: 160px;
-  background: rgba(20, 20, 20, 0.98);
+  background: var(--color-card);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 4px;
   z-index: 102;
@@ -419,6 +414,10 @@ body.light-mode .sticky-header {
   cursor: pointer;
   font-family: inherit;
   text-align: left;
+}
+
+.submenu-item:hover {
+  background: var(--color-card-hover);
 }
 
 .checkbox-indicator {
@@ -443,6 +442,11 @@ body.light-mode .sticky-header {
   text-transform: capitalize;
   font-family: inherit;
   text-align: left;
+}
+
+.nested-option:hover {
+  background: var(--color-card-hover);
+  color: var(--text-primary);
 }
 
 /* ============================================
@@ -477,13 +481,22 @@ body.light-mode .sticky-header {
 }
 
 /* ============================================
-   FEED & POSTS
+   FEED & POSTS - Fix for mobile/theme
    ============================================ */
 .posts-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   padding-bottom: 8px;
+}
+
+/* Ensure PostComponent cards respect theme */
+.posts-list > div {
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  transition: all 0.2s ease;
 }
 
 .load-more-container {
@@ -501,6 +514,10 @@ body.light-mode .sticky-header {
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;
+}
+
+.load-more-btn:hover {
+  background: var(--glass-bg-strong);
 }
 
 /* ============================================
@@ -528,7 +545,7 @@ body.light-mode .sticky-header {
   align-items: center;
   gap: 3px;
   padding: 4px 10px;
-  background: rgba(255,255,255,0.1);
+  background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-full);
   color: var(--text-secondary);
@@ -584,7 +601,7 @@ body.light-mode .sticky-header {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--purple));
+  background: var(--gradient-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -775,7 +792,7 @@ body.light-mode .sticky-header {
 }
 
 .activity-item:hover {
-  background: rgba(255,255,255,0.05);
+  background: var(--color-card-hover);
 }
 
 .activity-dot {
@@ -874,7 +891,7 @@ body.light-mode .sticky-header {
 }
 
 .chat-room-item:hover {
-  background: rgba(255,255,255,0.05);
+  background: var(--color-card-hover);
 }
 
 .room-icon {
@@ -942,14 +959,14 @@ body.light-mode .sticky-header {
 }
 
 .follow-item:hover {
-  background: rgba(255,255,255,0.05);
+  background: var(--color-card-hover);
 }
 
 .follow-avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--purple));
+  background: var(--gradient-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1018,7 +1035,7 @@ body.light-mode .sticky-header {
   left: 0;
   right: 0;
   max-height: 70vh;
-  background: rgba(20, 20, 20, 0.98);
+  background: var(--color-card);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   border-radius: 16px 16px 0 0;
@@ -1039,7 +1056,7 @@ body.light-mode .sticky-header {
 .mobile-activity-handle {
   width: 36px;
   height: 4px;
-  background: rgba(255,255,255,0.3);
+  background: var(--text-tertiary);
   border-radius: 2px;
   margin: 0 auto 12px;
 }
@@ -1060,7 +1077,7 @@ body.light-mode .sticky-header {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.1);
+  background: var(--glass-bg);
   border: none;
   color: var(--text-primary);
   cursor: pointer;
@@ -1123,15 +1140,11 @@ body.light-mode .sticky-header {
   left: 0;
   right: 0;
   z-index: 150;
-  background: rgba(10, 10, 10, 0.95);
+  background: var(--color-card);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-top: 0.5px solid var(--glass-border);
+  border-top: 0.5px solid var(--color-border);
   padding-bottom: var(--safe-bottom);
-}
-
-body.light-mode .bottom-nav {
-  background: rgba(245, 245, 247, 0.95);
 }
 
 .nav-items {
@@ -1237,10 +1250,10 @@ body.light-mode .bottom-nav {
 }
 
 .wallpaper-modal-content {
-  background: rgba(30, 30, 30, 0.98);
+  background: var(--color-card);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   width: 100%;
   max-width: 380px;
@@ -1265,9 +1278,9 @@ body.light-mode .bottom-nav {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.1);
+  background: var(--glass-bg);
   border: none;
-  color: white;
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1336,7 +1349,7 @@ body.light-mode .bottom-nav {
   transition: opacity 0.2s;
 }
 
-.wallpaper-option:active .wallpaper-name {
+.wallpaper-option:hover .wallpaper-name {
   opacity: 1;
 }
 
@@ -1511,7 +1524,7 @@ body.light-mode .bottom-nav {
 }
 
 .auth-homepage *::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
+  background: var(--text-tertiary);
   border-radius: 1px;
 }
 
