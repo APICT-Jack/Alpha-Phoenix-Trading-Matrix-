@@ -1,44 +1,98 @@
-/* src/pages/auth-home/components/FeedSection.css */
+/* src/pages/auth-home/components/FeedSection.css - macOS/iOS Glass Style */
+
 .feed-section {
   width: 100%;
+  animation: fadeInUp 0.4s ease-out;
 }
 
 .posts-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   padding-bottom: 8px;
 }
 
+/* iOS/macOS Glassmorphism Card Style */
 .posts-list > div {
-  background: var(--color-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
+  background: rgba(30, 30, 35, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 0.5px solid rgba(255, 255, 255, 0.12);
   overflow: hidden;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
+/* Light mode glass style */
+body.light-mode .posts-list > div {
+  background: rgba(245, 245, 247, 0.75);
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+/* Hover effect - subtle lift (desktop only) */
+@media (hover: hover) {
+  .posts-list > div:hover {
+    transform: translateY(-2px);
+    background: rgba(30, 30, 35, 0.75);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  }
+  
+  body.light-mode .posts-list > div:hover {
+    background: rgba(245, 245, 247, 0.85);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* Active/tap effect for mobile */
+.posts-list > div:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* Load More Button - iOS Style */
 .load-more-container {
   display: flex;
   justify-content: center;
-  padding: 12px 0;
+  padding: 16px 0 24px;
 }
 
 .load-more-btn {
-  padding: 8px 24px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-full);
+  padding: 10px 28px;
+  background: rgba(120, 120, 128, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 30px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  transition: all 0.2s ease;
 }
 
 .load-more-btn:hover {
-  background: var(--glass-bg-strong);
+  background: rgba(120, 120, 128, 0.25);
+  transform: scale(0.98);
 }
 
+.load-more-btn:active {
+  transform: scale(0.96);
+}
+
+body.light-mode .load-more-btn {
+  background: rgba(60, 60, 67, 0.1);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-mode .load-more-btn:hover {
+  background: rgba(60, 60, 67, 0.15);
+}
+
+/* Loading State - iOS Style */
 .loading-state,
 .error-state,
 .empty-state {
@@ -46,33 +100,149 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 16px;
+  padding: 60px 24px;
   text-align: center;
-  gap: 12px;
+  gap: 16px;
   color: var(--text-secondary);
+  background: rgba(30, 30, 35, 0.5);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  margin: 20px 0;
 }
 
+body.light-mode .loading-state,
+body.light-mode .error-state,
+body.light-mode .empty-state {
+  background: rgba(245, 245, 247, 0.6);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Spinner - iOS Style */
 .spinner {
-  animation: spin 1s linear infinite;
-  font-size: 24px;
+  animation: spin 0.8s linear infinite;
+  font-size: 32px;
   color: var(--accent);
 }
 
+/* Error & Empty State Buttons */
+.error-state button,
+.empty-state button {
+  margin-top: 8px;
+  padding: 10px 24px;
+  background: var(--accent);
+  border: none;
+  border-radius: 30px;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.error-state button:hover,
+.empty-state button:hover {
+  transform: scale(0.98);
+  background: var(--accent-hover);
+}
+
+.error-state button:active,
+.empty-state button:active {
+  transform: scale(0.96);
+}
+
+/* Empty State Icon/Illustration */
+.empty-state svg {
+  opacity: 0.6;
+  margin-bottom: 8px;
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.empty-state p {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+/* Animations */
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-.error-state button,
-.empty-state button {
-  margin-top: 8px;
-  padding: 8px 20px;
-  background: var(--accent);
-  border: none;
-  border-radius: var(--radius-full);
-  color: white;
-  font-weight: 600;
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .posts-list {
+    gap: 12px;
+  }
+  
+  .posts-list > div {
+    border-radius: 16px;
+  }
+  
+  .load-more-btn {
+    padding: 8px 20px;
+    font-size: 13px;
+  }
+  
+  .loading-state,
+  .error-state,
+  .empty-state {
+    padding: 40px 20px;
+    margin: 12px 0;
+  }
+  
+  .empty-state h3 {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .posts-list {
+    gap: 20px;
+  }
+}
+
+/* Reduced Motion Preference */
+@media (prefers-reduced-motion: reduce) {
+  .posts-list > div,
+  .load-more-btn,
+  .error-state button,
+  .empty-state button {
+    transition: none;
+  }
+  
+  .posts-list > div:hover {
+    transform: none;
+  }
+  
+  .load-more-btn:hover {
+    transform: none;
+  }
+  
+  .spinner {
+    animation: none;
+  }
+  
+  .feed-section {
+    animation: none;
+  }
 }
