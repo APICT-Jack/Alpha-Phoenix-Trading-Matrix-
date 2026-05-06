@@ -1,4 +1,4 @@
-// PostComponent.jsx - Full working version with all modals
+// PostComponent.jsx - Full working version with chart support
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './UserProfileView.module.css';
@@ -39,6 +39,7 @@ import {
 import AvatarWithFallback from './AvatarWithFallback';
 import Lightbox from 'react-image-lightbox';
 import 'react-image-lightbox/style.css';
+import ChartWidget from './ChartWidget';
 
 // ============================================
 // Helper functions for Cloudinary URLs
@@ -164,12 +165,12 @@ const PostComponent = ({
   muteVideo = true
 }) => {
   const navigate = useNavigate();
+  const { darkMode } = { darkMode: false }; // Replace with actual theme context if available
   
   // State management
   const [postData, setPostData] = useState(post);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [expandedChart, setExpandedChart] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [isSavedState, setIsSavedState] = useState(isSaved);
@@ -225,6 +226,15 @@ const PostComponent = ({
   useEffect(() => {
     if (post) {
       console.log('📦 Post data received:', post);
+      console.log('📁 Media array:', post.media);
+      
+      // Check for chart in media
+      if (post.media && post.media.length > 0) {
+        post.media.forEach((media, idx) => {
+          console.log(`Media ${idx}:`, media.type, media.chartData ? 'Has chartData' : 'No chartData');
+        });
+      }
+      
       setPostData(post);
       setIsLiked(checkIfLiked());
       setLikesCount(getLikesCount());
@@ -484,6 +494,54 @@ const PostComponent = ({
   const handleImageError = useCallback((userId) => {
     setImageError(prev => ({ ...prev, [userId]: true }));
   }, []);
+
+  // ============ CHART RENDERING ============
+  const renderChart = useCallback((chartMedia) => {
+    if (!chartMedia) return null;
+    
+    // Get chart data from media object
+    let chartData = chartMedia.chartData || chartMedia;
+    
+    // If chartData is a string, try to parse it
+    if (typeof chartData === 'string') {
+      try {
+        chartData = JSON.parse(chartData);
+      } catch (e) {
+        console.error('Failed to parse chart data:', e);
+        return null;
+      }
+    }
+    
+    // Ensure we have valid chart data
+    if (!chartData || (!chartData.symbol && !chartData.coin)) {
+      console.warn('Invalid chart data:', chartData);
+      return null;
+    }
+    
+    const symbol = chartData.symbol || chartData.coin || 'BTCUSDT';
+    const interval = chartData.interval || '30';
+    const theme = chartData.theme || (darkMode ? 'dark' : 'light');
+    
+    console.log('📊 Rendering chart:', { symbol, interval, theme });
+    
+    return (
+      <div className={styles.chartInPost} key={`chart-${Date.now()}`}>
+        <ChartWidget 
+          chartData={{
+            symbol: symbol,
+            interval: interval,
+            theme: theme,
+            hideToolbar: true,
+            hideSideToolbar: true
+          }}
+          onClick={() => {
+            // Optional: expand chart when clicked
+            console.log('Chart clicked');
+          }}
+        />
+      </div>
+    );
+  }, [darkMode]);
 
   // ============ POLL VOTING FUNCTIONALITY ============
   const handleVote = useCallback(async (optionIndex) => {
@@ -1759,7 +1817,7 @@ const PostComponent = ({
         </div>
       )}
       
-      {/* Post Content */}
+      {/* Post Content - UPDATED WITH CHART SUPPORT */}
       <div className={`${styles.postContent} ${isRepost ? styles.repostedContent : ''}`}>
         {isRepost && originalPost ? (
           <>
@@ -1781,9 +1839,17 @@ const PostComponent = ({
             
             {originalPost.poll && renderPoll()}
             
+            {/* Original post media including charts */}
             {originalPost.media && originalPost.media.length > 0 && (
               <div className={`${styles.postMedia} ${originalPost.media.length > 1 ? styles.mediaGrid : ''}`}>
-                {originalPost.media.map((media, index) => renderMedia(media, index))}
+                {originalPost.media.map((media, index) => {
+                  // Check if this is a chart type
+                  if (media.type === 'chart' || media.chartData) {
+                    return renderChart(media);
+                  }
+                  // Regular image/video media
+                  return renderMedia(media, index);
+                })}
               </div>
             )}
           </>
@@ -1793,9 +1859,17 @@ const PostComponent = ({
             
             {pollData && renderPoll()}
             
+            {/* Post media including charts */}
             {postData.media && postData.media.length > 0 && (
               <div className={`${styles.postMedia} ${postData.media.length > 1 ? styles.mediaGrid : ''}`}>
-                {postData.media.map((media, index) => renderMedia(media, index))}
+                {postData.media.map((media, index) => {
+                  // Check if this is a chart type
+                  if (media.type === 'chart' || media.chartData) {
+                    return renderChart(media);
+                  }
+                  // Regular image/video media
+                  return renderMedia(media, index);
+                })}
               </div>
             )}
           </>

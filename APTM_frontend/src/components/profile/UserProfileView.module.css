@@ -617,3 +617,23 @@
     width: 32px;
   }
 }
+/* Chart in post styling */
+.chartInPost {
+  margin: 12px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #eaecef);
+}
+
+.chartInPost iframe {
+  width: 100%;
+  min-height: 300px;
+  border: none;
+}
+
+/* Dark mode support */
+.dark .chartInPost {
+  background: var(--dark-card-bg, #1a1a2e);
+  border-color: var(--dark-border, #2d2d3d);
+}
