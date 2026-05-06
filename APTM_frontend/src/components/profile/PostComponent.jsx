@@ -496,53 +496,71 @@ const PostComponent = ({
   }, []);
 
   // ============ CHART RENDERING ============
-  const renderChart = useCallback((chartMedia) => {
-    if (!chartMedia) return null;
-    
-    // Get chart data from media object
-    let chartData = chartMedia.chartData || chartMedia;
-    
-    // If chartData is a string, try to parse it
-    if (typeof chartData === 'string') {
-      try {
-        chartData = JSON.parse(chartData);
-      } catch (e) {
-        console.error('Failed to parse chart data:', e);
-        return null;
-      }
-    }
-    
-    // Ensure we have valid chart data
-    if (!chartData || (!chartData.symbol && !chartData.coin)) {
-      console.warn('Invalid chart data:', chartData);
+  // ============ CHART RENDERING - UPDATED ============
+const renderChart = useCallback((chartMedia) => {
+  if (!chartMedia) return null;
+  
+  // Get chart data from media object
+  let chartData = chartMedia.chartData || chartMedia;
+  
+  // If chartData is a string, try to parse it
+  if (typeof chartData === 'string') {
+    try {
+      chartData = JSON.parse(chartData);
+    } catch (e) {
+      console.error('Failed to parse chart data:', e);
       return null;
     }
-    
-    const symbol = chartData.symbol || chartData.coin || 'BTCUSDT';
-    const interval = chartData.interval || '30';
-    const theme = chartData.theme || (darkMode ? 'dark' : 'light');
-    
-    console.log('📊 Rendering chart:', { symbol, interval, theme });
-    
-    return (
-      <div className={styles.chartInPost} key={`chart-${Date.now()}`}>
-        <ChartWidget 
-          chartData={{
-            symbol: symbol,
-            interval: interval,
-            theme: theme,
-            hideToolbar: true,
-            hideSideToolbar: true
-          }}
-          onClick={() => {
-            // Optional: expand chart when clicked
-            console.log('Chart clicked');
-          }}
-        />
-      </div>
-    );
-  }, [darkMode]);
+  }
+  
+  // Ensure we have valid chart data
+  if (!chartData || (!chartData.symbol && !chartData.coin)) {
+    console.warn('Invalid chart data:', chartData);
+    return null;
+  }
+  
+  const symbol = chartData.symbol || chartData.coin || 'BTCUSDT';
+  const interval = chartData.interval || '30';
+  const theme = chartData.theme || (darkMode ? 'dark' : 'light');
+  
+  console.log('📊 Rendering chart:', { symbol, interval, theme });
+  
+  return (
+    <div className={styles.chartInPost} key={`chart-${Date.now()}-${Math.random()}`}>
+      <ChartWidget 
+        chartData={{
+          symbol: symbol,
+          interval: interval,
+          theme: theme,
+          hideToolbar: true,
+          hideSideToolbar: true
+        }}
+        onClick={() => {
+          console.log('Chart clicked');
+        }}
+      />
+    </div>
+  );
+}, [darkMode]);
 
+// Helper function to check if media is a chart
+const isChartMedia = (media) => {
+  return media && (media.type === 'chart' || (media.chartData && !media.url && !media.path));
+};
+
+// Helper function to check if media is regular image/video
+const isRegularMedia = (media) => {
+  if (!media) return false;
+  // Has URL or path, and either has image/video type or file extension
+  return (media.url || media.path) && (
+    media.type === 'image' || 
+    media.type === 'video' || 
+    media.type?.startsWith('image/') || 
+    media.type?.startsWith('video/') ||
+    media.mimeType?.startsWith('image/') ||
+    media.mimeType?.startsWith('video/')
+  );
+};
   // ============ POLL VOTING FUNCTIONALITY ============
   const handleVote = useCallback(async (optionIndex) => {
     if (!currentUserId) {
@@ -1818,63 +1836,74 @@ const PostComponent = ({
       )}
       
       {/* Post Content - UPDATED WITH CHART SUPPORT */}
-      <div className={`${styles.postContent} ${isRepost ? styles.repostedContent : ''}`}>
-        {isRepost && originalPost ? (
-          <>
-            <div className={styles.originalPostHeader}>
-              <div className={styles.originalPostAuthor}>
-                <div className={styles.originalPostAvatar}>
-                  <AvatarWithFallback
-                    user={originalPost.userId}
-                    size="small"
-                  />
-                </div>
-                <div className={styles.originalPostUserInfo}>
-                  <strong>{originalPost.userId?.name}</strong>
-                  <span>@{originalPost.userId?.username}</span>
-                </div>
-              </div>
-            </div>
-            <p className={styles.postText}>{originalPost.content || ''}</p>
-            
-            {originalPost.poll && renderPoll()}
-            
-            {/* Original post media including charts */}
-            {originalPost.media && originalPost.media.length > 0 && (
-              <div className={`${styles.postMedia} ${originalPost.media.length > 1 ? styles.mediaGrid : ''}`}>
-                {originalPost.media.map((media, index) => {
-                  // Check if this is a chart type
-                  if (media.type === 'chart' || media.chartData) {
-                    return renderChart(media);
-                  }
-                  // Regular image/video media
-                  return renderMedia(media, index);
-                })}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <p className={styles.postText}>{postData.content || ''}</p>
-            
-            {pollData && renderPoll()}
-            
-            {/* Post media including charts */}
-            {postData.media && postData.media.length > 0 && (
-              <div className={`${styles.postMedia} ${postData.media.length > 1 ? styles.mediaGrid : ''}`}>
-                {postData.media.map((media, index) => {
-                  // Check if this is a chart type
-                  if (media.type === 'chart' || media.chartData) {
-                    return renderChart(media);
-                  }
-                  // Regular image/video media
-                  return renderMedia(media, index);
-                })}
-              </div>
-            )}
-          </>
-        )}
+      {/* Post Content - UPDATED WITH PROPER CHART/IMAGE SEPARATION */}
+<div className={`${styles.postContent} ${isRepost ? styles.repostedContent : ''}`}>
+  {isRepost && originalPost ? (
+    <>
+      <div className={styles.originalPostHeader}>
+        <div className={styles.originalPostAuthor}>
+          <div className={styles.originalPostAvatar}>
+            <AvatarWithFallback
+              user={originalPost.userId}
+              size="small"
+            />
+          </div>
+          <div className={styles.originalPostUserInfo}>
+            <strong>{originalPost.userId?.name}</strong>
+            <span>@{originalPost.userId?.username}</span>
+          </div>
+        </div>
       </div>
+      <p className={styles.postText}>{originalPost.content || ''}</p>
+      
+      {originalPost.poll && renderPoll()}
+      
+      {/* Separate charts from regular media */}
+      {originalPost.media && originalPost.media.length > 0 && (
+        <>
+          {/* Render charts separately */}
+          {originalPost.media.filter(m => isChartMedia(m)).map((chart, idx) => (
+            <div key={`chart-${idx}`}>
+              {renderChart(chart)}
+            </div>
+          ))}
+          
+          {/* Render regular media (images/videos) */}
+          {originalPost.media.filter(m => isRegularMedia(m)).length > 0 && (
+            <div className={`${styles.postMedia} ${originalPost.media.filter(m => isRegularMedia(m)).length > 1 ? styles.mediaGrid : ''}`}>
+              {originalPost.media.filter(m => isRegularMedia(m)).map((media, index) => renderMedia(media, index))}
+            </div>
+          )}
+        </>
+      )}
+    </>
+  ) : (
+    <>
+      <p className={styles.postText}>{postData.content || ''}</p>
+      
+      {pollData && renderPoll()}
+      
+      {/* Separate charts from regular media */}
+      {postData.media && postData.media.length > 0 && (
+        <>
+          {/* Render charts separately */}
+          {postData.media.filter(m => isChartMedia(m)).map((chart, idx) => (
+            <div key={`chart-${idx}`}>
+              {renderChart(chart)}
+            </div>
+          ))}
+          
+          {/* Render regular media (images/videos) */}
+          {postData.media.filter(m => isRegularMedia(m)).length > 0 && (
+            <div className={`${styles.postMedia} ${postData.media.filter(m => isRegularMedia(m)).length > 1 ? styles.mediaGrid : ''}`}>
+              {postData.media.filter(m => isRegularMedia(m)).map((media, index) => renderMedia(media, index))}
+            </div>
+          )}
+        </>
+      )}
+    </>
+  )}
+</div>
       
       {/* Location */}
       {postData.location && (
