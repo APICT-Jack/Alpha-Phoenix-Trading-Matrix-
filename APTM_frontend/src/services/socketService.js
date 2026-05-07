@@ -1,4 +1,4 @@
-// services/socketService.js - UNIFIED SINGLE SOCKET SERVICE
+// services/socketService.js - UNIFIED SINGLE SOCKET SERVICE (COMPLETE)
 import { io } from 'socket.io-client';
 
 class SocketService {
@@ -6,6 +6,7 @@ class SocketService {
     this.socket = null;
     this.currentUser = null;
     this.isConnected = false;
+    this.connectionCallbacks = [];
     this.listeners = {
       // Chat events
       'message:receive': [],
@@ -28,7 +29,8 @@ class SocketService {
       'connect': [],
       'disconnect': [],
       'connect_error': [],
-      'error': []
+      'error': [],
+      'reconnect': []
     };
     this.pendingMessages = new Map();
     this.onlineUsers = new Map();
@@ -60,11 +62,13 @@ class SocketService {
     
     if (!token || !userId) {
       console.error('❌ Missing token or userId for socket connection');
+      callbacks.onConnectError?.({ message: 'Missing token or userId' });
       return;
     }
     
     console.log('🔌 Connecting to socket:', SOCKET_URL);
     console.log('👤 User ID:', userId);
+    console.log('🔑 Token length:', token?.length || 0);
     
     // Create socket connection
     this.socket = io(SOCKET_URL, {
@@ -85,6 +89,7 @@ class SocketService {
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.trigger('connect', { socketId: this.socket.id });
+      this.triggerConnectionCallbacks(true);
       
       // Join user's personal room
       this.socket.emit('join-user', { userId });
@@ -104,12 +109,14 @@ class SocketService {
       console.log('❌ Socket disconnected:', reason);
       this.isConnected = false;
       this.trigger('disconnect', { reason });
+      this.triggerConnectionCallbacks(false);
       callbacks.onDisconnect?.(reason);
     });
     
     this.socket.on('connect_error', (error) => {
       console.error('❌ Socket connection error:', error.message);
       this.trigger('connect_error', { error: error.message });
+      this.triggerConnectionCallbacks(false);
       callbacks.onConnectError?.(error);
     });
     
@@ -117,9 +124,23 @@ class SocketService {
       console.log(`🔄 Socket reconnected after ${attemptNumber} attempts`);
       this.isConnected = true;
       this.trigger('reconnect', { attemptNumber });
+      this.triggerConnectionCallbacks(true);
       this.getOnlineUsers();
       this.retryPendingMessages();
       callbacks.onReconnect?.();
+    });
+    
+    this.socket.on('reconnect_attempt', (attempt) => {
+      console.log(`🔄 Reconnection attempt ${attempt}`);
+    });
+    
+    this.socket.on('reconnect_error', (error) => {
+      console.error('❌ Reconnection error:', error);
+    });
+    
+    this.socket.on('reconnect_failed', () => {
+      console.error('❌ Reconnection failed after max attempts');
+      this.triggerConnectionCallbacks(false);
     });
     
     // ============ CHAT EVENT HANDLERS ============
@@ -160,10 +181,12 @@ class SocketService {
     });
     
     this.socket.on('typing:start', (data) => {
+      console.log('⌨️ Typing start:', data.userId);
       this.trigger('typing:start', data);
     });
     
     this.socket.on('typing:stop', (data) => {
+      console.log('⌨️ Typing stop:', data.userId);
       this.trigger('typing:stop', data);
     });
     
@@ -193,6 +216,8 @@ class SocketService {
     });
     
     this.socket.on('user:status:response', (data) => {
+      console.log('📡 User status response:', data.userId, data.isOnline);
+      this.onlineUsers.set(data.userId, data.isOnline);
       this.trigger('user:status:response', data);
     });
     
@@ -238,6 +263,30 @@ class SocketService {
     };
   }
   
+  // ============ CONNECTION CALLBACKS ============
+  
+  onConnectionChange(callback) {
+    this.connectionCallbacks.push(callback);
+    // Immediately call with current status
+    callback(this.isConnected);
+    return () => this.offConnectionChange(callback);
+  }
+  
+  offConnectionChange(callback) {
+    const index = this.connectionCallbacks.indexOf(callback);
+    if (index !== -1) this.connectionCallbacks.splice(index, 1);
+  }
+  
+  triggerConnectionCallbacks(isConnected) {
+    this.connectionCallbacks.forEach(callback => {
+      try {
+        callback(isConnected);
+      } catch (error) {
+        console.error('Error in connection callback:', error);
+      }
+    });
+  }
+  
   // ============ EVENT REGISTRATION ============
   
   on(event, callback) {
@@ -251,7 +300,11 @@ class SocketService {
   
   off(event, callback) {
     if (this.listeners[event]) {
-      this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+      if (callback) {
+        this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+      } else {
+        this.listeners[event] = [];
+      }
     }
   }
   
@@ -288,39 +341,65 @@ class SocketService {
   }
   
   editMessage(messageId, text) {
-    if (this.isConnected) {
+    if (this.isConnected && messageId) {
+      console.log('📝 Editing message:', messageId);
       this.socket.emit('message:edit', { messageId, text });
+      return true;
     }
+    return false;
   }
   
   deleteMessage(messageId, conversationId, receiverId) {
-    if (this.isConnected) {
+    if (this.isConnected && messageId) {
+      console.log('🗑️ Deleting message:', messageId);
       this.socket.emit('message:delete', { messageId, conversationId, receiverId });
+      return true;
     }
+    return false;
   }
   
   reactToMessage(messageId, reaction) {
-    if (this.isConnected) {
+    if (this.isConnected && messageId && reaction) {
+      console.log('😊 Reacting to message:', messageId, reaction);
       this.socket.emit('message:react', { messageId, reaction });
+      return true;
     }
+    return false;
   }
   
+  // Alias methods for compatibility
   sendTypingStart(conversationId, receiverId) {
     if (this.isConnected && conversationId && receiverId) {
       this.socket.emit('typing:start', { conversationId, receiverId });
+      return true;
     }
+    return false;
   }
   
   sendTypingStop(conversationId, receiverId) {
     if (this.isConnected && conversationId && receiverId) {
       this.socket.emit('typing:stop', { conversationId, receiverId });
+      return true;
     }
+    return false;
+  }
+  
+  // Alternative method names for compatibility
+  startTyping(conversationId, receiverId) {
+    return this.sendTypingStart(conversationId, receiverId);
+  }
+  
+  stopTyping(conversationId, receiverId) {
+    return this.sendTypingStop(conversationId, receiverId);
   }
   
   markMessagesAsRead(conversationId, senderId) {
     if (this.isConnected && conversationId && senderId) {
+      console.log('📖 Marking messages as read:', conversationId);
       this.socket.emit('messages:read', { conversationId, senderId });
+      return true;
     }
+    return false;
   }
   
   joinConversation(conversationId) {
@@ -334,6 +413,7 @@ class SocketService {
   
   leaveConversation(conversationId) {
     if (this.isConnected && conversationId) {
+      console.log('💬 Leaving conversation:', conversationId);
       this.socket.emit('conversation:leave', { conversationId });
       return true;
     }
@@ -344,6 +424,7 @@ class SocketService {
   
   getOnlineUsers() {
     if (this.isConnected) {
+      console.log('📊 Getting online users');
       this.socket.emit('get-online-users');
       return true;
     }
@@ -362,6 +443,10 @@ class SocketService {
     return this.onlineUsers.get(userId) || false;
   }
   
+  getOnlineUsersMap() {
+    return new Map(this.onlineUsers);
+  }
+  
   // ============ UTILITY METHODS ============
   
   retryPendingMessages() {
@@ -372,8 +457,10 @@ class SocketService {
     this.pendingMessages.forEach((data, tempId) => {
       if (data.attempts < 5) {
         console.log(`📤 Retrying message ${tempId} (attempt ${data.attempts + 1})`);
-        this.socket.emit('message:send', data);
-        this.pendingMessages.set(tempId, { ...data, attempts: data.attempts + 1 });
+        if (this.socket && this.isConnected) {
+          this.socket.emit('message:send', data);
+          this.pendingMessages.set(tempId, { ...data, attempts: data.attempts + 1 });
+        }
       } else {
         console.log(`❌ Max retry attempts reached for message ${tempId}`);
         this.pendingMessages.delete(tempId);
@@ -390,10 +477,24 @@ class SocketService {
     return this.socket;
   }
   
+  getConnectionStats() {
+    return {
+      connected: this.isConnected,
+      socketId: this.socket?.id,
+      reconnectAttempts: this.reconnectAttempts,
+      pendingMessages: this.pendingMessages.size,
+      onlineUsers: this.onlineUsers.size
+    };
+  }
+  
   reconnect() {
     if (this.socket && !this.isConnected) {
       console.log('🔄 Attempting to reconnect...');
       this.socket.connect();
+    } else if (!this.socket) {
+      console.log('⚠️ No socket instance to reconnect');
+    } else {
+      console.log('✅ Socket already connected');
     }
   }
   
@@ -404,6 +505,7 @@ class SocketService {
       this.socket = null;
     }
     this.isConnected = false;
+    this.connectionCallbacks = [];
     console.log('🔌 Socket disconnected');
   }
 }
