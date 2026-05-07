@@ -1,4 +1,4 @@
-// services/socketService.js - UNIFIED SINGLE SOCKET SERVICE (COMPLETE)
+// services/socketService.js - FIXED CONNECTION LOGIC
 import { io } from 'socket.io-client';
 
 class SocketService {
@@ -8,7 +8,6 @@ class SocketService {
     this.isConnected = false;
     this.connectionCallbacks = [];
     this.listeners = {
-      // Chat events
       'message:receive': [],
       'message:sent': [],
       'message:updated': [],
@@ -17,15 +16,12 @@ class SocketService {
       'messages:read': [],
       'typing:start': [],
       'typing:stop': [],
-      // User status events
       'user:online': [],
       'user:offline': [],
       'users:online': [],
       'user:status:response': [],
-      // Conversation events
       'conversation:update': [],
       'conversation:joined': [],
-      // Connection events
       'connect': [],
       'disconnect': [],
       'connect_error': [],
@@ -35,73 +31,74 @@ class SocketService {
     this.pendingMessages = new Map();
     this.onlineUsers = new Map();
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 10;
-  }
-
-  // Initialize and connect
-  init(user, callbacks = {}) {
-    this.currentUser = user;
-    this.connect(callbacks);
+    this.maxReconnectAttempts = 5;
   }
 
   connect(callbacks = {}) {
-    // Determine socket URL
+    // Get the correct socket URL
     let SOCKET_URL;
     const isRenderProduction = window.location.hostname.includes('onrender.com');
     
     if (isRenderProduction) {
-      SOCKET_URL = 'https://alpha-phoenix-trading-matrix-s78v.onrender.com';
+      // For Render, use the same origin as the page
+      SOCKET_URL = window.location.origin;
+      console.log('🌐 Render production mode, using origin:', SOCKET_URL);
     } else if (import.meta.env.PROD) {
       SOCKET_URL = window.location.origin;
+      console.log('🌐 Production mode, using origin:', SOCKET_URL);
     } else {
       SOCKET_URL = 'http://localhost:5000';
+      console.log('💻 Development mode, using:', SOCKET_URL);
     }
     
     const token = localStorage.getItem('token');
     const userId = this.currentUser?.id || this.currentUser?._id;
     
     if (!token || !userId) {
-      console.error('❌ Missing token or userId for socket connection');
-      callbacks.onConnectError?.({ message: 'Missing token or userId' });
+      console.error('❌ Missing token or userId');
+      callbacks.onConnectError?.({ message: 'Missing credentials' });
       return;
     }
     
     console.log('🔌 Connecting to socket:', SOCKET_URL);
     console.log('👤 User ID:', userId);
-    console.log('🔑 Token length:', token?.length || 0);
     
-    // Create socket connection
+    // Clean the token (remove quotes if any)
+    const cleanToken = token.replace(/^"|"$/g, '');
+    
+    // Socket.IO configuration for Render
     this.socket = io(SOCKET_URL, {
-      auth: { token },
-      query: { token, userId },
-      transports: ['websocket', 'polling'],
+      path: '/socket.io',
+      transports: ['polling', 'websocket'], // Try polling first, then upgrade
+      auth: { token: cleanToken },
+      query: { 
+        token: cleanToken,
+        userId: userId 
+      },
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
-      timeout: 20000,
-      withCredentials: true
+      reconnectionDelayMax: 5000,
+      timeout: 30000,
+      withCredentials: true,
+      forceNew: true
     });
     
-    // Setup event listeners
+    // Connection events
     this.socket.on('connect', () => {
-      console.log('✅ Socket connected successfully');
+      console.log('✅ Socket connected successfully!');
+      console.log('📡 Socket ID:', this.socket.id);
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.trigger('connect', { socketId: this.socket.id });
       this.triggerConnectionCallbacks(true);
       
-      // Join user's personal room
-      this.socket.emit('join-user', { userId });
-      
-      // Get online users
+      // Get online users after connection
       setTimeout(() => {
         this.getOnlineUsers();
       }, 500);
       
-      // Retry pending messages
       this.retryPendingMessages();
-      
       callbacks.onConnect?.();
     });
     
@@ -115,6 +112,8 @@ class SocketService {
     
     this.socket.on('connect_error', (error) => {
       console.error('❌ Socket connection error:', error.message);
+      console.error('❌ Error details:', error);
+      this.isConnected = false;
       this.trigger('connect_error', { error: error.message });
       this.triggerConnectionCallbacks(false);
       callbacks.onConnectError?.(error);
@@ -146,32 +145,32 @@ class SocketService {
     // ============ CHAT EVENT HANDLERS ============
     
     this.socket.on('message:receive', (message) => {
-      console.log('📨 Message received:', message._id);
+      console.log('📨 Message received:', message?._id);
       const formatted = this.formatMessage(message);
       this.trigger('message:receive', formatted);
     });
     
     this.socket.on('message:sent', (message) => {
-      console.log('✅ Message sent confirmation:', message._id);
+      console.log('✅ Message sent confirmation:', message?._id);
       const formatted = this.formatMessage(message);
       this.trigger('message:sent', formatted);
-      if (message.tempId) {
+      if (message?.tempId) {
         this.pendingMessages.delete(message.tempId);
       }
     });
     
     this.socket.on('message:updated', (data) => {
-      console.log('📝 Message updated:', data.messageId);
+      console.log('📝 Message updated:', data?.messageId);
       this.trigger('message:updated', data);
     });
     
     this.socket.on('message:deleted', (data) => {
-      console.log('🗑️ Message deleted:', data.messageId);
+      console.log('🗑️ Message deleted:', data?.messageId);
       this.trigger('message:deleted', data);
     });
     
     this.socket.on('message:reaction', (data) => {
-      console.log('😊 Message reaction:', data.messageId);
+      console.log('😊 Message reaction:', data?.messageId);
       this.trigger('message:reaction', data);
     });
     
@@ -181,21 +180,19 @@ class SocketService {
     });
     
     this.socket.on('typing:start', (data) => {
-      console.log('⌨️ Typing start:', data.userId);
       this.trigger('typing:start', data);
     });
     
     this.socket.on('typing:stop', (data) => {
-      console.log('⌨️ Typing stop:', data.userId);
       this.trigger('typing:stop', data);
     });
     
     // ============ USER STATUS HANDLERS ============
     
     this.socket.on('users:online', (users) => {
-      console.log('📊 Online users list:', Object.keys(users).length);
+      console.log('📊 Online users list:', Object.keys(users || {}).length);
       const onlineMap = {};
-      Object.entries(users).forEach(([id, data]) => {
+      Object.entries(users || {}).forEach(([id, data]) => {
         const isOnline = typeof data === 'boolean' ? data : data?.online || false;
         this.onlineUsers.set(id, isOnline);
         onlineMap[id] = isOnline;
@@ -204,27 +201,32 @@ class SocketService {
     });
     
     this.socket.on('user:online', (data) => {
-      console.log('🟢 User online:', data.userId);
-      this.onlineUsers.set(data.userId, true);
-      this.trigger('user:online', data);
+      if (data?.userId) {
+        console.log('🟢 User online:', data.userId);
+        this.onlineUsers.set(data.userId, true);
+        this.trigger('user:online', data);
+      }
     });
     
     this.socket.on('user:offline', (data) => {
-      console.log('🔴 User offline:', data.userId);
-      this.onlineUsers.set(data.userId, false);
-      this.trigger('user:offline', data);
+      if (data?.userId) {
+        console.log('🔴 User offline:', data.userId);
+        this.onlineUsers.set(data.userId, false);
+        this.trigger('user:offline', data);
+      }
     });
     
     this.socket.on('user:status:response', (data) => {
-      console.log('📡 User status response:', data.userId, data.isOnline);
-      this.onlineUsers.set(data.userId, data.isOnline);
-      this.trigger('user:status:response', data);
+      if (data?.userId) {
+        this.onlineUsers.set(data.userId, data.isOnline);
+        this.trigger('user:status:response', data);
+      }
     });
     
     // ============ CONVERSATION HANDLERS ============
     
     this.socket.on('conversation:joined', (data) => {
-      console.log('✅ Joined conversation:', data.conversationId);
+      console.log('✅ Joined conversation:', data?.conversationId);
       this.trigger('conversation:joined', data);
     });
     
@@ -246,6 +248,7 @@ class SocketService {
   }
   
   formatMessage(message) {
+    if (!message) return null;
     return {
       ...message,
       _id: message._id || message.id,
@@ -267,7 +270,6 @@ class SocketService {
   
   onConnectionChange(callback) {
     this.connectionCallbacks.push(callback);
-    // Immediately call with current status
     callback(this.isConnected);
     return () => this.offConnectionChange(callback);
   }
@@ -335,14 +337,13 @@ class SocketService {
       return false;
     }
     
-    console.log('📤 Sending message:', { ...data, text: data.text?.substring(0, 50) });
+    console.log('📤 Sending message');
     this.socket.emit('message:send', data);
     return true;
   }
   
   editMessage(messageId, text) {
     if (this.isConnected && messageId) {
-      console.log('📝 Editing message:', messageId);
       this.socket.emit('message:edit', { messageId, text });
       return true;
     }
@@ -351,7 +352,6 @@ class SocketService {
   
   deleteMessage(messageId, conversationId, receiverId) {
     if (this.isConnected && messageId) {
-      console.log('🗑️ Deleting message:', messageId);
       this.socket.emit('message:delete', { messageId, conversationId, receiverId });
       return true;
     }
@@ -360,14 +360,12 @@ class SocketService {
   
   reactToMessage(messageId, reaction) {
     if (this.isConnected && messageId && reaction) {
-      console.log('😊 Reacting to message:', messageId, reaction);
       this.socket.emit('message:react', { messageId, reaction });
       return true;
     }
     return false;
   }
   
-  // Alias methods for compatibility
   sendTypingStart(conversationId, receiverId) {
     if (this.isConnected && conversationId && receiverId) {
       this.socket.emit('typing:start', { conversationId, receiverId });
@@ -384,7 +382,6 @@ class SocketService {
     return false;
   }
   
-  // Alternative method names for compatibility
   startTyping(conversationId, receiverId) {
     return this.sendTypingStart(conversationId, receiverId);
   }
@@ -395,7 +392,6 @@ class SocketService {
   
   markMessagesAsRead(conversationId, senderId) {
     if (this.isConnected && conversationId && senderId) {
-      console.log('📖 Marking messages as read:', conversationId);
       this.socket.emit('messages:read', { conversationId, senderId });
       return true;
     }
@@ -413,7 +409,6 @@ class SocketService {
   
   leaveConversation(conversationId) {
     if (this.isConnected && conversationId) {
-      console.log('💬 Leaving conversation:', conversationId);
       this.socket.emit('conversation:leave', { conversationId });
       return true;
     }
@@ -424,7 +419,6 @@ class SocketService {
   
   getOnlineUsers() {
     if (this.isConnected) {
-      console.log('📊 Getting online users');
       this.socket.emit('get-online-users');
       return true;
     }
@@ -443,10 +437,6 @@ class SocketService {
     return this.onlineUsers.get(userId) || false;
   }
   
-  getOnlineUsersMap() {
-    return new Map(this.onlineUsers);
-  }
-  
   // ============ UTILITY METHODS ============
   
   retryPendingMessages() {
@@ -456,13 +446,11 @@ class SocketService {
     
     this.pendingMessages.forEach((data, tempId) => {
       if (data.attempts < 5) {
-        console.log(`📤 Retrying message ${tempId} (attempt ${data.attempts + 1})`);
         if (this.socket && this.isConnected) {
           this.socket.emit('message:send', data);
           this.pendingMessages.set(tempId, { ...data, attempts: data.attempts + 1 });
         }
       } else {
-        console.log(`❌ Max retry attempts reached for message ${tempId}`);
         this.pendingMessages.delete(tempId);
         this.trigger('message:failed', { tempId, error: 'Max retry attempts' });
       }
@@ -477,24 +465,10 @@ class SocketService {
     return this.socket;
   }
   
-  getConnectionStats() {
-    return {
-      connected: this.isConnected,
-      socketId: this.socket?.id,
-      reconnectAttempts: this.reconnectAttempts,
-      pendingMessages: this.pendingMessages.size,
-      onlineUsers: this.onlineUsers.size
-    };
-  }
-  
   reconnect() {
     if (this.socket && !this.isConnected) {
       console.log('🔄 Attempting to reconnect...');
       this.socket.connect();
-    } else if (!this.socket) {
-      console.log('⚠️ No socket instance to reconnect');
-    } else {
-      console.log('✅ Socket already connected');
     }
   }
   
@@ -508,7 +482,12 @@ class SocketService {
     this.connectionCallbacks = [];
     console.log('🔌 Socket disconnected');
   }
+  
+  // For backward compatibility
+  init(user, callbacks = {}) {
+    this.currentUser = user;
+    this.connect(callbacks);
+  }
 }
 
-// Export singleton instance
 export const socketService = new SocketService();

@@ -61,7 +61,56 @@ const Chat = () => {
   const loadingTimeoutRef = useRef(null);
   const isMountedRef = useRef(true);
   const conversationCache = useRef(new Map());
+  // In Chat.jsx, update the initialization:
 
+useEffect(() => {
+  if (!currentUser) {
+    setLoading(false);
+    return;
+  }
+
+  isMountedRef.current = true;
+  
+  const userWithId = {
+    ...currentUser,
+    id: currentUser._id || currentUser.id,
+    _id: currentUser._id || currentUser.id
+  };
+  
+  // Set a timeout to fall back to REST API if socket fails
+  const socketTimeout = setTimeout(() => {
+    if (connectionStatus === 'connecting' && isMountedRef.current) {
+      console.log('⚠️ Socket connection timeout, using REST API only');
+      setConnectionStatus('timeout');
+      setSocketError('Real-time connection unavailable. Using standard mode.');
+      loadConversations(true);
+    }
+  }, 10000);
+  
+  chatService.init(userWithId, {
+    onConnect: () => {
+      clearTimeout(socketTimeout);
+      setConnectionStatus('connected');
+      setSocketError(null);
+      loadConversations(true);
+    },
+    onConnectError: (error) => {
+      console.error('Connection error:', error);
+      // Don't show error immediately, let timeout handle it
+    },
+    onDisconnect: () => {
+      setConnectionStatus('disconnected');
+    }
+  });
+  
+  loadConversations(true);
+  
+  return () => {
+    clearTimeout(socketTimeout);
+    isMountedRef.current = false;
+    chatService.disconnect();
+  };
+}, [currentUser]);
   // Load wallpaper settings
   useEffect(() => {
     const savedWallpaper = localStorage.getItem('chat_wallpaper_settings');
