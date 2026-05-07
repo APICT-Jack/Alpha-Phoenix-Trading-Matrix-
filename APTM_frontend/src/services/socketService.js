@@ -1,568 +1,412 @@
-// socketService.js - COMPLETE FIXED VERSION FOR RENDER DEPLOYMENT
+// services/socketService.js - UNIFIED SINGLE SOCKET SERVICE
 import { io } from 'socket.io-client';
 
 class SocketService {
   constructor() {
     this.socket = null;
-    this.listeners = new Map();
-    this.connectionAttempts = 0;
-    this.maxAttempts = 5;
-    this.reconnectTimer = null;
+    this.currentUser = null;
+    this.isConnected = false;
+    this.listeners = {
+      // Chat events
+      'message:receive': [],
+      'message:sent': [],
+      'message:updated': [],
+      'message:deleted': [],
+      'message:reaction': [],
+      'messages:read': [],
+      'typing:start': [],
+      'typing:stop': [],
+      // User status events
+      'user:online': [],
+      'user:offline': [],
+      'users:online': [],
+      'user:status:response': [],
+      // Conversation events
+      'conversation:update': [],
+      'conversation:joined': [],
+      // Connection events
+      'connect': [],
+      'disconnect': [],
+      'connect_error': [],
+      'error': []
+    };
     this.pendingMessages = new Map();
-    this.userId = null;
-    this.connectionCallbacks = new Set();
-    this.disconnectionCallbacks = new Set();
-    this.reconnectStrategy = 'exponential';
-    this.baseDelay = 1000;
-    this.maxDelay = 10000;
-    this.isConnecting = false;
+    this.onlineUsers = new Map();
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 10;
   }
 
-  // Initialize socket connection - FIXED URL CONSTRUCTION
-  connect(userId, token) {
-    // If already connected with same userId, return existing socket
-    if (this.socket && this.socket.connected && this.userId === userId) {
-      console.log('🔄 Socket already connected with same user');
-      this.triggerConnectionCallbacks(true);
-      return this.socket;
-    }
-    
-    // If already connecting, return
-    if (this.isConnecting) {
-      console.log('⏳ Socket already connecting, waiting...');
-      return this.socket;
-    }
-    
-    // If socket exists but different user, disconnect first
-    if (this.socket) {
-      console.log('🔄 Disconnecting existing socket for different user');
-      this.disconnect();
-    }
+  // Initialize and connect
+  init(user, callbacks = {}) {
+    this.currentUser = user;
+    this.connect(callbacks);
+  }
 
-    this.userId = userId;
-    this.isConnecting = true;
-    
-    // FIXED: Use the exact Render URL for production
+  connect(callbacks = {}) {
+    // Determine socket URL
     let SOCKET_URL;
-    
-    // Check if we're in production (Render deployment)
     const isRenderProduction = window.location.hostname.includes('onrender.com');
     
     if (isRenderProduction) {
-      // Use the exact Render URL without any path
       SOCKET_URL = 'https://alpha-phoenix-trading-matrix-s78v.onrender.com';
-      console.log('🌐 Render production mode, using:', SOCKET_URL);
     } else if (import.meta.env.PROD) {
-      // Other production environments
       SOCKET_URL = window.location.origin;
-      console.log('🌐 Production mode, using origin:', SOCKET_URL);
     } else {
-      // Development mode
       SOCKET_URL = 'http://localhost:5000';
-      console.log('💻 Development mode, using:', SOCKET_URL);
     }
     
-    // Fallback to environment variable if available and not in Render production
-    if (!isRenderProduction && import.meta.env.VITE_API_URL && !import.meta.env.PROD) {
-      SOCKET_URL = import.meta.env.VITE_API_URL.replace('/api', '').replace(/\/$/, '');
+    const token = localStorage.getItem('token');
+    const userId = this.currentUser?.id || this.currentUser?._id;
+    
+    if (!token || !userId) {
+      console.error('❌ Missing token or userId for socket connection');
+      return;
     }
     
-    console.log('🔌 Connecting to socket server at:', SOCKET_URL);
-    console.log('🔑 Token present:', !!token);
-    console.log('🔑 Token length:', token?.length || 0);
+    console.log('🔌 Connecting to socket:', SOCKET_URL);
+    console.log('👤 User ID:', userId);
     
-    // Ensure token is clean
-    const cleanToken = token ? token.replace(/^"|"$/g, '') : null;
-    
-    // IMPORTANT: Socket.io configuration for Render
+    // Create socket connection
     this.socket = io(SOCKET_URL, {
-      auth: { token: cleanToken },
-      query: { 
-        userId: userId,
-        token: cleanToken
-      },
+      auth: { token },
+      query: { token, userId },
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 15,
+      reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
-      timeout: 30000,
-      autoConnect: true,
-      forceNew: true,
-      path: '/socket.io/', // Must match server path
-      withCredentials: true,
-      // Add extra headers for authentication
-      extraHeaders: {
-        Authorization: `Bearer ${cleanToken}`
-      }
+      timeout: 20000,
+      withCredentials: true
     });
-
-    this.setupEventListeners();
     
-    // Set connection timeout
-    setTimeout(() => {
-      if (this.isConnecting && !this.socket?.connected) {
-        console.log('⚠️ Socket connection timeout, falling back to REST API only');
-        this.isConnecting = false;
-        this.triggerConnectionCallbacks(false);
-      }
-    }, 10000);
-    
-    return this.socket;
-  }
-
-  // Setup default event listeners
-  setupEventListeners() {
-    if (!this.socket) return;
-
+    // Setup event listeners
     this.socket.on('connect', () => {
       console.log('✅ Socket connected successfully');
-      console.log('📡 Socket ID:', this.socket.id);
-      this.connectionAttempts = 0;
-      this.isConnecting = false;
+      this.isConnected = true;
+      this.reconnectAttempts = 0;
+      this.trigger('connect', { socketId: this.socket.id });
+      
+      // Join user's personal room
+      this.socket.emit('join-user', { userId });
+      
+      // Get online users
+      setTimeout(() => {
+        this.getOnlineUsers();
+      }, 500);
+      
+      // Retry pending messages
       this.retryPendingMessages();
-      if (this.userId) {
-        this.joinUser(this.userId);
-      }
-      this.triggerConnectionCallbacks(true);
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      console.log('❌ Socket disconnected:', reason);
-      this.triggerConnectionCallbacks(false);
       
-      if (reason === 'io server disconnect') {
-        // Reconnect manually if server disconnected
-        setTimeout(() => this.socket?.connect(), 2000);
-      }
-    });
-
-    this.socket.on('connect_error', (error) => {
-      this.connectionAttempts++;
-      console.error('❌ Socket connection error:', error.message);
-      console.error('❌ Error details:', error);
-      
-      if (error.message.includes('404')) {
-        console.error('❌ Socket.io endpoint not found! Check server configuration.');
-        console.error('   Make sure server is running and socket.io is properly mounted.');
-      }
-      
-      this.triggerConnectionCallbacks(false);
-      
-      // Implement exponential backoff
-      if (this.connectionAttempts >= this.maxAttempts) {
-        console.log('⚠️ Max connection attempts reached, falling back to polling only');
-        if (this.socket) {
-          this.socket.io.opts.transports = ['polling'];
-        }
-      }
-    });
-
-    this.socket.on('reconnect', (attemptNumber) => {
-      console.log(`🔄 Socket reconnected after ${attemptNumber} attempts`);
-      this.connectionAttempts = 0;
-      this.isConnecting = false;
-      this.retryPendingMessages();
-      this.triggerConnectionCallbacks(true);
-    });
-
-    this.socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log(`🔄 Socket reconnection attempt #${attemptNumber}`);
-    });
-
-    this.socket.on('reconnect_error', (error) => {
-      console.error('❌ Socket reconnection error:', error);
-    });
-
-    this.socket.on('reconnect_failed', () => {
-      console.error('❌ Socket reconnection failed');
-      this.isConnecting = false;
-    });
-
-    this.socket.on('error', (error) => {
-      console.error('❌ Socket error:', error);
+      callbacks.onConnect?.();
     });
     
-    // Handle authentication errors
-    this.socket.on('unauthorized', (data) => {
-      console.error('❌ Socket unauthorized:', data);
-      this.triggerConnectionCallbacks(false);
+    this.socket.on('disconnect', (reason) => {
+      console.log('❌ Socket disconnected:', reason);
+      this.isConnected = false;
+      this.trigger('disconnect', { reason });
+      callbacks.onDisconnect?.(reason);
+    });
+    
+    this.socket.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error.message);
+      this.trigger('connect_error', { error: error.message });
+      callbacks.onConnectError?.(error);
+    });
+    
+    this.socket.on('reconnect', (attemptNumber) => {
+      console.log(`🔄 Socket reconnected after ${attemptNumber} attempts`);
+      this.isConnected = true;
+      this.trigger('reconnect', { attemptNumber });
+      this.getOnlineUsers();
+      this.retryPendingMessages();
+      callbacks.onReconnect?.();
+    });
+    
+    // ============ CHAT EVENT HANDLERS ============
+    
+    this.socket.on('message:receive', (message) => {
+      console.log('📨 Message received:', message._id);
+      const formatted = this.formatMessage(message);
+      this.trigger('message:receive', formatted);
+    });
+    
+    this.socket.on('message:sent', (message) => {
+      console.log('✅ Message sent confirmation:', message._id);
+      const formatted = this.formatMessage(message);
+      this.trigger('message:sent', formatted);
+      if (message.tempId) {
+        this.pendingMessages.delete(message.tempId);
+      }
+    });
+    
+    this.socket.on('message:updated', (data) => {
+      console.log('📝 Message updated:', data.messageId);
+      this.trigger('message:updated', data);
+    });
+    
+    this.socket.on('message:deleted', (data) => {
+      console.log('🗑️ Message deleted:', data.messageId);
+      this.trigger('message:deleted', data);
+    });
+    
+    this.socket.on('message:reaction', (data) => {
+      console.log('😊 Message reaction:', data.messageId);
+      this.trigger('message:reaction', data);
+    });
+    
+    this.socket.on('messages:read', (data) => {
+      console.log('📖 Messages marked as read:', data);
+      this.trigger('messages:read', data);
+    });
+    
+    this.socket.on('typing:start', (data) => {
+      this.trigger('typing:start', data);
+    });
+    
+    this.socket.on('typing:stop', (data) => {
+      this.trigger('typing:stop', data);
+    });
+    
+    // ============ USER STATUS HANDLERS ============
+    
+    this.socket.on('users:online', (users) => {
+      console.log('📊 Online users list:', Object.keys(users).length);
+      const onlineMap = {};
+      Object.entries(users).forEach(([id, data]) => {
+        const isOnline = typeof data === 'boolean' ? data : data?.online || false;
+        this.onlineUsers.set(id, isOnline);
+        onlineMap[id] = isOnline;
+      });
+      this.trigger('users:online', onlineMap);
+    });
+    
+    this.socket.on('user:online', (data) => {
+      console.log('🟢 User online:', data.userId);
+      this.onlineUsers.set(data.userId, true);
+      this.trigger('user:online', data);
+    });
+    
+    this.socket.on('user:offline', (data) => {
+      console.log('🔴 User offline:', data.userId);
+      this.onlineUsers.set(data.userId, false);
+      this.trigger('user:offline', data);
+    });
+    
+    this.socket.on('user:status:response', (data) => {
+      this.trigger('user:status:response', data);
+    });
+    
+    // ============ CONVERSATION HANDLERS ============
+    
+    this.socket.on('conversation:joined', (data) => {
+      console.log('✅ Joined conversation:', data.conversationId);
+      this.trigger('conversation:joined', data);
+    });
+    
+    this.socket.on('conversation:update', (data) => {
+      this.trigger('conversation:update', data);
+    });
+    
+    // ============ ERROR HANDLERS ============
+    
+    this.socket.on('message:error', (data) => {
+      console.error('❌ Message error:', data);
+      this.trigger('message:error', data);
+    });
+    
+    this.socket.on('error', (error) => {
+      console.error('❌ Socket error:', error);
+      this.trigger('error', error);
     });
   }
-
-  // Check connection status with timeout
-  async checkConnection(timeoutMs = 5000) {
-    return new Promise((resolve) => {
-      if (this.isConnected()) {
-        resolve(true);
-        return;
-      }
-      
-      const timeout = setTimeout(() => {
-        this.off('connect', connectHandler);
-        resolve(false);
-      }, timeoutMs);
-      
-      const connectHandler = () => {
-        clearTimeout(timeout);
-        this.off('connect', connectHandler);
-        resolve(true);
-      };
-      
-      this.on('connect', connectHandler);
-      
-      if (!this.socket) {
-        clearTimeout(timeout);
-        resolve(false);
-      }
-    });
+  
+  formatMessage(message) {
+    return {
+      ...message,
+      _id: message._id || message.id,
+      senderId: message.senderId?._id || message.senderId,
+      receiverId: message.receiverId?._id || message.receiverId,
+      sender: message.sender || {
+        _id: message.senderId?._id || message.senderId,
+        name: message.senderName || 'User',
+        username: message.senderUsername || '',
+        avatar: message.senderAvatar || null
+      },
+      createdAt: message.createdAt || new Date().toISOString(),
+      media: message.media || [],
+      reactions: message.reactions || []
+    };
   }
-
-  // Add connection status callbacks
-  onConnectionChange(callback) {
-    this.connectionCallbacks.add(callback);
-    // Immediately call with current status
-    if (this.socket) {
-      callback(this.socket.connected);
+  
+  // ============ EVENT REGISTRATION ============
+  
+  on(event, callback) {
+    if (this.listeners[event]) {
+      this.listeners[event].push(callback);
+      return () => this.off(event, callback);
+    }
+    console.warn(`Unknown event: ${event}`);
+    return () => {};
+  }
+  
+  off(event, callback) {
+    if (this.listeners[event]) {
+      this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
     }
   }
-
-  removeConnectionChange(callback) {
-    this.connectionCallbacks.delete(callback);
+  
+  trigger(event, data) {
+    if (this.listeners[event]) {
+      this.listeners[event].forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in ${event} handler:`, error);
+        }
+      });
+    }
   }
-
-  triggerConnectionCallbacks(isConnected) {
-    this.connectionCallbacks.forEach(callback => {
-      try {
-        callback(isConnected);
-      } catch (error) {
-        console.error('Error in connection callback:', error);
+  
+  // ============ CHAT EMIT METHODS ============
+  
+  sendMessage(data) {
+    if (!this.isConnected) {
+      console.log('⚠️ Socket not connected, queueing message');
+      if (data.tempId) {
+        this.pendingMessages.set(data.tempId, {
+          ...data,
+          attempts: 1,
+          timestamp: Date.now()
+        });
       }
-    });
-  }
-
-  // ============ CHAT METHODS ============
-
-  joinConversation(conversationId) {
-    if (this.isConnected() && conversationId) {
-      console.log(`💬 Joining conversation: ${conversationId}`);
-      this.socket.emit('conversation:join', { conversationId });
-      return true;
-    } else {
-      console.log('⚠️ Cannot join conversation - socket not connected');
       return false;
     }
+    
+    console.log('📤 Sending message:', { ...data, text: data.text?.substring(0, 50) });
+    this.socket.emit('message:send', data);
+    return true;
   }
-
+  
+  editMessage(messageId, text) {
+    if (this.isConnected) {
+      this.socket.emit('message:edit', { messageId, text });
+    }
+  }
+  
+  deleteMessage(messageId, conversationId, receiverId) {
+    if (this.isConnected) {
+      this.socket.emit('message:delete', { messageId, conversationId, receiverId });
+    }
+  }
+  
+  reactToMessage(messageId, reaction) {
+    if (this.isConnected) {
+      this.socket.emit('message:react', { messageId, reaction });
+    }
+  }
+  
+  sendTypingStart(conversationId, receiverId) {
+    if (this.isConnected && conversationId && receiverId) {
+      this.socket.emit('typing:start', { conversationId, receiverId });
+    }
+  }
+  
+  sendTypingStop(conversationId, receiverId) {
+    if (this.isConnected && conversationId && receiverId) {
+      this.socket.emit('typing:stop', { conversationId, receiverId });
+    }
+  }
+  
+  markMessagesAsRead(conversationId, senderId) {
+    if (this.isConnected && conversationId && senderId) {
+      this.socket.emit('messages:read', { conversationId, senderId });
+    }
+  }
+  
+  joinConversation(conversationId) {
+    if (this.isConnected && conversationId) {
+      console.log('💬 Joining conversation:', conversationId);
+      this.socket.emit('conversation:join', { conversationId });
+      return true;
+    }
+    return false;
+  }
+  
   leaveConversation(conversationId) {
-    if (this.isConnected() && conversationId) {
-      console.log(`💬 Leaving conversation: ${conversationId}`);
+    if (this.isConnected && conversationId) {
       this.socket.emit('conversation:leave', { conversationId });
       return true;
     }
     return false;
   }
-
-  sendMessage(messageData) {
-    if (this.isConnected()) {
-      const enrichedData = {
-        ...messageData,
-        senderId: this.userId,
-        timestamp: Date.now()
-      };
-      
-      console.log('📤 Sending message:', enrichedData);
-      this.socket.emit('message:send', enrichedData);
-      
-      if (messageData.tempId) {
-        this.pendingMessages.set(messageData.tempId, {
-          ...enrichedData,
-          attempts: 1,
-          timestamp: Date.now()
-        });
-        
-        // Auto-clear after 30 seconds
-        setTimeout(() => {
-          if (this.pendingMessages.has(messageData.tempId)) {
-            console.log('🧹 Clearing pending message:', messageData.tempId);
-            this.pendingMessages.delete(messageData.tempId);
-            this.emit('message:timeout', { tempId: messageData.tempId });
-          }
-        }, 30000);
-      }
-      
-      return true;
-    } else {
-      console.log('⚠️ Socket not connected, queueing message for retry');
-      if (messageData.tempId) {
-        this.pendingMessages.set(messageData.tempId, {
-          ...messageData,
-          senderId: this.userId,
-          attempts: 1,
-          queued: true,
-          timestamp: Date.now()
-        });
-        
-        // Try to reconnect if not connected
-        this.reconnect();
-      }
-      return false;
-    }
-  }
-
-  retryPendingMessages() {
-    if (this.pendingMessages.size === 0) return;
-    
-    console.log(`🔄 Retrying ${this.pendingMessages.size} pending messages`);
-    
-    this.pendingMessages.forEach((messageData, tempId) => {
-      if (messageData.attempts < 3) {
-        console.log(`📤 Retrying message ${tempId} (attempt ${messageData.attempts + 1})`);
-        this.socket.emit('message:send', messageData);
-        
-        this.pendingMessages.set(tempId, {
-          ...messageData,
-          attempts: messageData.attempts + 1
-        });
-      } else {
-        console.log(`❌ Max retry attempts reached for message ${tempId}`);
-        this.pendingMessages.delete(tempId);
-        this.emit('message:failed', {
-          tempId,
-          error: 'Max retry attempts reached'
-        });
-      }
-    });
-  }
-
-  startTyping(conversationId, receiverId) {
-    if (this.isConnected() && conversationId && receiverId) {
-      this.socket.emit('typing:start', { 
-        conversationId, 
-        receiverId,
-        timestamp: Date.now()
-      });
-      return true;
-    }
-    return false;
-  }
-
-  stopTyping(conversationId, receiverId) {
-    if (this.isConnected() && conversationId && receiverId) {
-      this.socket.emit('typing:stop', { 
-        conversationId, 
-        receiverId,
-        timestamp: Date.now()
-      });
-      return true;
-    }
-    return false;
-  }
-
-  markMessagesAsRead(conversationId, senderId) {
-    if (this.isConnected() && conversationId && senderId) {
-      const readData = { 
-        conversationId, 
-        senderId,
-        readerId: this.userId,
-        timestamp: Date.now()
-      };
-      
-      console.log('📤 Emitting messages:read event:', readData);
-      this.socket.emit('messages:read', readData);
-      
-      return true;
-    }
-    return false;
-  }
-
-  deleteMessage(messageId, conversationId, receiverId) {
-    if (this.isConnected()) {
-      this.socket.emit('message:delete', { 
-        messageId, 
-        conversationId, 
-        receiverId,
-        timestamp: Date.now()
-      });
-      return true;
-    }
-    return false;
-  }
-
-  // ============ USER STATUS METHODS ============
-
+  
+  // ============ USER STATUS EMIT METHODS ============
+  
   getOnlineUsers() {
-    if (this.isConnected()) {
+    if (this.isConnected) {
       this.socket.emit('get-online-users');
       return true;
     }
     return false;
   }
-
+  
   getUserStatus(targetUserId) {
-    if (this.isConnected() && targetUserId) {
-      this.socket.emit('user:status', { 
-        targetUserId,
-        requesterId: this.userId
-      });
+    if (this.isConnected && targetUserId) {
+      this.socket.emit('user:status', { targetUserId });
       return true;
     }
     return false;
   }
-
-  // ============ ROOM MANAGEMENT ============
-
-  joinUser(userId) {
-    if (this.isConnected() && userId) {
-      this.socket.emit('join-user', { userId });
-      console.log(`👤 Joined user room: ${userId}`);
-      return true;
-    }
-    return false;
+  
+  isUserOnline(userId) {
+    return this.onlineUsers.get(userId) || false;
   }
-
-  leaveUser(userId) {
-    if (this.isConnected() && userId) {
-      this.socket.emit('leave-user', { userId });
-      console.log(`👤 Left user room: ${userId}`);
-      return true;
-    }
-    return false;
-  }
-
-  // ============ EVENT LISTENER METHODS ============
-
-  on(event, callback) {
-    if (this.socket) {
-      // Remove existing listener to avoid duplicates
-      this.socket.off(event, callback);
-      this.socket.on(event, callback);
-      
-      if (!this.listeners.has(event)) {
-        this.listeners.set(event, new Set());
-      }
-      this.listeners.get(event).add(callback);
-      
-      return true;
-    }
-    return false;
-  }
-
-  off(event, callback) {
-    if (this.socket) {
-      if (callback && this.listeners.has(event)) {
-        this.socket.off(event, callback);
-        this.listeners.get(event).delete(callback);
-        
-        if (this.listeners.get(event).size === 0) {
-          this.listeners.delete(event);
-        }
-        return true;
-      } else if (!callback && this.listeners.has(event)) {
-        this.listeners.get(event).forEach(cb => {
-          this.socket.off(event, cb);
-        });
-        this.listeners.delete(event);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  removeAllListeners(event) {
-    if (this.socket) {
-      if (event) {
-        if (this.listeners.has(event)) {
-          this.listeners.get(event).forEach(callback => {
-            this.socket.off(event, callback);
-          });
-          this.listeners.delete(event);
-        }
-        this.socket.removeAllListeners(event);
-      } else {
-        this.listeners.forEach((callbacks, evt) => {
-          callbacks.forEach(callback => {
-            this.socket.off(evt, callback);
-          });
-        });
-        this.listeners.clear();
-        this.socket.removeAllListeners();
-      }
-      console.log('🧹 Removed all socket listeners');
-      return true;
-    }
-    return false;
-  }
-
+  
   // ============ UTILITY METHODS ============
-
+  
+  retryPendingMessages() {
+    if (this.pendingMessages.size === 0) return;
+    
+    console.log(`🔄 Retrying ${this.pendingMessages.size} pending messages`);
+    
+    this.pendingMessages.forEach((data, tempId) => {
+      if (data.attempts < 5) {
+        console.log(`📤 Retrying message ${tempId} (attempt ${data.attempts + 1})`);
+        this.socket.emit('message:send', data);
+        this.pendingMessages.set(tempId, { ...data, attempts: data.attempts + 1 });
+      } else {
+        console.log(`❌ Max retry attempts reached for message ${tempId}`);
+        this.pendingMessages.delete(tempId);
+        this.trigger('message:failed', { tempId, error: 'Max retry attempts' });
+      }
+    });
+  }
+  
+  isConnected() {
+    return this.isConnected && this.socket?.connected;
+  }
+  
   getSocket() {
     return this.socket;
   }
-
-  isConnected() {
-    return this.socket && this.socket.connected;
+  
+  reconnect() {
+    if (this.socket && !this.isConnected) {
+      console.log('🔄 Attempting to reconnect...');
+      this.socket.connect();
+    }
   }
-
-  getConnectionStatus() {
-    if (!this.socket) return 'disconnected';
-    if (this.socket.connected) return 'connected';
-    if (this.socket.disconnected) return 'disconnected';
-    return 'connecting';
-  }
-
+  
   disconnect() {
     if (this.socket) {
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
-      this.removeAllListeners();
       this.pendingMessages.clear();
       this.socket.disconnect();
       this.socket = null;
-      this.userId = null;
-      this.connectionCallbacks.clear();
-      this.isConnecting = false;
-      console.log('🔌 Socket disconnected');
     }
-  }
-
-  reconnect() {
-    if (this.socket && !this.isConnecting) {
-      console.log('🔄 Attempting to reconnect...');
-      this.isConnecting = true;
-      this.socket.connect();
-    } else if (!this.socket) {
-      console.log('⚠️ No socket instance to reconnect');
-    } else {
-      console.log('⏳ Already attempting to connect');
-    }
-  }
-
-  emit(event, data) {
-    if (this.isConnected()) {
-      this.socket.emit(event, data);
-      return true;
-    }
-    return false;
-  }
-
-  // Get connection stats
-  getConnectionStats() {
-    return {
-      connected: this.isConnected(),
-      userId: this.userId,
-      connectionAttempts: this.connectionAttempts,
-      pendingMessages: this.pendingMessages.size,
-      listeners: Array.from(this.listeners.keys()),
-      transport: this.socket?.io?.engine?.transport?.name || 'none',
-      socketId: this.socket?.id || null,
-      isConnecting: this.isConnecting
-    };
+    this.isConnected = false;
+    console.log('🔌 Socket disconnected');
   }
 }
 
-// Create singleton instance
-const socketService = new SocketService();
-export { socketService };
+// Export singleton instance
+export const socketService = new SocketService();

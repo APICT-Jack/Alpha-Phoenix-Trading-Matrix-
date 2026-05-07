@@ -1,10 +1,10 @@
-// Chat.jsx - Premium Edition with Wallpaper Support
+// Chat.jsx - Premium Edition with Wallpaper Support (FIXED)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { chatService } from '../../services/chatService';
-import { socketService } from '../../services/socketService';
+// REMOVED: import { socketService } from '../../services/socketService';
 import ChatList from './ChatList';
 import ChatConversation from './ChatConversation';
 import NewChatModal from './NewChatModal';
@@ -12,14 +12,13 @@ import WallpaperPanel from './WallpaperPanel';
 import { getAvatarColor, getAvatarInitial } from '../../utils/avatarUtils';
 import styles from './Chat.module.css';
 
-// Import icons (minimal, premium set)
+// Import icons
 import {
   FaComments,
   FaSearch,
   FaPlus,
   FaMoon,
   FaSun,
-  FaCog,
   FaSpinner,
   FaExclamationTriangle,
   FaWifi,
@@ -75,7 +74,6 @@ const Chat = () => {
         console.error('Error loading wallpaper:', e);
       }
     } else {
-      // Set default wallpaper
       const defaultWallpaper = {
         url: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1920&h=1080&fit=crop',
         brightness: 0.6,
@@ -95,7 +93,6 @@ const Chat = () => {
     document.documentElement.style.setProperty('--wallpaper-opacity', settings.opacity);
     document.documentElement.style.setProperty('--wallpaper-overlay', settings.overlay);
     
-    // Light mode overlay
     if (!darkMode) {
       document.documentElement.style.setProperty('--wallpaper-overlay-light', 
         'linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%)'
@@ -240,7 +237,7 @@ const Chat = () => {
           if (chat) {
             setActiveChat(chat);
             if (isMobile) setShowSidebar(false);
-            socketService.joinConversation(chat.id);
+            chatService.joinConversation(chat.id);
           } else {
             await createChatFromUserId(chatId);
           }
@@ -299,7 +296,7 @@ const Chat = () => {
         });
         setActiveChat(formattedConv);
         if (isMobile) setShowSidebar(false);
-        socketService.joinConversation(formattedConv.id);
+        chatService.joinConversation(formattedConv.id);
       }
       
       return formattedConv;
@@ -453,12 +450,10 @@ const Chat = () => {
   const selectChat = useCallback(async (chat) => {
     console.log('💬 Selecting chat:', chat);
     
-    const currentUserId = currentUser?._id || currentUser?.id;
-    
     if (unreadCounts[chat.id] > 0) {
       try {
         await chatService.markMessagesAsReadRest(chat.id, chat.userId);
-        socketService.markMessagesAsRead(chat.id, chat.userId);
+        chatService.markMessagesAsRead(chat.id, chat.userId);
         
         setUnreadCounts(prev => {
           const newCounts = { ...prev };
@@ -477,13 +472,13 @@ const Chat = () => {
     }
     
     setActiveChat(chat);
-    socketService.joinConversation(chat.id);
+    chatService.joinConversation(chat.id);
     navigate(`/chat/${chat.userId}`);
     
     if (isMobile) {
       setShowSidebar(false);
     }
-  }, [currentUser, unreadCounts, isMobile, navigate]);
+  }, [unreadCounts, isMobile, navigate]);
 
   const createNewChat = useCallback(async (user) => {
     try {
@@ -533,136 +528,7 @@ const Chat = () => {
     loadConversations(true);
   }, [loadConversations]);
 
-  const setupSocketListeners = useCallback(() => {
-    const currentUserId = currentUser?._id || currentUser?.id;
-    
-    if (!currentUserId) return;
-    
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      console.error('❌ No token found for socket connection');
-      setConnectionStatus('disconnected');
-      setSocketError('Authentication required');
-      return;
-    }
-    
-    socketService.connect(currentUserId, token);
-    
-    const handleConnect = () => {
-      console.log('✅ Socket connected');
-      if (isMountedRef.current) {
-        setConnectionStatus('connected');
-        setSocketError(null);
-        socketService.getOnlineUsers();
-      }
-    };
-    
-    const handleDisconnect = (reason) => {
-      console.log('❌ Socket disconnected:', reason);
-      if (isMountedRef.current) {
-        setConnectionStatus('disconnected');
-        if (reason === 'io server disconnect') {
-          setTimeout(() => socketService.reconnect(), 1000);
-        }
-      }
-    };
-    
-    const handleConnectError = (error) => {
-      console.error('❌ Socket connection error:', error);
-      if (isMountedRef.current) {
-        setConnectionStatus('disconnected');
-        setSocketError(error.message || 'Connection failed');
-      }
-    };
-    
-    const handleUsersOnline = (users) => {
-      console.log('📊 Online users:', Object.keys(users).length);
-      if (isMountedRef.current) {
-        const onlineMap = {};
-        Object.entries(users).forEach(([id, data]) => {
-          const isOnline = typeof data === 'boolean' ? data : data?.online || false;
-          onlineMap[id] = isOnline;
-        });
-        setOnlineUsers(onlineMap);
-        
-        setConversations(prev => prev.map(conv => ({
-          ...conv,
-          isOnline: onlineMap[conv.userId] || false
-        })));
-      }
-    };
-    
-    const handleUserOnline = (data) => {
-      if (isMountedRef.current) {
-        setOnlineUsers(prev => ({ ...prev, [data.userId]: true }));
-        setConversations(prev => prev.map(conv => 
-          conv.userId === data.userId ? { ...conv, isOnline: true } : conv
-        ));
-      }
-    };
-    
-    const handleUserOffline = (data) => {
-      if (isMountedRef.current) {
-        setOnlineUsers(prev => ({ ...prev, [data.userId]: false }));
-        setConversations(prev => prev.map(conv => 
-          conv.userId === data.userId ? { ...conv, isOnline: false } : conv
-        ));
-      }
-    };
-    
-    const handleMessageReceive = (message) => {
-      handleNewMessage(message);
-    };
-    
-    const handleMessageSent = (message) => {
-      console.log('✅ Message sent confirmation:', message);
-      updateConversationInList({
-        id: message.conversationId,
-        lastMessage: message.text || (message.media?.length > 0 ? '📎 Media' : ''),
-        lastMessageTime: message.createdAt || new Date().toISOString()
-      });
-    };
-    
-    const handleMessagesRead = (data) => {
-      handleMessagesRead(data);
-    };
-    
-    const handleTypingStartEvent = (data) => {
-      handleTypingStart(data);
-    };
-    
-    const handleTypingStopEvent = (data) => {
-      handleTypingStop(data);
-    };
-    
-    socketService.on('connect', handleConnect);
-    socketService.on('disconnect', handleDisconnect);
-    socketService.on('connect_error', handleConnectError);
-    socketService.on('users:online', handleUsersOnline);
-    socketService.on('user:online', handleUserOnline);
-    socketService.on('user:offline', handleUserOffline);
-    socketService.on('message:receive', handleMessageReceive);
-    socketService.on('message:sent', handleMessageSent);
-    socketService.on('messages:read', handleMessagesRead);
-    socketService.on('typing:start', handleTypingStartEvent);
-    socketService.on('typing:stop', handleTypingStopEvent);
-    
-    return () => {
-      socketService.off('connect', handleConnect);
-      socketService.off('disconnect', handleDisconnect);
-      socketService.off('connect_error', handleConnectError);
-      socketService.off('users:online', handleUsersOnline);
-      socketService.off('user:online', handleUserOnline);
-      socketService.off('user:offline', handleUserOffline);
-      socketService.off('message:receive', handleMessageReceive);
-      socketService.off('message:sent', handleMessageSent);
-      socketService.off('messages:read', handleMessagesRead);
-      socketService.off('typing:start', handleTypingStartEvent);
-      socketService.off('typing:stop', handleTypingStopEvent);
-    };
-  }, [currentUser, handleNewMessage, handleMessagesRead, handleTypingStart, handleTypingStop, updateConversationInList]);
-
+  // Initialize chat service
   useEffect(() => {
     if (!currentUser) {
       console.log('⚠️ No current user, waiting...');
@@ -692,6 +558,7 @@ const Chat = () => {
       }
     }, 8000);
     
+    // Initialize chat service with callbacks
     chatService.init(userWithId, {
       onConnect: () => {
         console.log('✅ Chat service connected');
@@ -757,13 +624,16 @@ const Chat = () => {
           onlineMap[id] = isOnline;
         });
         setOnlineUsers(onlineMap);
+        setConversations(prev => prev.map(conv => ({
+          ...conv,
+          isOnline: onlineMap[conv.userId] || false
+        })));
       },
       onMessageError: (data) => {
         console.error('❌ Message error:', data);
       }
     });
-
-    const cleanupSocket = setupSocketListeners();
+    
     loadConversations(true);
     
     if ('Notification' in window && Notification.permission === 'default') {
@@ -773,11 +643,9 @@ const Chat = () => {
     return () => {
       isMountedRef.current = false;
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-      if (cleanupSocket) cleanupSocket();
       chatService.disconnect();
-      socketService.disconnect();
     };
-  }, [currentUser, loadConversations, handleNewMessage, handleMessagesRead, handleTypingStart, handleTypingStop, updateConversationInList, setupSocketListeners]);
+  }, [currentUser]); // Remove unnecessary dependencies
 
   const filteredConversations = conversations.filter(conv => 
     conv.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -966,7 +834,7 @@ const Chat = () => {
             isMobile={isMobile}
             online={onlineUsers[activeChat.userId] || false}
             isTyping={typingUsers[activeChat.userId] || false}
-            socketService={socketService}
+            chatService={chatService}
           />
         ) : (
           <div className={styles.welcomeScreen}>

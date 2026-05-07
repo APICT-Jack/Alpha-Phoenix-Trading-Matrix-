@@ -1,4 +1,4 @@
-// ChatConversation.jsx - Premium Glass Edition with Wallpaper Blend
+// ChatConversation.jsx - Premium Glass Edition with Wallpaper Blend (FIXED)
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
@@ -84,7 +84,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         processedMessageIds.current.clear();
         
         const data = await chatService.getMessages(conversation.id, 1, 50);
-        console.log('📥 Loaded messages:', data);
+        console.log('📥 Loaded messages:', data?.messages?.length || 0);
         
         const messagesList = data.messages || [];
         messagesList.forEach(msg => {
@@ -97,6 +97,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           setPage(1);
         }
         
+        // Mark as read after loading
         await markMessagesAsRead();
         
         setTimeout(() => {
@@ -110,6 +111,8 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     };
 
     loadMessages();
+    
+    // Join conversation room for real-time updates
     chatService.joinConversation(conversation.id);
 
     return () => {
@@ -123,15 +126,19 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   useEffect(() => {
     if (!conversation?.id) return;
 
+    // Helper to check if message is for this conversation
+    const isForThisConversation = (message) => {
+      return message.conversationId === conversation.id;
+    };
+
     const handleNewMessage = (message) => {
-      console.log('📨 New message received:', message);
-      
-      if (message.conversationId !== conversation.id) return;
+      if (!isForThisConversation(message)) return;
       if (processedMessageIds.current.has(message._id)) {
         console.log('⏭️ Duplicate message ignored:', message._id);
         return;
       }
       
+      console.log('📨 New message received:', message._id);
       processedMessageIds.current.add(message._id);
       
       const senderAvatar = formatAvatarUrl(message.sender?.avatar);
@@ -154,6 +161,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       
       setMessages(prev => [...prev, formattedMessage]);
       
+      // Mark as read if message is from other user and conversation is active
       if (formattedMessage.senderId !== currentUser?.id) {
         markMessagesAsRead();
       }
@@ -164,9 +172,9 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
     };
 
     const handleMessageSent = (message) => {
-      console.log('✅ Message sent confirmation:', message);
+      if (!isForThisConversation(message)) return;
       
-      if (message.conversationId !== conversation.id) return;
+      console.log('✅ Message sent confirmation:', message._id);
       
       const senderAvatar = formatAvatarUrl(currentUser?.avatar);
       
@@ -229,31 +237,51 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
       );
     };
 
-    const handleTypingStart = ({ userId, username }) => {
-      if (userId === conversation.userId) setIsTyping(true);
+    const handleTypingStart = ({ userId, username, conversationId }) => {
+      // Only show typing for the other user in this conversation
+      if (userId === conversation.userId && (!conversationId || conversationId === conversation.id)) {
+        setIsTyping(true);
+      }
     };
 
-    const handleTypingStop = ({ userId }) => {
-      if (userId === conversation.userId) setIsTyping(false);
+    const handleTypingStop = ({ userId, conversationId }) => {
+      if (userId === conversation.userId && (!conversationId || conversationId === conversation.id)) {
+        setIsTyping(false);
+      }
     };
 
-    chatService.onMessageReceived(handleNewMessage);
-    chatService.onMessageSent(handleMessageSent);
-    chatService.onMessageUpdated(handleMessageUpdated);
-    chatService.onMessageDeleted(handleMessageDeleted);
-    chatService.onMessageReaction?.(handleMessageReaction);
-    chatService.onMessagesRead(handleMessagesRead);
-    chatService.onTypingStart(handleTypingStart);
-    chatService.onTypingStop(handleTypingStop);
+    // Register all event listeners
+    const unsubMessageReceived = chatService.onMessageReceived(handleNewMessage);
+    const unsubMessageSent = chatService.onMessageSent(handleMessageSent);
+    const unsubMessageUpdated = chatService.onMessageUpdated(handleMessageUpdated);
+    const unsubMessageDeleted = chatService.onMessageDeleted(handleMessageDeleted);
+    const unsubMessagesRead = chatService.onMessagesRead(handleMessagesRead);
+    const unsubTypingStart = chatService.onTypingStart(handleTypingStart);
+    const unsubTypingStop = chatService.onTypingStop(handleTypingStop);
+    
+    // Optional: message reaction listener
+    if (chatService.onMessageReaction) {
+      const unsubMessageReaction = chatService.onMessageReaction(handleMessageReaction);
+      return () => {
+        unsubMessageReceived();
+        unsubMessageSent();
+        unsubMessageUpdated();
+        unsubMessageDeleted();
+        unsubMessagesRead();
+        unsubTypingStart();
+        unsubTypingStop();
+        unsubMessageReaction();
+      };
+    }
 
     return () => {
-      chatService.offMessageReceived(handleNewMessage);
-      chatService.offMessageSent(handleMessageSent);
-      chatService.offMessageUpdated(handleMessageUpdated);
-      chatService.offMessageDeleted(handleMessageDeleted);
-      chatService.offMessagesRead(handleMessagesRead);
-      chatService.offTypingStart(handleTypingStart);
-      chatService.offTypingStop(handleTypingStop);
+      unsubMessageReceived();
+      unsubMessageSent();
+      unsubMessageUpdated();
+      unsubMessageDeleted();
+      unsubMessagesRead();
+      unsubTypingStart();
+      unsubTypingStop();
     };
   }, [conversation.id, conversation.userId, currentUser?.id, markMessagesAsRead]);
 
@@ -280,7 +308,8 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   };
 
   const handleScroll = useCallback((e) => {
-    if (e.target.scrollTop === 0 && hasMore && !loadingMore && !loading) {
+    const { scrollTop } = e.target;
+    if (scrollTop === 0 && hasMore && !loadingMore && !loading) {
       loadMoreMessages();
     }
   }, [hasMore, loadingMore, loading]);
@@ -378,7 +407,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         
         setMessages(prev => prev.map(m => {
           if (m._id === tempId) {
-            processedMessageIds.current.add(newMsg._id);
+            if (newMsg._id) processedMessageIds.current.add(newMsg._id);
             return {
               ...newMsg,
               _id: newMsg._id,
@@ -393,6 +422,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           return m;
         }));
         
+        // Also send via socket for real-time
         chatService.sendMessage({
           conversationId: conversation.id,
           receiverId: conversation.userId,
@@ -403,7 +433,8 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           tempId
         });
       } else {
-        throw new Error('Failed to send message');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -430,6 +461,8 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
           setMessages(prev => 
             prev.map(m => m._id === message._id ? { ...m, text: newText, isEdited: true } : m)
           );
+          // Also send via socket
+          chatService.editMessage(message._id, newText);
         }
       } catch (error) {
         console.error('Error editing message:', error);
@@ -452,6 +485,8 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         if (response.ok) {
           setMessages(prev => prev.filter(m => m._id !== messageId));
           processedMessageIds.current.delete(messageId);
+          // Also send via socket
+          chatService.deleteMessage(messageId, conversation.id, conversation.userId);
         }
       } catch (error) {
         console.error('Error deleting message:', error);
@@ -475,6 +510,8 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         setMessages(prev => 
           prev.map(m => m._id === messageId ? { ...m, reactions: data.reactions } : m)
         );
+        // Also send via socket
+        chatService.reactToMessage(messageId, emoji);
       }
     } catch (error) {
       console.error('Error reacting to message:', error);
@@ -484,6 +521,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   const handleForwardMessage = (message) => {
     const targetUserId = prompt('Enter user ID to forward to:');
     if (targetUserId) {
+      // TODO: Implement forward message API call
       console.log('Forward message to:', targetUserId, message);
     }
   };
@@ -588,7 +626,7 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
         </div>
       </div>
 
-      {/* Messages Area - Transparent background shows wallpaper */}
+      {/* Messages Area */}
       <div 
         className={styles.messagesArea}
         ref={messagesContainerRef}

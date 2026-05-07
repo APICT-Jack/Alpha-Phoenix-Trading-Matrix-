@@ -1,421 +1,131 @@
-// services/chatService.js - COMPLETE FIXED VERSION (No duplicates)
-import { io } from 'socket.io-client';
+// services/chatService.js - SIMPLIFIED, USES SOCKET SERVICE
+import { socketService } from './socketService.js';
 
 class ChatService {
   constructor() {
-    this.socket = null;
     this.currentUser = null;
-    this.listeners = {
-      messageReceived: [],
-      messageSent: [],
-      messageUpdated: [],
-      messageDeleted: [],
-      messagesRead: [],
-      typingStart: [],
-      typingStop: [],
-      userOnline: [],
-      userOffline: [],
-      conversationUpdate: []
-    };
-    this.connectionListeners = [];
-    this.pendingMessages = new Map();
-    this.onlineUsers = new Map();
-    this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
+    this.socketService = socketService;
   }
 
   init(user, callbacks = {}) {
     this.currentUser = user;
-    this.connect(callbacks);
-  }
-
-  connect(callbacks) {
-    const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}`;
     
-    console.log('🔌 Connecting to socket:', SOCKET_URL);
-    
-    this.socket = io(SOCKET_URL, {
-      auth: { token: localStorage.getItem('token') },
-      query: { userId: this.currentUser?.id || this.currentUser?._id },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      timeout: 10000
-    });
-
-    this.socket.on('connect', () => {
-      console.log('✅ Socket connected');
-      this.reconnectAttempts = 0;
-      this.emitConnectionChange(true);
-      this.retryPendingMessages();
-      callbacks.onConnect?.();
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error);
-      this.emitConnectionChange(false);
-      callbacks.onConnectError?.(error);
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      console.log('❌ Socket disconnected:', reason);
-      this.emitConnectionChange(false);
-      callbacks.onDisconnect?.();
-    });
-
-    this.socket.on('reconnect', (attemptNumber) => {
-      console.log(`🔄 Socket reconnected after ${attemptNumber} attempts`);
-      this.retryPendingMessages();
-      callbacks.onReconnect?.();
-    });
-
-    this.socket.on('reconnect_error', (error) => {
-      console.error('❌ Socket reconnection error:', error);
-    });
-
-    this.socket.on('message:receive', (message) => {
-      console.log('📨 Message received via socket:', message);
-      const formattedMessage = {
-        ...message,
-        _id: message._id || message.id,
-        senderId: message.senderId?._id || message.senderId,
-        sender: message.sender || {
-          _id: message.senderId?._id || message.senderId,
-          name: message.senderName || 'User',
-          avatar: message.senderAvatar || null
-        }
-      };
-      this.listeners.messageReceived.forEach(cb => cb(formattedMessage));
-      callbacks.onNewMessage?.(formattedMessage);
-    });
-
-    this.socket.on('message:sent', (message) => {
-      console.log('✅ Message sent confirmation:', message);
-      const formattedMessage = {
-        ...message,
-        _id: message._id || message.id,
-        senderId: message.senderId?._id || message.senderId,
-        sender: message.sender || {
-          _id: message.senderId?._id || message.senderId,
-          name: message.senderName || 'User',
-          avatar: message.senderAvatar || null
-        }
-      };
-      this.listeners.messageSent.forEach(cb => cb(formattedMessage));
-      if (message.tempId) {
-        this.pendingMessages.delete(message.tempId);
+    // Initialize socket service
+    this.socketService.init(user, {
+      onConnect: () => {
+        console.log('✅ Chat service connected');
+        callbacks.onConnect?.();
+      },
+      onConnectError: (error) => {
+        console.error('❌ Chat service connection error:', error);
+        callbacks.onConnectError?.(error);
+      },
+      onDisconnect: (reason) => {
+        console.log('❌ Chat service disconnected:', reason);
+        callbacks.onDisconnect?.(reason);
+      },
+      onReconnect: () => {
+        console.log('🔄 Chat service reconnected');
+        callbacks.onReconnect?.();
       }
     });
-
-    this.socket.on('message:updated', (data) => {
-      this.listeners.messageUpdated.forEach(cb => cb(data));
-      callbacks.onMessageUpdated?.(data);
+    
+    // Forward events
+    this.socketService.on('message:receive', (message) => {
+      callbacks.onNewMessage?.(message);
     });
-
-    this.socket.on('message:deleted', (data) => {
-      this.listeners.messageDeleted.forEach(cb => cb(data));
-      callbacks.onMessageDeleted?.(data);
+    
+    this.socketService.on('message:sent', (message) => {
+      callbacks.onMessageSent?.(message);
     });
-
-    this.socket.on('message:reaction', (data) => {
-      this.listeners.messageReaction?.forEach(cb => cb(data));
-      callbacks.onMessageReaction?.(data);
-    });
-
-    this.socket.on('messages:read', (data) => {
-      this.listeners.messagesRead.forEach(cb => cb(data));
+    
+    this.socketService.on('messages:read', (data) => {
       callbacks.onMessagesRead?.(data);
     });
-
-    this.socket.on('typing:start', (data) => {
-      this.listeners.typingStart.forEach(cb => cb(data));
+    
+    this.socketService.on('typing:start', (data) => {
       callbacks.onTypingStart?.(data);
     });
-
-    this.socket.on('typing:stop', (data) => {
-      this.listeners.typingStop.forEach(cb => cb(data));
+    
+    this.socketService.on('typing:stop', (data) => {
       callbacks.onTypingStop?.(data);
     });
-
-    this.socket.on('user:online', (data) => {
-      this.onlineUsers.set(data.userId, true);
-      this.listeners.userOnline.forEach(cb => cb(data));
+    
+    this.socketService.on('user:online', (data) => {
       callbacks.onUserOnline?.(data);
     });
-
-    this.socket.on('user:offline', (data) => {
-      this.onlineUsers.set(data.userId, false);
-      this.listeners.userOffline.forEach(cb => cb(data));
+    
+    this.socketService.on('user:offline', (data) => {
       callbacks.onUserOffline?.(data);
     });
-
-    this.socket.on('users:online', (users) => {
-      const onlineMap = {};
-      Object.entries(users).forEach(([id, status]) => {
-        const isOnline = typeof status === 'boolean' ? status : status?.online || false;
-        this.onlineUsers.set(id, isOnline);
-        onlineMap[id] = isOnline;
-      });
-      callbacks.onOnlineUsers?.(onlineMap);
+    
+    this.socketService.on('users:online', (users) => {
+      callbacks.onOnlineUsers?.(users);
     });
-
-    this.socket.on('conversation:update', (data) => {
-      this.listeners.conversationUpdate.forEach(cb => cb(data));
+    
+    this.socketService.on('conversation:update', (data) => {
       callbacks.onConversationUpdate?.(data);
     });
-
-    this.socket.on('message:error', (data) => {
-      console.error('❌ Message error:', data);
-      callbacks.onMessageError?.(data);
-    });
-
-    if (this.socket.connected) {
-      console.log('✅ Socket already connected');
-      this.emitConnectionChange(true);
-      callbacks.onConnect?.();
-    }
   }
-
-  // Event listeners
-  onMessageReceived(callback) {
-    this.listeners.messageReceived.push(callback);
-  }
-
-  offMessageReceived(callback) {
-    this.listeners.messageReceived = this.listeners.messageReceived.filter(cb => cb !== callback);
-  }
-
-  onMessageSent(callback) {
-    this.listeners.messageSent.push(callback);
-  }
-
-  offMessageSent(callback) {
-    this.listeners.messageSent = this.listeners.messageSent.filter(cb => cb !== callback);
-  }
-
-  onMessageUpdated(callback) {
-    this.listeners.messageUpdated.push(callback);
-  }
-
-  offMessageUpdated(callback) {
-    this.listeners.messageUpdated = this.listeners.messageUpdated.filter(cb => cb !== callback);
-  }
-
-  onMessageDeleted(callback) {
-    this.listeners.messageDeleted.push(callback);
-  }
-
-  offMessageDeleted(callback) {
-    this.listeners.messageDeleted = this.listeners.messageDeleted.filter(cb => cb !== callback);
-  }
-
-  onMessageReaction(callback) {
-    if (!this.listeners.messageReaction) this.listeners.messageReaction = [];
-    this.listeners.messageReaction.push(callback);
-  }
-
-  offMessageReaction(callback) {
-    if (this.listeners.messageReaction) {
-      this.listeners.messageReaction = this.listeners.messageReaction.filter(cb => cb !== callback);
-    }
-  }
-
-  onMessagesRead(callback) {
-    this.listeners.messagesRead.push(callback);
-  }
-
-  offMessagesRead(callback) {
-    this.listeners.messagesRead = this.listeners.messagesRead.filter(cb => cb !== callback);
-  }
-
-  onTypingStart(callback) {
-    this.listeners.typingStart.push(callback);
-  }
-
-  offTypingStart(callback) {
-    this.listeners.typingStart = this.listeners.typingStart.filter(cb => cb !== callback);
-  }
-
-  onTypingStop(callback) {
-    this.listeners.typingStop.push(callback);
-  }
-
-  offTypingStop(callback) {
-    this.listeners.typingStop = this.listeners.typingStop.filter(cb => cb !== callback);
-  }
-
-  onUserOnline(callback) {
-    this.listeners.userOnline.push(callback);
-  }
-
-  offUserOnline(callback) {
-    this.listeners.userOnline = this.listeners.userOnline.filter(cb => cb !== callback);
-  }
-
-  onUserOffline(callback) {
-    this.listeners.userOffline.push(callback);
-  }
-
-  offUserOffline(callback) {
-    this.listeners.userOffline = this.listeners.userOffline.filter(cb => cb !== callback);
-  }
-
-  onConversationUpdate(callback) {
-    this.listeners.conversationUpdate.push(callback);
-  }
-
-  offConversationUpdate(callback) {
-    this.listeners.conversationUpdate = this.listeners.conversationUpdate.filter(cb => cb !== callback);
-  }
-
-  onConnectionChange(callback) {
-    this.connectionListeners.push(callback);
-  }
-
-  offConnectionChange(callback) {
-    this.connectionListeners = this.connectionListeners.filter(cb => cb !== callback);
-  }
-
-  emitConnectionChange(isConnected) {
-    this.connectionListeners.forEach(cb => cb(isConnected));
-  }
-
-  // Socket actions
+  
+  // Socket methods (pass through)
   sendMessage(data) {
-    if (!this.socket?.connected) {
-      console.log('⚠️ Socket not connected, queueing message');
-      this.pendingMessages.set(data.tempId, {
-        ...data,
-        attempts: 1,
-        timestamp: Date.now()
-      });
-      this.reconnect();
-      return false;
-    }
-    
-    console.log('📤 Emitting message:send:', data);
-    this.socket.emit('message:send', data);
-    return true;
+    return this.socketService.sendMessage(data);
   }
-
-  retryPendingMessages() {
-    if (this.pendingMessages.size === 0) return;
-    
-    console.log(`🔄 Retrying ${this.pendingMessages.size} pending messages`);
-    
-    this.pendingMessages.forEach((data, tempId) => {
-      if (data.attempts < 3) {
-        console.log(`📤 Retrying message ${tempId} (attempt ${data.attempts + 1})`);
-        this.socket.emit('message:send', data);
-        this.pendingMessages.set(tempId, { ...data, attempts: data.attempts + 1 });
-      } else {
-        console.log(`❌ Max retry attempts reached for message ${tempId}`);
-        this.pendingMessages.delete(tempId);
-      }
-    });
-  }
-
-  reconnect() {
-    if (this.socket && !this.socket.connected) {
-      console.log('🔄 Attempting to reconnect...');
-      this.socket.connect();
-    }
-  }
-
-  editMessage(messageId, text) {
-    this.socket?.emit('message:edit', { messageId, text });
-  }
-
-  deleteMessage(messageId, conversationId, receiverId) {
-    this.socket?.emit('message:delete', { messageId, conversationId, receiverId });
-  }
-
-  reactToMessage(messageId, reaction) {
-    this.socket?.emit('message:react', { messageId, reaction });
-  }
-
-  sendTypingStart(conversationId, receiverId) {
-    this.socket?.emit('typing:start', { conversationId, receiverId });
-  }
-
-  sendTypingStop(conversationId, receiverId) {
-    this.socket?.emit('typing:stop', { conversationId, receiverId });
-  }
-
-  markMessagesAsRead(conversationId, senderId) {
-    this.socket?.emit('messages:read', { conversationId, senderId });
-  }
-
+  
   joinConversation(conversationId) {
-    this.socket?.emit('conversation:join', { conversationId });
+    return this.socketService.joinConversation(conversationId);
   }
-
+  
   leaveConversation(conversationId) {
-    this.socket?.emit('conversation:leave', { conversationId });
+    return this.socketService.leaveConversation(conversationId);
   }
-
-  isUserOnline(userId) {
-    return this.onlineUsers.get(userId) || false;
+  
+  sendTypingStart(conversationId, receiverId) {
+    return this.socketService.sendTypingStart(conversationId, receiverId);
   }
-
-  // ============================================
-  // REST API CALLS
-  // ============================================
-
+  
+  sendTypingStop(conversationId, receiverId) {
+    return this.socketService.sendTypingStop(conversationId, receiverId);
+  }
+  
+  markMessagesAsRead(conversationId, senderId) {
+    return this.socketService.markMessagesAsRead(conversationId, senderId);
+  }
+  
+  isConnected() {
+    return this.socketService.isConnected();
+  }
+  
+  // REST API methods
   async getConversations() {
     try {
-      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const url = `${API_BASE}/api/chat/conversations`;
-      
-      console.log('📡 Fetching conversations from:', url);
-      
-      const response = await fetch(url, {
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${API_BASE}/chat/conversations`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
         }
       });
       
-      console.log('📡 Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ API Error:', response.status, errorText);
-        throw new Error(`Failed to fetch conversations: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`Failed: ${response.status}`);
       const data = await response.json();
-      console.log('📡 API Response:', data);
       
-      // Handle different response structures
-      if (data.success && Array.isArray(data.conversations)) {
-        return data.conversations;
-      }
-      
-      if (Array.isArray(data)) {
-        return data;
-      }
-      
-      if (data.conversations && Array.isArray(data.conversations)) {
-        return data.conversations;
-      }
+      if (data.success && Array.isArray(data.conversations)) return data.conversations;
+      if (Array.isArray(data)) return data;
+      if (data.conversations && Array.isArray(data.conversations)) return data.conversations;
       
       return [];
     } catch (error) {
-      console.error('❌ Error in getConversations:', error);
+      console.error('Error getting conversations:', error);
       throw error;
     }
   }
-
+  
   async getOrCreateConversation(userId) {
     try {
-      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const url = `${API_BASE}/api/chat/conversation/${userId}`;
-      
-      console.log('📡 Creating/getting conversation:', url);
-      
-      const response = await fetch(url, {
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${API_BASE}/chat/conversation/${userId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -423,109 +133,45 @@ class ChatService {
         }
       });
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create conversation');
-      }
-      
+      if (!response.ok) throw new Error('Failed to create conversation');
       const data = await response.json();
-      console.log('📡 Conversation response:', data);
       
       return {
-        id: data.conversation.id || data.conversation._id,
-        _id: data.conversation._id || data.conversation.id,
-        userId: data.conversation.userId,
-        userName: data.conversation.userName || 'User',
-        userAvatar: data.conversation.userAvatar || null,
-        userUsername: data.conversation.userUsername || '',
-        lastMessage: data.conversation.lastMessage || '',
-        lastMessageTime: data.conversation.lastMessageTime || new Date().toISOString(),
-        unreadCount: data.conversation.unreadCount || 0
+        id: data.conversation?.id || data.conversation?._id,
+        userId: data.conversation?.userId,
+        userName: data.conversation?.userName || 'User',
+        userAvatar: data.conversation?.userAvatar,
+        lastMessage: data.conversation?.lastMessage || '',
+        unreadCount: data.conversation?.unreadCount || 0
       };
     } catch (error) {
-      console.error('❌ Error in getOrCreateConversation:', error);
+      console.error('Error creating conversation:', error);
       throw error;
     }
   }
-
+  
   async getMessages(conversationId, page = 1, limit = 50) {
     try {
-      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const url = `${API_BASE}/api/chat/messages/${conversationId}?page=${page}&limit=${limit}`;
-      
-      console.log('📡 Fetching messages:', url);
-      
-      const response = await fetch(url, {
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${API_BASE}/chat/messages/${conversationId}?page=${page}&limit=${limit}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
         }
       });
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch messages: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('📡 Messages response:', data.messages?.length || 0, 'messages');
-      
-      return data;
+      if (!response.ok) throw new Error('Failed to fetch messages');
+      return await response.json();
     } catch (error) {
-      console.error('❌ Error in getMessages:', error);
+      console.error('Error getting messages:', error);
       throw error;
     }
   }
-
-  async sendMessageWithMedia(receiverId, text, files, chartData = null) {
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const formData = new FormData();
-      formData.append('receiverId', receiverId);
-      
-      if (text && text.trim()) {
-        formData.append('text', text);
-      }
-      
-      if (chartData) {
-        formData.append('chart', JSON.stringify(chartData));
-      }
-      
-      // Append all files
-      if (files && files.length > 0) {
-        files.forEach(file => {
-          formData.append('media', file);
-        });
-      }
-      
-      console.log('📡 Sending message with media, files:', files?.length || 0);
-      
-      const response = await fetch(`${API_BASE}/api/chat/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to send message');
-      }
-      
-      const data = await response.json();
-      console.log('✅ Message sent successfully:', data.message?._id);
-      
-      return data;
-    } catch (error) {
-      console.error('❌ Error in sendMessageWithMedia:', error);
-      throw error;
-    }
-  }
-
+  
   async markMessagesAsReadRest(conversationId, senderId) {
     try {
-      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE}/api/chat/conversations/${conversationId}/read`, {
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${API_BASE}/chat/conversations/${conversationId}/read`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -534,71 +180,16 @@ class ChatService {
         body: JSON.stringify({ senderId })
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to mark messages as read');
-      }
-      
+      if (!response.ok) throw new Error('Failed to mark as read');
       return await response.json();
     } catch (error) {
-      console.error('Error marking messages as read:', error);
+      console.error('Error marking as read:', error);
       throw error;
     }
   }
-
-  async searchUsers(query) {
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const url = query 
-        ? `${API_BASE}/api/chat/search/users?q=${encodeURIComponent(query)}`
-        : `${API_BASE}/api/chat/search/users`;
-        
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (!response.ok) throw new Error('Failed to search users');
-      const data = await response.json();
-      
-      const users = (data.users || []).map(user => ({
-        id: user.id || user._id,
-        _id: user._id || user.id,
-        name: user.name || 'User',
-        username: user.username || '',
-        avatar: user.avatar || null,
-        email: user.email,
-        isOnline: user.isOnline || false,
-        isFollowing: user.isFollowing || false
-      }));
-      
-      return users;
-    } catch (error) {
-      console.error('Error in searchUsers:', error);
-      return [];
-    }
-  }
-
+  
   disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-    this.listeners = {
-      messageReceived: [],
-      messageSent: [],
-      messageUpdated: [],
-      messageDeleted: [],
-      messagesRead: [],
-      typingStart: [],
-      typingStop: [],
-      userOnline: [],
-      userOffline: [],
-      conversationUpdate: []
-    };
-    this.connectionListeners = [];
-    this.onlineUsers.clear();
-    this.pendingMessages.clear();
+    this.socketService.disconnect();
   }
 }
 
