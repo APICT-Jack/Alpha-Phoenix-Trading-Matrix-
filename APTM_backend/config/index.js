@@ -1,4 +1,4 @@
-
+//this script was created by jack {Mthandeni Mnyandu} copyrigh 2024, all rights reserved. this script is used to load environment variables from a .env file and export the configuration for the database, MongoDB, and Redis. it uses the dotenv package to load the environment variables and provides default values if the environment variables are not set.
 require('dotenv').config();
 
 module.exports = {

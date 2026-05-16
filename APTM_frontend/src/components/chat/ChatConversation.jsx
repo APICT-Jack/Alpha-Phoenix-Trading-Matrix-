@@ -720,4 +720,4 @@ const ChatConversation = ({ conversation, currentUser, onBack, isMobile, online 
   );
 };
 
-export default ChatConversation;
+export default ChatConversation; 

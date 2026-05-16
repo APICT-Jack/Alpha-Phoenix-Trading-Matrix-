@@ -1,4 +1,4 @@
-// models/UserSettings.js - FIXED VERSION
+// models/UserSettings.js - 
 
 import mongoose from 'mongoose';
 import crypto from 'crypto'; // Import crypto at the top

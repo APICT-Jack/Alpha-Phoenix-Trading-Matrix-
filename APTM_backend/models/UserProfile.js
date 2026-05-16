@@ -1,4 +1,4 @@
-// models/UserProfile.js - FIXED VERSION
+//this script was created by jack {Mthandeni Mnyandu} copyright (c) 2024 - APTM. All rights reserved.
 import mongoose from 'mongoose';
 
 const userProfileSchema = new mongoose.Schema({
@@ -478,15 +478,7 @@ userProfileSchema.statics.findByLocation = function(province, city) {
 userProfileSchema.statics.findByTradingExperience = function(experience) {
   return this.find({ tradingExperience: experience });
 };
-
-// REMOVE THESE INDEXES - THEY ARE CREATED AUTOMATICALLY BY MONGOOSE
-// WHEN YOU USE `unique: true` OR `index: true` IN FIELD DEFINITIONS
-// 
-// userProfileSchema.index({ userId: 1 }); // REMOVE - auto created by unique: true
-// userProfileSchema.index({ email: 1 }); // REMOVE - email doesn't exist in this schema
-// userProfileSchema.index({ username: 1 }); // REMOVE - auto created by unique: true
-
-// Keep only custom indexes that aren't defined in field definitions
+// Indexes
 userProfileSchema.index({ 'stats.lastActive': -1 });
 userProfileSchema.index({ interests: 1 });
 userProfileSchema.index({ codingExperience: 1 });
