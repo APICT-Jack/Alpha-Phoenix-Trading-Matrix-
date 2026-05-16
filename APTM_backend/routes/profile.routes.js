@@ -1,49 +1,70 @@
-// routes/profile.routes.js
+// routes/profile.routes.js - UPDATED WITH TRADING ROUTES
+
 import express from 'express';
-import path from 'path';
 import {
-  getProfile, updateProfile, uploadAvatar, uploadDocument, getUserSettings,
-  updateUserSettings, getSubscription, getPublicProfile, getCompleteProfile,
-  updateCompleteProfile, deleteAvatar, uploadBanner, removeBanner, uploadAddressProof,
-  connectTradingPlatform, disconnectTradingPlatform, getTradingAccounts, testBannerUpload
+  getProfile,
+  getCompleteProfile,
+  updateCompleteProfile,
+  uploadAvatar,
+  deleteAvatar,
+  uploadBanner,
+  removeBanner,
+  getUserSettings,
+  updateUserSettings,
+  getSubscription,
+  getPublicProfile
 } from '../controllers/userProfileController.js';
+
+import {
+  connectMT4,
+  connectMT5,
+  disconnectTradingAccount,
+  syncTradingData,
+  getTradingAnalytics,
+  getPublicTradingBadge,
+  getTierRequirements
+} from '../controllers/tradingController.js';
+
 import authMiddleware from '../middleware/auth.js';
 import uploadMiddleware from '../middleware/upload.js';
 
 const router = express.Router();
 
-// Profile routes
+// ============================================
+// PROFILE ROUTES
+// ============================================
 router.get("/me", authMiddleware, getProfile);
 router.get("/complete", authMiddleware, getCompleteProfile);
-router.put("/update", authMiddleware, updateProfile);
 router.put("/complete", authMiddleware, updateCompleteProfile);
 
-// Avatar routes - FIX: use uploadMiddleware.uploadAvatar, not uploadAvatarMiddleware
+// Avatar routes
 router.post("/avatar", authMiddleware, uploadMiddleware.uploadAvatar, uploadAvatar);
 router.delete("/avatar", authMiddleware, deleteAvatar);
 
-// Banner routes - FIX: use uploadMiddleware.uploadBanner, not uploadBannerMiddleware
+// Banner routes
 router.post("/banner", authMiddleware, uploadMiddleware.uploadBanner, uploadBanner);
 router.delete("/banner", authMiddleware, removeBanner);
-
-// Document routes - These are correct (they use local storage)
-router.post("/documents", authMiddleware, uploadMiddleware.uploadDocument, uploadDocument);
-router.post("/address-proof", authMiddleware, uploadMiddleware.uploadAddressProof, uploadAddressProof);
 
 // Settings
 router.get('/settings', authMiddleware, getUserSettings);
 router.put('/settings', authMiddleware, updateUserSettings);
 router.get('/subscription', authMiddleware, getSubscription);
 
-// Trading platforms
-router.post('/connect/platform', authMiddleware, connectTradingPlatform);
-router.delete('/disconnect/:accountId', authMiddleware, disconnectTradingPlatform);
-router.get('/trading/accounts', authMiddleware, getTradingAccounts);
+// ============================================
+// TRADING CONNECTION ROUTES
+// ============================================
+router.post('/connect/mt4', authMiddleware, connectMT4);
+router.post('/connect/mt5', authMiddleware, connectMT5);
+router.delete('/disconnect/:platform', authMiddleware, disconnectTradingAccount);
+router.post('/sync', authMiddleware, syncTradingData);
+router.get('/analytics', authMiddleware, getTradingAnalytics);
+router.get('/analytics/:userId', authMiddleware, getTradingAnalytics);
+router.get('/tiers', authMiddleware, getTierRequirements);
 
-// Public
+// ============================================
+// PUBLIC ROUTES
+// ============================================
 router.get('/public/:username', getPublicProfile);
-
-// Test
-router.post("/test-banner-upload", authMiddleware, uploadMiddleware.uploadBanner, testBannerUpload);
+router.get('/public/badge/:userId', getPublicTradingBadge);
 
 export default router;

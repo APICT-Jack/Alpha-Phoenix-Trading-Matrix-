@@ -1,7 +1,7 @@
 // models/UserSettings.js - 
-
+// this script was created by jack {Mthandeni Mnyandu} copyright (c) APTM all rights reserved 2024
 import mongoose from 'mongoose';
-import crypto from 'crypto'; // Import crypto at the top
+import crypto from 'crypto'; // Import crypto 
 
 const userSettingsSchema = new mongoose.Schema({
   userId: {
