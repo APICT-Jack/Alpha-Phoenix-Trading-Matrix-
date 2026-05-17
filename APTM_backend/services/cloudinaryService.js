@@ -1,7 +1,8 @@
-// services/cloudinaryService.js
-import { v2 as cloudinary } from 'cloudinary';
-import multer from 'multer';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
+// services/cloudinaryService.js - CommonJS version
+
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -51,13 +52,13 @@ const bannerStorage = new CloudinaryStorage({
 });
 
 // Multer instances
-export const uploadGallery = multer({ storage: galleryStorage });
-export const uploadPost = multer({ storage: postStorage });
-export const uploadAvatar = multer({ storage: avatarStorage });
-export const uploadBanner = multer({ storage: bannerStorage });
+const uploadGallery = multer({ storage: galleryStorage });
+const uploadPost = multer({ storage: postStorage });
+const uploadAvatar = multer({ storage: avatarStorage });
+const uploadBanner = multer({ storage: bannerStorage });
 
 // Helper functions
-export const deleteFromCloudinary = async (publicId, options = {}) => {
+const deleteFromCloudinary = async (publicId, options = {}) => {
   if (!publicId) return null;
   try {
     const result = await cloudinary.uploader.destroy(publicId, {
@@ -72,7 +73,7 @@ export const deleteFromCloudinary = async (publicId, options = {}) => {
   }
 };
 
-export const getPublicIdFromUrl = (url) => {
+const getPublicIdFromUrl = (url) => {
   if (!url || !url.includes('cloudinary')) return null;
   try {
     const parts = url.split('/');
@@ -87,7 +88,7 @@ export const getPublicIdFromUrl = (url) => {
   }
 };
 
-export const getResourceType = (url, mimetype) => {
+const getResourceType = (url, mimetype) => {
   if (mimetype) {
     if (mimetype.startsWith('image/')) return 'image';
     if (mimetype.startsWith('video/')) return 'video';
@@ -100,14 +101,22 @@ export const getResourceType = (url, mimetype) => {
   }
   return 'auto';
 };
-// Add at the very bottom of cloudinaryService.js
-console.log('=' .repeat(50));
+
+console.log('='.repeat(50));
 console.log('🔧 CLOUDINARY SERVICE INITIALIZED');
-console.log('=' .repeat(50));
+console.log('='.repeat(50));
 console.log('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME ? '✅ Set' : '❌ Missing');
 console.log('API Key:', process.env.CLOUDINARY_API_KEY ? '✅ Set' : '❌ Missing');
 console.log('API Secret:', process.env.CLOUDINARY_API_SECRET ? '✅ Set' : '❌ Missing');
-console.log('Upload Gallery configured:', !!uploadGallery);
-console.log('=' .repeat(50));
-export default cloudinary;
+console.log('='.repeat(50));
 
+module.exports = {
+  cloudinary,
+  uploadGallery,
+  uploadPost,
+  uploadAvatar,
+  uploadBanner,
+  deleteFromCloudinary,
+  getPublicIdFromUrl,
+  getResourceType,
+};
