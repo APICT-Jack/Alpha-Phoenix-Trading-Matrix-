@@ -1,9 +1,7 @@
-// services/cloudinaryService.js - COMPLETE WORKING VERSION
-
+// services/cloudinaryService.js
 import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
-import pkg from 'multer-storage-cloudinary';
-const { CloudinaryStorage } = pkg;
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -52,23 +50,11 @@ const bannerStorage = new CloudinaryStorage({
   }
 });
 
-// CREATE MULTER INSTANCES
-const uploadGalleryInstance = multer({ storage: galleryStorage });
-const uploadPostInstance = multer({ storage: postStorage });
-const uploadAvatarInstance = multer({ storage: avatarStorage });
-const uploadBannerInstance = multer({ storage: bannerStorage });
-
-// EXPORT as named exports (THIS IS CRITICAL)
-export const uploadGallery = uploadGalleryInstance;
-export const uploadPost = uploadPostInstance;
-export const uploadAvatar = uploadAvatarInstance;
-export const uploadBanner = uploadBannerInstance;
-
-// Also export array versions
-export const uploadGalleryArray = uploadGalleryInstance.array('galleryFiles', 10);
-export const uploadPostArray = uploadPostInstance.array('images', 5);
-export const uploadAvatarSingle = uploadAvatarInstance.single('avatar');
-export const uploadBannerSingle = uploadBannerInstance.single('banner');
+// Multer instances
+export const uploadGallery = multer({ storage: galleryStorage });
+export const uploadPost = multer({ storage: postStorage });
+export const uploadAvatar = multer({ storage: avatarStorage });
+export const uploadBanner = multer({ storage: bannerStorage });
 
 // Helper functions
 export const deleteFromCloudinary = async (publicId, options = {}) => {
@@ -114,16 +100,14 @@ export const getResourceType = (url, mimetype) => {
   }
   return 'auto';
 };
-
-console.log('='.repeat(50));
+// Add at the very bottom of cloudinaryService.js
+console.log('=' .repeat(50));
 console.log('🔧 CLOUDINARY SERVICE INITIALIZED');
-console.log('='.repeat(50));
+console.log('=' .repeat(50));
 console.log('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME ? '✅ Set' : '❌ Missing');
 console.log('API Key:', process.env.CLOUDINARY_API_KEY ? '✅ Set' : '❌ Missing');
 console.log('API Secret:', process.env.CLOUDINARY_API_SECRET ? '✅ Set' : '❌ Missing');
-console.log('Exports - uploadAvatar:', !!uploadAvatar);
-console.log('Exports - uploadBanner:', !!uploadBanner);
-console.log('Exports - uploadGallery:', !!uploadGallery);
-console.log('='.repeat(50));
-
+console.log('Upload Gallery configured:', !!uploadGallery);
+console.log('=' .repeat(50));
 export default cloudinary;
+

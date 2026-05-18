@@ -1,19 +1,8 @@
-// middleware/upload.js - COMPLETE WORKING VERSION
-
+// middleware/upload.js
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Import from cloudinary service
-import { 
-  uploadGallery, 
-  uploadAvatar, 
-  uploadBanner 
-} from '../services/cloudinaryService.js';
+import { uploadGallery, uploadAvatar, uploadBanner } from '../services/cloudinaryService.js';
 
 // Ensure directories exist
 const ensureDir = (dir) => {
@@ -22,7 +11,7 @@ const ensureDir = (dir) => {
   }
 };
 
-// Local storage for documents (as fallback)
+// Local storage for documents
 const documentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = 'uploads/documents/';
@@ -64,68 +53,14 @@ const addressProofFilter = (req, file, cb) => {
 };
 
 // ============================================
-// CLOUDINARY UPLOADS (with error handling)
+// CLOUDINARY UPLOADS
 // ============================================
-
-// Helper to create middleware with fallback
-const createCloudinaryMiddleware = (uploader, fieldName) => {
-  return (req, res, next) => {
-    if (!uploader) {
-      console.error(`Uploader for ${fieldName} is not available`);
-      return next(new Error(`Upload service not available for ${fieldName}`));
-    }
-    
-    // Use the appropriate method based on whether it's array or single
-    if (fieldName === 'galleryFiles') {
-      uploader(req, res, (err) => {
-        if (err) {
-          console.error(`Cloudinary upload error for ${fieldName}:`, err);
-          return next(err);
-        }
-        next();
-      });
-    } else {
-      uploader(req, res, (err) => {
-        if (err) {
-          console.error(`Cloudinary upload error for ${fieldName}:`, err);
-          return next(err);
-        }
-        next();
-      });
-    }
-  };
-};
-
-// Create middleware instances
-export const uploadGalleryMiddleware = (req, res, next) => {
-  if (uploadGallery && typeof uploadGallery.array === 'function') {
-    uploadGallery.array('galleryFiles', 10)(req, res, next);
-  } else {
-    console.error('uploadGallery is not properly configured');
-    next(new Error('Gallery upload service unavailable'));
-  }
-};
-
-export const uploadAvatarMiddleware = (req, res, next) => {
-  if (uploadAvatar && typeof uploadAvatar.single === 'function') {
-    uploadAvatar.single('avatar')(req, res, next);
-  } else {
-    console.error('uploadAvatar is not properly configured');
-    next(new Error('Avatar upload service unavailable'));
-  }
-};
-
-export const uploadBannerMiddleware = (req, res, next) => {
-  if (uploadBanner && typeof uploadBanner.single === 'function') {
-    uploadBanner.single('banner')(req, res, next);
-  } else {
-    console.error('uploadBanner is not properly configured');
-    next(new Error('Banner upload service unavailable'));
-  }
-};
+export const uploadGalleryMiddleware = uploadGallery.array('galleryFiles', 10);
+export const uploadAvatarMiddleware = uploadAvatar.single('avatar');
+export const uploadBannerMiddleware = uploadBanner.single('banner');
 
 // ============================================
-// LOCAL UPLOADS (for documents)
+// LOCAL UPLOADS
 // ============================================
 export const uploadDocumentMiddleware = multer({ 
   storage: documentStorage, 
@@ -140,17 +75,9 @@ export const uploadAddressProofMiddleware = multer({
 }).single('addressProof');
 
 // ============================================
-// SIMPLE SINGLE UPLOAD (fallback)
+// SIMPLE SINGLE UPLOAD FOR AVATAR (for user.Routes.js)
 // ============================================
-export const uploadSingle = (req, res, next) => {
-  const localUpload = multer({ 
-    dest: 'uploads/temp/',
-    limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: imageFilter
-  }).single('avatar');
-  
-  localUpload(req, res, next);
-};
+export const uploadSingle = uploadAvatar.single('avatar');
 
 // ============================================
 // ERROR HANDLER
@@ -176,10 +103,7 @@ const uploadMiddleware = {
   },
   array: (field, maxCount) => {
     if (field === 'galleryFiles') return uploadGalleryMiddleware;
-    return (req, res, next) => {
-      const localUpload = multer().array(field, maxCount);
-      localUpload(req, res, next);
-    };
+    return multer().array(field, maxCount);
   },
   uploadAvatar: uploadAvatarMiddleware,
   uploadBanner: uploadBannerMiddleware,
@@ -187,17 +111,12 @@ const uploadMiddleware = {
   uploadDocument: uploadDocumentMiddleware,
   uploadAddressProof: uploadAddressProofMiddleware
 };
-
-console.log('='.repeat(50));
+// Add at the bottom of upload.js
+console.log('=' .repeat(50));
 console.log('📁 UPLOAD MIDDLEWARE INITIALIZED');
-console.log('='.repeat(50));
-console.log('uploadGallery from cloudinary:', !!uploadGallery);
-console.log('uploadAvatar from cloudinary:', !!uploadAvatar);
-console.log('uploadBanner from cloudinary:', !!uploadBanner);
+console.log('=' .repeat(50));
+console.log('uploadGallery exists:', !!uploadGallery);
 console.log('uploadGalleryMiddleware exists:', !!uploadGalleryMiddleware);
-console.log('uploadAvatarMiddleware exists:', !!uploadAvatarMiddleware);
-console.log('uploadBannerMiddleware exists:', !!uploadBannerMiddleware);
 console.log('uploadMiddleware.uploadGallery exists:', !!uploadMiddleware.uploadGallery);
-console.log('='.repeat(50));
-
+console.log('=' .repeat(50));
 export default uploadMiddleware;
